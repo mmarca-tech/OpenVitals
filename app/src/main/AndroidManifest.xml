@@ -29,18 +29,18 @@
     </queries>
 
     <application
-        android:name=".HCDashboardApp"
+        android:name=".OpenVitalsApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.HCDashboard">
+        android:theme="@style/Theme.OpenVitals">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.HCDashboard">
+            android:theme="@style/Theme.OpenVitals">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -50,7 +50,7 @@
         <activity
             android:name=".PermissionsRationaleActivity"
             android:exported="true"
-            android:theme="@style/Theme.HCDashboard">
+            android:theme="@style/Theme.OpenVitals">
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>

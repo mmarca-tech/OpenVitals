@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.manu.hcdashboard"
+    namespace = "dev.manu.openvitals"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.manu.hcdashboard"
+        applicationId = "dev.manu.openvitals"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Health Dashboard</string>
+    <string name="app_name">OpenVitals</string>
 
     <!-- Onboarding -->
-    <string name="onboarding_title">Health Dashboard</string>
+    <string name="onboarding_title">OpenVitals</string>
     <string name="onboarding_subtitle">Your health data, on your device</string>
     <string name="onboarding_privacy_title">Privacy first</string>
     <string name="onboarding_privacy_body">This app reads from Health Connect only. No account needed, no cloud upload, no ads.</string>
