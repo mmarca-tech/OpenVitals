@@ -9,12 +9,21 @@ val releaseStoreFilePath = System.getenv("OPENVITALS_RELEASE_STORE_FILE")
 val releaseStorePassword = System.getenv("OPENVITALS_RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = System.getenv("OPENVITALS_RELEASE_KEY_ALIAS")
 val releaseKeyPassword = System.getenv("OPENVITALS_RELEASE_KEY_PASSWORD")
+val isPkcs12ReleaseStore = releaseStoreFilePath
+    ?.lowercase()
+    ?.let { it.endsWith(".p12") || it.endsWith(".pfx") || it.endsWith(".pkcs12") }
+    ?: false
+val effectiveReleaseKeyPassword = if (isPkcs12ReleaseStore) {
+    releaseStorePassword
+} else {
+    releaseKeyPassword
+}
 
 val hasReleaseSigning = listOf(
     releaseStoreFilePath,
     releaseStorePassword,
     releaseKeyAlias,
-    releaseKeyPassword,
+    effectiveReleaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
 android {
@@ -35,7 +44,7 @@ android {
                 storeFile = file(checkNotNull(releaseStoreFilePath))
                 storePassword = checkNotNull(releaseStorePassword)
                 keyAlias = checkNotNull(releaseKeyAlias)
-                keyPassword = checkNotNull(releaseKeyPassword)
+                keyPassword = checkNotNull(effectiveReleaseKeyPassword)
             }
         }
     }

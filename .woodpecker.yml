@@ -24,6 +24,8 @@ steps:
       - keystore_path="$${CI_WORKSPACE}/.woodpecker/tmp/openvitals-release.p12"
       - printf '%s' "$${OPENVITALS_RELEASE_KEYSTORE_BASE64}" | base64 -d > "$${keystore_path}"
       - export OPENVITALS_RELEASE_STORE_FILE="$${keystore_path}"
+      - export OPENVITALS_RELEASE_KEY_PASSWORD="$${OPENVITALS_RELEASE_STORE_PASSWORD}"
+      - keytool -list -storetype PKCS12 -keystore "$${keystore_path}" -storepass "$${OPENVITALS_RELEASE_STORE_PASSWORD}" -alias "$${OPENVITALS_RELEASE_KEY_ALIAS}" >/dev/null
       - export GRADLE_USER_HOME="$${CI_WORKSPACE}/.gradle-ci"
       - gradle_version="$$(sed -n 's#distributionUrl=.*gradle-\([0-9.]*\)-bin.zip#\1#p' gradle/wrapper/gradle-wrapper.properties)"
       - test -n "$${gradle_version}"
