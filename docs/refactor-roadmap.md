@@ -27,38 +27,28 @@ These features already use:
 - duplicated period helper types and navigator composables — `DatePeriod`, `periodFor`, `periodTitle`, `periodSubtitle`, and `PeriodNavigator` are centralized in `ui/components/PeriodNavigator.kt`
 - browse feature — now uses `selectedDate`, `PeriodNavigator`, and `HealthDatePickerDialog`, consistent with all other metric screens
 - centralized repository growth — `HealthRepository` is now permissions + dashboard only; feature data is in `ActivityRepository`, `SleepRepository`, `HeartRepository`, `BodyRepository`
+- shared period scaffold — `MetricDetailScaffold` composable in `ui/components/` handles refresh shell, time range selector, period navigator, date picker, and error block; all six feature screens (`ActivityScreen`, `ActivitiesScreen`, `SleepScreen`, `HeartScreen`, `BodyScreen`, `BrowseScreen`) use it
 
 ## Recommended Refactor Order
 
-### Phase 1: Shared period foundation
+### Phase 1: Shared period foundation ✓ Done
 
-Extract the concepts already repeated across features:
+Extracted `DatePeriod`, `periodFor`, `periodTitle`, `periodSubtitle`, and `PeriodNavigator` to `ui/components/PeriodNavigator.kt`.
 
-- `DatePeriod`
-- one shared `periodFor(...)`
-- one shared title/subtitle formatter
-- one shared period navigator composable
+### Phase 2: Shared detail screen scaffold ✓ Done
 
-Expected outcome:
+Extracted `MetricDetailScaffold` to `ui/components/MetricDetailScaffold.kt`.
 
-- `ActivityScreen`, `SleepScreen`, `HeartScreen`, and `ActivitiesScreen` stop carrying their own copies of period shell code
+Responsibilities handled:
 
-### Phase 2: Shared detail screen scaffold
-
-Extract a reusable scaffold for period-based metric screens.
-
-Responsibilities:
-
-- refresh shell
+- refresh shell (`PullToRefreshBox`)
 - time range selector
-- shared period navigator
-- date picker visibility and handling
+- shared period navigator + date picker
 - error block
-- content slot
+- `headerItems` slot (used by Browse for category chips)
+- `content: LazyListScope.(DatePeriod) -> Unit` slot for feature-specific content
 
-Expected outcome:
-
-- new metrics can be implemented by focusing mainly on their cards/charts instead of rebuilding the shell
+All six feature screens now delegate the shell entirely to the scaffold.
 
 ### Phase 3: Data layer cleanup
 

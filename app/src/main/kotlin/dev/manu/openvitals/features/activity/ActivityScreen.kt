@@ -3,14 +3,11 @@ package dev.manu.openvitals.features.activity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,9 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -31,12 +25,7 @@ import dev.manu.openvitals.data.model.DailyNutrition
 import dev.manu.openvitals.data.model.DailySteps
 import dev.manu.openvitals.data.model.TimeRange
 import dev.manu.openvitals.ui.components.DatePeriod
-import dev.manu.openvitals.ui.components.HealthDatePickerDialog
-import dev.manu.openvitals.ui.components.ErrorMessage
-import dev.manu.openvitals.ui.components.PeriodNavigator
-import dev.manu.openvitals.ui.components.PullToRefreshBox
-import dev.manu.openvitals.ui.components.TimeRangeSelector
-import dev.manu.openvitals.ui.components.periodFor
+import dev.manu.openvitals.ui.components.MetricDetailScaffold
 import dev.manu.openvitals.ui.components.periodTitle
 import dev.manu.openvitals.ui.theme.CaloriesColor
 import dev.manu.openvitals.ui.theme.DistanceColor
@@ -55,57 +44,69 @@ private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 @Composable
 fun ActivityScreen(viewModel: ActivityViewModel) {
     val state by viewModel.uiState.collectAsState()
-    var showDatePicker by remember { mutableStateOf(false) }
-    val period = periodFor(state.selectedRange, state.selectedDate)
 
-    PullToRefreshBox(
-        isRefreshing = state.isLoading,
+    MetricDetailScaffold(
+        isLoading = state.isLoading,
+        selectedRange = state.selectedRange,
+        selectedDate = state.selectedDate,
+        error = state.error,
         onRefresh = viewModel::load,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
+        onSelectRange = viewModel::selectRange,
+        onPreviousPeriod = viewModel::previousPeriod,
+        onNextPeriod = viewModel::nextPeriod,
+        onSelectDate = viewModel::selectDate,
+    ) { period ->
+        if (state.selectedRange == TimeRange.DAY || state.dailySteps.isNotEmpty()) {
             item {
-                TimeRangeSelector(
-                    selected = state.selectedRange,
-                    onSelect = viewModel::selectRange,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            }
-
-            item {
-                PeriodNavigator(
-                    selectedRange = state.selectedRange,
-                    period = period,
-                    canGoForward = !period.end.isEqual(LocalDate.now()),
-                    onPreviousPeriod = viewModel::previousPeriod,
-                    onNextPeriod = viewModel::nextPeriod,
-                    onOpenCalendar = { showDatePicker = true },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
-            state.error?.let { err ->
-                item { ErrorMessage(err) }
+                if (state.selectedRange == TimeRange.DAY) {
+                    IntradayActivityChartCard(
+                        selectedDate = state.selectedDate,
+                        title = "Steps",
+                        valueText = "%,d steps".format(state.dailySteps.firstOrNull()?.steps ?: 0L),
+                        emptyText = "No step updates were recorded",
+                        points = state.activityProgress.map { point ->
+                            point.time to point.totalSteps.toDouble()
+                        },
+                        accentColor = StepsColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                } else {
+                    StepsBarChart(
+                        data = state.dailySteps,
+                        selectedRange = state.selectedRange,
+                        period = period,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
             }
 
             if (state.selectedRange == TimeRange.DAY || state.dailySteps.isNotEmpty()) {
                 item {
                     if (state.selectedRange == TimeRange.DAY) {
+                        val distanceTotal = state.dailySteps.firstOrNull()?.distanceMeters ?: 0.0
                         IntradayActivityChartCard(
                             selectedDate = state.selectedDate,
-                            title = "Steps",
-                            valueText = "%,d steps".format(state.dailySteps.firstOrNull()?.steps ?: 0L),
-                            emptyText = "No step updates were recorded",
-                            points = state.activityProgress.map { point ->
-                                point.time to point.totalSteps.toDouble()
+                            title = "Distance",
+                            valueText = if (distanceTotal >= 1000) {
+                                "%.1f km".format(distanceTotal / 1000)
+                            } else {
+                                "%d m".format(distanceTotal.roundToInt())
                             },
-                            accentColor = StepsColor,
+                            emptyText = "No distance updates were recorded",
+                            points = state.activityProgress.mapNotNull { point ->
+                                point.totalDistanceMeters?.let { point.time to it }
+                            },
+                            accentColor = DistanceColor,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     } else {
-                        StepsBarChart(
+                        DistanceBarChart(
                             data = state.dailySteps,
                             selectedRange = state.selectedRange,
                             period = period,
@@ -115,85 +116,38 @@ fun ActivityScreen(viewModel: ActivityViewModel) {
                         )
                     }
                 }
+            }
 
-                if (state.selectedRange == TimeRange.DAY || state.dailySteps.isNotEmpty()) {
-                    item {
-                        if (state.selectedRange == TimeRange.DAY) {
-                            val distanceTotal = state.dailySteps.firstOrNull()?.distanceMeters ?: 0.0
-                            IntradayActivityChartCard(
-                                selectedDate = state.selectedDate,
-                                title = "Distance",
-                                valueText = if (distanceTotal >= 1000) {
-                                    "%.1f km".format(distanceTotal / 1000)
-                                } else {
-                                    "%d m".format(distanceTotal.roundToInt())
-                                },
-                                emptyText = "No distance updates were recorded",
-                                points = state.activityProgress.mapNotNull { point ->
-                                    point.totalDistanceMeters?.let { point.time to it }
-                                },
-                                accentColor = DistanceColor,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        } else {
-                            DistanceBarChart(
-                                data = state.dailySteps,
-                                selectedRange = state.selectedRange,
-                                period = period,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                    }
-                }
-
-                if (state.selectedRange == TimeRange.DAY || state.nutrition.isNotEmpty()) {
-                    item {
-                        if (state.selectedRange == TimeRange.DAY) {
-                            val caloriesTotal = state.nutrition.firstOrNull()?.caloriesBurnedKcal ?: 0.0
-                            IntradayActivityChartCard(
-                                selectedDate = state.selectedDate,
-                                title = "Calories burned",
-                                valueText = "%,d kcal".format(caloriesTotal.roundToInt()),
-                                emptyText = "No calories burned data was recorded",
-                                points = state.activityProgress.mapNotNull { point ->
-                                    point.totalCaloriesBurnedKcal?.let { point.time to it }
-                                },
-                                accentColor = CaloriesColor,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        } else {
-                            CaloriesBarChart(
-                                data = state.nutrition,
-                                selectedRange = state.selectedRange,
-                                period = period,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
+            if (state.selectedRange == TimeRange.DAY || state.nutrition.isNotEmpty()) {
+                item {
+                    if (state.selectedRange == TimeRange.DAY) {
+                        val caloriesTotal = state.nutrition.firstOrNull()?.caloriesBurnedKcal ?: 0.0
+                        IntradayActivityChartCard(
+                            selectedDate = state.selectedDate,
+                            title = "Calories burned",
+                            valueText = "%,d kcal".format(caloriesTotal.roundToInt()),
+                            emptyText = "No calories burned data was recorded",
+                            points = state.activityProgress.mapNotNull { point ->
+                                point.totalCaloriesBurnedKcal?.let { point.time to it }
+                            },
+                            accentColor = CaloriesColor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    } else {
+                        CaloriesBarChart(
+                            data = state.nutrition,
+                            selectedRange = state.selectedRange,
+                            period = period,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
                     }
                 }
             }
-
-            item { Spacer(Modifier.height(16.dp)) }
         }
-    }
-
-    if (showDatePicker) {
-        HealthDatePickerDialog(
-            selectedDate = state.selectedDate,
-            onDismiss = { showDatePicker = false },
-            onConfirm = { date ->
-                showDatePicker = false
-                viewModel.selectDate(date)
-            },
-        )
     }
 }
 
@@ -517,4 +471,3 @@ private fun IntradayActivityChartCard(
         }
     }
 }
-

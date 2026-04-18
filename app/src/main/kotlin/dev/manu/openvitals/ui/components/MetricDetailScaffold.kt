@@ -1,0 +1,82 @@
+package dev.manu.openvitals.ui.components
+
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import dev.manu.openvitals.data.model.TimeRange
+import java.time.LocalDate
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MetricDetailScaffold(
+    isLoading: Boolean,
+    selectedRange: TimeRange,
+    selectedDate: LocalDate,
+    error: String?,
+    onRefresh: () -> Unit,
+    onSelectRange: (TimeRange) -> Unit,
+    onPreviousPeriod: () -> Unit,
+    onNextPeriod: () -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
+    headerItems: LazyListScope.() -> Unit = {},
+    content: LazyListScope.(period: DatePeriod) -> Unit,
+) {
+    val period = periodFor(selectedRange, selectedDate)
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    PullToRefreshBox(
+        isRefreshing = isLoading,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
+            headerItems()
+            item {
+                TimeRangeSelector(
+                    selected = selectedRange,
+                    onSelect = onSelectRange,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+            }
+            item {
+                PeriodNavigator(
+                    selectedRange = selectedRange,
+                    period = period,
+                    canGoForward = !period.end.isEqual(LocalDate.now()),
+                    onPreviousPeriod = onPreviousPeriod,
+                    onNextPeriod = onNextPeriod,
+                    onOpenCalendar = { showDatePicker = true },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            error?.let { err ->
+                item { ErrorMessage(err) }
+            }
+            content(period)
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+
+    if (showDatePicker) {
+        HealthDatePickerDialog(
+            selectedDate = selectedDate,
+            onDismiss = { showDatePicker = false },
+            onConfirm = { date ->
+                showDatePicker = false
+                onSelectDate(date)
+            },
+        )
+    }
+}

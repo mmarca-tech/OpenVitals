@@ -1,13 +1,12 @@
 package dev.manu.openvitals.features.activity
 
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DirectionsRun
@@ -19,27 +18,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.manu.openvitals.data.model.ExerciseData
 import dev.manu.openvitals.data.model.TimeRange
-import dev.manu.openvitals.ui.components.ErrorMessage
-import dev.manu.openvitals.ui.components.HealthDatePickerDialog
-import dev.manu.openvitals.ui.components.PeriodNavigator
-import dev.manu.openvitals.ui.components.PullToRefreshBox
+import dev.manu.openvitals.ui.components.MetricDetailScaffold
 import dev.manu.openvitals.ui.components.SectionHeader
 import dev.manu.openvitals.ui.components.SourceChip
-import dev.manu.openvitals.ui.components.TimeRangeSelector
-import dev.manu.openvitals.ui.components.periodFor
 import dev.manu.openvitals.ui.theme.DistanceColor
 import dev.manu.openvitals.ui.theme.WorkoutColor
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
@@ -51,73 +39,38 @@ private val activityTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 @Composable
 fun ActivitiesScreen(viewModel: ActivitiesViewModel) {
     val state by viewModel.uiState.collectAsState()
-    var showDatePicker by remember { mutableStateOf(false) }
-    val period = periodFor(state.selectedRange, state.selectedDate)
 
-    PullToRefreshBox(
-        isRefreshing = state.isLoading,
+    MetricDetailScaffold(
+        isLoading = state.isLoading,
+        selectedRange = state.selectedRange,
+        selectedDate = state.selectedDate,
+        error = state.error,
         onRefresh = viewModel::load,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-            item {
-                TimeRangeSelector(
-                    selected = state.selectedRange,
-                    onSelect = viewModel::selectRange,
-                    modifier = Modifier.padding(vertical = 8.dp),
+        onSelectRange = viewModel::selectRange,
+        onPreviousPeriod = viewModel::previousPeriod,
+        onNextPeriod = viewModel::nextPeriod,
+        onSelectDate = viewModel::selectDate,
+    ) { _ ->
+        if (state.workouts.isNotEmpty()) {
+            item { SectionHeader("Activities") }
+            items(state.workouts) { workout ->
+                WorkoutListItem(
+                    workout = workout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-
+        } else if (!state.isLoading) {
             item {
-                PeriodNavigator(
-                    selectedRange = state.selectedRange,
-                    period = period,
-                    canGoForward = !period.end.isEqual(LocalDate.now()),
-                    onPreviousPeriod = viewModel::previousPeriod,
-                    onNextPeriod = viewModel::nextPeriod,
-                    onOpenCalendar = { showDatePicker = true },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                Text(
+                    text = "No activities in the selected period.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
                 )
             }
-
-            state.error?.let { err ->
-                item { ErrorMessage(err) }
-            }
-
-            if (state.workouts.isNotEmpty()) {
-                item { SectionHeader("Activities") }
-                items(state.workouts) { workout ->
-                    WorkoutListItem(
-                        workout = workout,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                    )
-                }
-            } else if (!state.isLoading) {
-                item {
-                    Text(
-                        text = "No activities in the selected period.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
-
-            item { Spacer(Modifier.height(16.dp)) }
         }
-    }
-
-    if (showDatePicker) {
-        HealthDatePickerDialog(
-            selectedDate = state.selectedDate,
-            onDismiss = { showDatePicker = false },
-            onConfirm = { date ->
-                showDatePicker = false
-                viewModel.selectDate(date)
-            },
-        )
     }
 }
 
