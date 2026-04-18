@@ -7,7 +7,7 @@ import dev.manu.hcdashboard.data.model.DailyRestingHR
 import dev.manu.hcdashboard.data.model.HeartRateSample
 import dev.manu.hcdashboard.data.model.HeartRateSummary
 import dev.manu.hcdashboard.data.model.TimeRange
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.HeartRepository
 import dev.manu.hcdashboard.ui.components.periodFor
 import java.time.LocalDate
 import kotlinx.coroutines.async
@@ -30,7 +30,7 @@ data class HeartUiState(
     val error: String? = null,
 )
 
-class HeartViewModel(private val repository: HealthRepository) : ViewModel() {
+class HeartViewModel(private val repository: HeartRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HeartUiState())
     val uiState: StateFlow<HeartUiState> = _uiState.asStateFlow()

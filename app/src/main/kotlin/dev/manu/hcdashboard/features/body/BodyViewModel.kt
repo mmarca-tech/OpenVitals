@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.manu.hcdashboard.data.model.TimeRange
 import dev.manu.hcdashboard.data.model.WeightEntry
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.BodyRepository
 import dev.manu.hcdashboard.ui.components.periodFor
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ data class BodyUiState(
             else null
 }
 
-class BodyViewModel(private val repository: HealthRepository) : ViewModel() {
+class BodyViewModel(private val repository: BodyRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BodyUiState())
     val uiState: StateFlow<BodyUiState> = _uiState.asStateFlow()

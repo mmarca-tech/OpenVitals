@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.manu.hcdashboard.data.model.ExerciseData
 import dev.manu.hcdashboard.data.model.TimeRange
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.ActivityRepository
 import dev.manu.hcdashboard.ui.components.periodFor
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +20,7 @@ data class ActivitiesUiState(
     val error: String? = null,
 )
 
-class ActivitiesViewModel(private val repository: HealthRepository) : ViewModel() {
+class ActivitiesViewModel(private val repository: ActivityRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActivitiesUiState())
     val uiState: StateFlow<ActivitiesUiState> = _uiState.asStateFlow()

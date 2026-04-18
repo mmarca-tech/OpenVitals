@@ -40,6 +40,10 @@ class MainActivity : ComponentActivity() {
 
                 AppNavigation(
                     repository = app.healthRepository,
+                    activityRepository = app.activityRepository,
+                    sleepRepository = app.sleepRepository,
+                    heartRepository = app.heartRepository,
+                    bodyRepository = app.bodyRepository,
                     startDestination = startDestination,
                     onOnboardingComplete = {
                         markOnboardingDone()

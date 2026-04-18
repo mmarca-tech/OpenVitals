@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,11 +30,15 @@ import dev.manu.hcdashboard.data.model.ExerciseData
 import dev.manu.hcdashboard.data.model.SleepData
 import dev.manu.hcdashboard.data.model.WeightEntry
 import dev.manu.hcdashboard.ui.components.ErrorMessage
+import dev.manu.hcdashboard.ui.components.HealthDatePickerDialog
 import dev.manu.hcdashboard.ui.components.InlineLoading
+import dev.manu.hcdashboard.ui.components.PeriodNavigator
 import dev.manu.hcdashboard.ui.components.PullToRefreshBox
 import dev.manu.hcdashboard.ui.components.SectionHeader
 import dev.manu.hcdashboard.ui.components.SourceChip
 import dev.manu.hcdashboard.ui.components.TimeRangeSelector
+import dev.manu.hcdashboard.ui.components.periodFor
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -41,6 +48,8 @@ private val dateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy HH:mm")
 @Composable
 fun BrowseScreen(viewModel: BrowseViewModel) {
     val state by viewModel.uiState.collectAsState()
+    var showDatePicker by remember { mutableStateOf(false) }
+    val period = periodFor(state.selectedRange, state.selectedDate)
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,
@@ -70,6 +79,18 @@ fun BrowseScreen(viewModel: BrowseViewModel) {
                     selected = state.selectedRange,
                     onSelect = viewModel::selectRange,
                     modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
+
+            item {
+                PeriodNavigator(
+                    selectedRange = state.selectedRange,
+                    period = period,
+                    canGoForward = !period.end.isEqual(LocalDate.now()),
+                    onPreviousPeriod = viewModel::previousPeriod,
+                    onNextPeriod = viewModel::nextPeriod,
+                    onOpenCalendar = { showDatePicker = true },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
 
@@ -127,6 +148,17 @@ fun BrowseScreen(viewModel: BrowseViewModel) {
 
             item { Spacer(Modifier.height(16.dp)) }
         }
+    }
+
+    if (showDatePicker) {
+        HealthDatePickerDialog(
+            selectedDate = state.selectedDate,
+            onDismiss = { showDatePicker = false },
+            onConfirm = { date ->
+                showDatePicker = false
+                viewModel.selectDate(date)
+            },
+        )
     }
 }
 

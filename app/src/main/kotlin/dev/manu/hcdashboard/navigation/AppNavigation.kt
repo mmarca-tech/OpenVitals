@@ -18,19 +18,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.manu.hcdashboard.data.repository.ActivityRepository
+import dev.manu.hcdashboard.data.repository.BodyRepository
+import dev.manu.hcdashboard.data.repository.HeartRepository
 import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.SleepRepository
 import dev.manu.hcdashboard.features.activity.ActivityScreen
 import dev.manu.hcdashboard.features.activity.ActivityViewModel
 import dev.manu.hcdashboard.features.activity.ActivitiesScreen
 import dev.manu.hcdashboard.features.activity.ActivitiesViewModel
+import dev.manu.hcdashboard.features.body.BodyScreen
+import dev.manu.hcdashboard.features.body.BodyViewModel
 import dev.manu.hcdashboard.features.browse.BrowseScreen
 import dev.manu.hcdashboard.features.browse.BrowseViewModel
 import dev.manu.hcdashboard.features.dashboard.DashboardScreen
 import dev.manu.hcdashboard.features.dashboard.DashboardViewModel
 import dev.manu.hcdashboard.features.heart.HeartScreen
 import dev.manu.hcdashboard.features.heart.HeartViewModel
-import dev.manu.hcdashboard.features.body.BodyScreen
-import dev.manu.hcdashboard.features.body.BodyViewModel
 import dev.manu.hcdashboard.features.onboarding.OnboardingScreen
 import dev.manu.hcdashboard.features.onboarding.OnboardingViewModel
 import dev.manu.hcdashboard.features.settings.SettingsScreen
@@ -42,6 +46,10 @@ import dev.manu.hcdashboard.features.sleep.SleepViewModel
 @Composable
 fun AppNavigation(
     repository: HealthRepository,
+    activityRepository: ActivityRepository,
+    sleepRepository: SleepRepository,
+    heartRepository: HeartRepository,
+    bodyRepository: BodyRepository,
     startDestination: String,
     onOnboardingComplete: () -> Unit = {},
 ) {
@@ -128,32 +136,34 @@ fun AppNavigation(
             }
 
             composable(Screen.Steps.route) {
-                val activityViewModel = remember(repository) { ActivityViewModel(repository) }
+                val activityViewModel = remember(activityRepository) { ActivityViewModel(activityRepository) }
                 ActivityScreen(viewModel = activityViewModel)
             }
 
             composable(Screen.Activity.route) {
-                val activitiesViewModel = remember(repository) { ActivitiesViewModel(repository) }
+                val activitiesViewModel = remember(activityRepository) { ActivitiesViewModel(activityRepository) }
                 ActivitiesScreen(viewModel = activitiesViewModel)
             }
 
             composable(Screen.Sleep.route) {
-                val sleepViewModel = remember(repository) { SleepViewModel(repository) }
+                val sleepViewModel = remember(sleepRepository) { SleepViewModel(sleepRepository) }
                 SleepScreen(viewModel = sleepViewModel)
             }
 
             composable(Screen.Heart.route) {
-                val heartViewModel = remember(repository) { HeartViewModel(repository) }
+                val heartViewModel = remember(heartRepository) { HeartViewModel(heartRepository) }
                 HeartScreen(viewModel = heartViewModel)
             }
 
             composable(Screen.Body.route) {
-                val bodyViewModel = remember(repository) { BodyViewModel(repository) }
+                val bodyViewModel = remember(bodyRepository) { BodyViewModel(bodyRepository) }
                 BodyScreen(viewModel = bodyViewModel)
             }
 
             composable(Screen.Browse.route) {
-                val browseViewModel = remember(repository) { BrowseViewModel(repository) }
+                val browseViewModel = remember(activityRepository, sleepRepository, bodyRepository) {
+                    BrowseViewModel(activityRepository, sleepRepository, bodyRepository)
+                }
                 BrowseScreen(viewModel = browseViewModel)
             }
 

@@ -21,12 +21,12 @@ These features already use:
 - calendar selection
 - feature-specific content over a shared interaction model
 
-### Still legacy
+### Resolved
 
-- body feature
-- browse feature
-- duplicated period helper types and navigator composables
-- centralized repository growth
+- body feature — uses `PeriodNavigator`, `selectedDate`, `previousPeriod`/`nextPeriod`/`selectDate`, aligned with the other detail screens
+- duplicated period helper types and navigator composables — `DatePeriod`, `periodFor`, `periodTitle`, `periodSubtitle`, and `PeriodNavigator` are centralized in `ui/components/PeriodNavigator.kt`
+- browse feature — now uses `selectedDate`, `PeriodNavigator`, and `HealthDatePickerDialog`, consistent with all other metric screens
+- centralized repository growth — `HealthRepository` is now permissions + dashboard only; feature data is in `ActivityRepository`, `SleepRepository`, `HeartRepository`, `BodyRepository`
 
 ## Recommended Refactor Order
 

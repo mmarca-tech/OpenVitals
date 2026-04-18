@@ -6,7 +6,11 @@ import dev.manu.hcdashboard.data.model.ExerciseData
 import dev.manu.hcdashboard.data.model.SleepData
 import dev.manu.hcdashboard.data.model.TimeRange
 import dev.manu.hcdashboard.data.model.WeightEntry
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.ActivityRepository
+import dev.manu.hcdashboard.data.repository.BodyRepository
+import dev.manu.hcdashboard.data.repository.SleepRepository
+import dev.manu.hcdashboard.ui.components.periodFor
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,13 +26,18 @@ data class BrowseUiState(
     val isLoading: Boolean = false,
     val selectedCategory: BrowseCategory = BrowseCategory.WORKOUTS,
     val selectedRange: TimeRange = TimeRange.MONTH,
+    val selectedDate: LocalDate = LocalDate.now(),
     val workouts: List<ExerciseData> = emptyList(),
     val sleepSessions: List<SleepData> = emptyList(),
     val weightEntries: List<WeightEntry> = emptyList(),
     val error: String? = null,
 )
 
-class BrowseViewModel(private val repository: HealthRepository) : ViewModel() {
+class BrowseViewModel(
+    private val activityRepository: ActivityRepository,
+    private val sleepRepository: SleepRepository,
+    private val bodyRepository: BodyRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BrowseUiState())
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
@@ -43,7 +52,40 @@ class BrowseViewModel(private val repository: HealthRepository) : ViewModel() {
     }
 
     fun selectRange(range: TimeRange) {
-        _uiState.value = _uiState.value.copy(selectedRange = range)
+        _uiState.value = _uiState.value.copy(
+            selectedRange = range,
+            selectedDate = _uiState.value.selectedDate.coerceAtMost(LocalDate.now()),
+        )
+        load()
+    }
+
+    fun previousPeriod() {
+        _uiState.value = _uiState.value.copy(
+            selectedDate = when (_uiState.value.selectedRange) {
+                TimeRange.DAY -> _uiState.value.selectedDate.minusDays(1)
+                TimeRange.WEEK -> _uiState.value.selectedDate.minusWeeks(1)
+                TimeRange.MONTH -> _uiState.value.selectedDate.minusMonths(1)
+                TimeRange.YEAR -> _uiState.value.selectedDate.minusYears(1)
+            },
+        )
+        load()
+    }
+
+    fun nextPeriod() {
+        val nextDate = when (_uiState.value.selectedRange) {
+            TimeRange.DAY -> _uiState.value.selectedDate.plusDays(1)
+            TimeRange.WEEK -> _uiState.value.selectedDate.plusWeeks(1)
+            TimeRange.MONTH -> _uiState.value.selectedDate.plusMonths(1)
+            TimeRange.YEAR -> _uiState.value.selectedDate.plusYears(1)
+        }
+        if (!periodFor(_uiState.value.selectedRange, nextDate).end.isAfter(LocalDate.now())) {
+            _uiState.value = _uiState.value.copy(selectedDate = nextDate)
+            load()
+        }
+    }
+
+    fun selectDate(date: LocalDate) {
+        _uiState.value = _uiState.value.copy(selectedDate = date.coerceAtMost(LocalDate.now()))
         load()
     }
 
@@ -51,24 +93,26 @@ class BrowseViewModel(private val repository: HealthRepository) : ViewModel() {
         viewModelScope.launch {
             val category = _uiState.value.selectedCategory
             val range = _uiState.value.selectedRange
+            val date = _uiState.value.selectedDate.coerceAtMost(LocalDate.now())
+            val period = periodFor(range, date)
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             runCatching {
                 when (category) {
                     BrowseCategory.WORKOUTS -> {
-                        val workouts = repository.loadWorkouts(range)
-                        _uiState.value = _uiState.value.copy(isLoading = false, workouts = workouts)
+                        val workouts = activityRepository.loadWorkouts(period.start, period.end)
+                        _uiState.value = _uiState.value.copy(isLoading = false, selectedDate = date, workouts = workouts)
                     }
                     BrowseCategory.SLEEP -> {
-                        val sessions = repository.loadSleepSessions(range)
-                        _uiState.value = _uiState.value.copy(isLoading = false, sleepSessions = sessions)
+                        val sessions = sleepRepository.loadSleepSessions(period.start, period.end)
+                        _uiState.value = _uiState.value.copy(isLoading = false, selectedDate = date, sleepSessions = sessions)
                     }
                     BrowseCategory.WEIGHT -> {
-                        val entries = repository.loadWeightEntries(range)
-                        _uiState.value = _uiState.value.copy(isLoading = false, weightEntries = entries)
+                        val entries = bodyRepository.loadWeightEntries(period.start, period.end)
+                        _uiState.value = _uiState.value.copy(isLoading = false, selectedDate = date, weightEntries = entries)
                     }
                 }
             }.onFailure {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = it.message)
+                _uiState.value = _uiState.value.copy(isLoading = false, selectedDate = date, error = it.message)
             }
         }
     }

@@ -6,7 +6,7 @@ import dev.manu.hcdashboard.data.model.ActivityProgressPoint
 import dev.manu.hcdashboard.data.model.DailyNutrition
 import dev.manu.hcdashboard.data.model.DailySteps
 import dev.manu.hcdashboard.data.model.TimeRange
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.ActivityRepository
 import dev.manu.hcdashboard.ui.components.periodFor
 import java.time.LocalDate
 import kotlinx.coroutines.async
@@ -26,7 +26,7 @@ data class ActivityUiState(
     val error: String? = null,
 )
 
-class ActivityViewModel(private val repository: HealthRepository) : ViewModel() {
+class ActivityViewModel(private val repository: ActivityRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActivityUiState())
     val uiState: StateFlow<ActivityUiState> = _uiState.asStateFlow()

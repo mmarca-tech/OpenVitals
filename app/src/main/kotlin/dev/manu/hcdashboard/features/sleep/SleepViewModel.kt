@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.manu.hcdashboard.data.model.SleepData
 import dev.manu.hcdashboard.data.model.TimeRange
-import dev.manu.hcdashboard.data.repository.HealthRepository
+import dev.manu.hcdashboard.data.repository.SleepRepository
 import dev.manu.hcdashboard.ui.components.periodFor
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +20,7 @@ data class SleepUiState(
     val error: String? = null,
 )
 
-class SleepViewModel(private val repository: HealthRepository) : ViewModel() {
+class SleepViewModel(private val repository: SleepRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SleepUiState())
     val uiState: StateFlow<SleepUiState> = _uiState.asStateFlow()
