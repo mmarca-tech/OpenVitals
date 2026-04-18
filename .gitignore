@@ -1,0 +1,38 @@
+# Claude / AI
+.claude/
+.cursor/
+.copilot/
+.aider*
+.ai/
+*.claude
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local configuration
+local.properties
+*.local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore / signing
+*.jks
+*.keystore
+keystore.properties
+
+# Generated
+gen/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
