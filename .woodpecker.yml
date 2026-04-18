@@ -63,7 +63,7 @@ steps:
     settings:
       api_key:
         from_secret: CODEBERG_RELEASE_API_KEY
-      target: ${CI_COMMIT_SHA}
+      target: main
       files:
         - '.woodpecker/tmp/OpenVitals-${CI_COMMIT_TAG}.apk'
       checksum:
@@ -83,7 +83,7 @@ steps:
     settings:
       api_key:
         from_secret: CODEBERG_RELEASE_API_KEY
-      target: ${CI_COMMIT_SHA}
+      target: main
       files:
         - '.woodpecker/tmp/OpenVitals-${CI_COMMIT_TAG}.apk'
       checksum:
