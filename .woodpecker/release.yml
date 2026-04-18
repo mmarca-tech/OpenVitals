@@ -1,0 +1,94 @@
+when:
+  - event: tag
+    ref: refs/tags/v*
+
+steps:
+  - name: build-release-apk
+    image: ghcr.io/cirruslabs/android-sdk:36
+    environment:
+      OPENVITALS_RELEASE_KEYSTORE_BASE64:
+        from_secret: OPENVITALS_RELEASE_KEYSTORE_BASE64
+      OPENVITALS_RELEASE_STORE_PASSWORD:
+        from_secret: OPENVITALS_RELEASE_STORE_PASSWORD
+      OPENVITALS_RELEASE_KEY_ALIAS:
+        from_secret: OPENVITALS_RELEASE_KEY_ALIAS
+      OPENVITALS_RELEASE_KEY_PASSWORD:
+        from_secret: OPENVITALS_RELEASE_KEY_PASSWORD
+    commands:
+      - set -eu
+      - git fetch --tags --force origin
+      - mkdir -p .woodpecker/tmp
+      - sdk_root="$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}"
+      - test -n "$${sdk_root}"
+      - printf 'sdk.dir=%s\n' "$${sdk_root}" > local.properties
+      - keystore_path="$${CI_WORKSPACE}/.woodpecker/tmp/openvitals-release.p12"
+      - printf '%s' "$${OPENVITALS_RELEASE_KEYSTORE_BASE64}" | base64 -d > "$${keystore_path}"
+      - export OPENVITALS_RELEASE_STORE_FILE="$${keystore_path}"
+      - export GRADLE_USER_HOME="$${CI_WORKSPACE}/.gradle-ci"
+      - gradle_version="$$(sed -n 's#distributionUrl=.*gradle-\([0-9.]*\)-bin.zip#\1#p' gradle/wrapper/gradle-wrapper.properties)"
+      - test -n "$${gradle_version}"
+      - curl -fsSLo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-$${gradle_version}-bin.zip"
+      - rm -rf /tmp/gradle-dist
+      - unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+      - export PATH="/tmp/gradle-dist/gradle-$${gradle_version}/bin:$${PATH}"
+      - gradle --no-daemon --stacktrace :app:assembleRelease
+      - apk_path="$$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
+      - test -n "$${apk_path}"
+      - release_apk=".woodpecker/tmp/OpenVitals-$${CI_COMMIT_TAG}.apk"
+      - cp "$${apk_path}" "$${release_apk}"
+      - title_file=".woodpecker/tmp/release-title.txt"
+      - notes_file=".woodpecker/tmp/release-notes.md"
+      - tag_object_type="$$(git cat-file -t "$${CI_COMMIT_TAG}")"
+      - if [ "$${tag_object_type}" = "tag" ]; then git for-each-ref "refs/tags/$${CI_COMMIT_TAG}" --format='%(contents)' > "$${notes_file}"; fi
+      - |
+        if [ ! -s "$${notes_file}" ]; then
+          printf '%s\n' \
+            "$${CI_COMMIT_TAG}: OpenVitals" \
+            "" \
+            "Production release built from commit $${CI_COMMIT_SHA}." \
+            "" \
+            "Assets:" \
+            "- Signed release APK" \
+            "- SHA-256 checksum" \
+            > "$${notes_file}"
+        fi
+      - "printf '%s\\n' \"$${CI_COMMIT_TAG}: OpenVitals\" > \"$${title_file}\""
+
+  - name: publish-release
+    image: woodpeckerci/plugin-release
+    depends_on:
+      - build-release-apk
+    settings:
+      api_key:
+        from_secret: CODEBERG_RELEASE_API_KEY
+      files:
+        - '.woodpecker/tmp/OpenVitals-${CI_COMMIT_TAG}.apk'
+      checksum:
+        - sha256
+      checksum_file: '.woodpecker/tmp/SHA256SUMS.txt'
+      checksum_flatten: true
+      title: '.woodpecker/tmp/release-title.txt'
+      note: '.woodpecker/tmp/release-notes.md'
+      overwrite: true
+    when:
+      - evaluate: 'not (CI_COMMIT_TAG contains "-alpha" || CI_COMMIT_TAG contains "-beta" || CI_COMMIT_TAG contains "-rc")'
+
+  - name: publish-prerelease
+    image: woodpeckerci/plugin-release
+    depends_on:
+      - build-release-apk
+    settings:
+      api_key:
+        from_secret: CODEBERG_RELEASE_API_KEY
+      files:
+        - '.woodpecker/tmp/OpenVitals-${CI_COMMIT_TAG}.apk'
+      checksum:
+        - sha256
+      checksum_file: '.woodpecker/tmp/SHA256SUMS.txt'
+      checksum_flatten: true
+      title: '.woodpecker/tmp/release-title.txt'
+      note: '.woodpecker/tmp/release-notes.md'
+      prerelease: true
+      overwrite: true
+    when:
+      - evaluate: 'CI_COMMIT_TAG contains "-alpha" || CI_COMMIT_TAG contains "-beta" || CI_COMMIT_TAG contains "-rc"'
