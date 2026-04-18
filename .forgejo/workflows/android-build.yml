@@ -1,0 +1,220 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release-apk:
+    runs-on: docker
+    timeout-minutes: 45
+    container:
+      image: ghcr.io/cirruslabs/android-sdk:36
+    steps:
+      - name: Clone repository at the workflow commit
+        run: |
+          set -euxo pipefail
+
+          git clone --no-checkout "https://${FORGEJO_SERVER_URL#https://}/${FORGEJO_REPOSITORY}.git" "$FORGEJO_WORKSPACE"
+          cd "$FORGEJO_WORKSPACE"
+          git fetch --depth 1 origin "$FORGEJO_SHA"
+          git checkout --detach "$FORGEJO_SHA"
+
+      - name: Prepare release metadata
+        run: |
+          set -euxo pipefail
+
+          cd "$FORGEJO_WORKSPACE"
+          git fetch --depth 1 origin "refs/tags/${FORGEJO_REF_NAME}:refs/tags/${FORGEJO_REF_NAME}"
+
+          python_cmd="python3"
+          if ! command -v "$python_cmd" >/dev/null 2>&1; then
+            python_cmd="python"
+          fi
+          if ! command -v "$python_cmd" >/dev/null 2>&1; then
+            echo "Python is required for release metadata handling" >&2
+            exit 1
+          fi
+
+          release_notes="/tmp/openvitals-release-notes.md"
+          if [ "$(git cat-file -t "$FORGEJO_REF_NAME")" = "tag" ]; then
+            git for-each-ref "refs/tags/${FORGEJO_REF_NAME}" --format='%(contents)' > "$release_notes"
+          fi
+
+          if [ ! -s "$release_notes" ]; then
+            printf '%s\n' \
+              "${FORGEJO_REF_NAME}: OpenVitals" \
+              "" \
+              "Production release built from commit ${FORGEJO_SHA}." \
+              "" \
+              "Assets:" \
+              "- Signed release APK" \
+              "- SHA-256 checksum" \
+              > "$release_notes"
+          fi
+
+          {
+            echo "OPENVITALS_PYTHON=$python_cmd"
+            echo "OPENVITALS_RELEASE_NAME=$FORGEJO_REF_NAME"
+            echo "OPENVITALS_RELEASE_NOTES=$release_notes"
+          } >> "$FORGEJO_ENV"
+
+      - name: Prepare Android SDK and signing inputs
+        env:
+          OPENVITALS_RELEASE_KEYSTORE_BASE64: ${{ secrets.OPENVITALS_RELEASE_KEYSTORE_BASE64 }}
+          OPENVITALS_RELEASE_STORE_PASSWORD: ${{ secrets.OPENVITALS_RELEASE_STORE_PASSWORD }}
+          OPENVITALS_RELEASE_KEY_ALIAS: ${{ secrets.OPENVITALS_RELEASE_KEY_ALIAS }}
+          OPENVITALS_RELEASE_KEY_PASSWORD: ${{ secrets.OPENVITALS_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euxo pipefail
+
+          for var_name in \
+            OPENVITALS_RELEASE_KEYSTORE_BASE64 \
+            OPENVITALS_RELEASE_STORE_PASSWORD \
+            OPENVITALS_RELEASE_KEY_ALIAS \
+            OPENVITALS_RELEASE_KEY_PASSWORD
+          do
+            if [ -z "${!var_name:-}" ]; then
+              echo "Missing required secret: $var_name" >&2
+              exit 1
+            fi
+          done
+
+          cd "$FORGEJO_WORKSPACE"
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+
+          keystore_path="/tmp/openvitals-release.jks"
+          printf '%s' "$OPENVITALS_RELEASE_KEYSTORE_BASE64" | base64 -d > "$keystore_path"
+
+          {
+            echo "OPENVITALS_RELEASE_STORE_FILE=$keystore_path"
+            echo "OPENVITALS_RELEASE_STORE_PASSWORD=$OPENVITALS_RELEASE_STORE_PASSWORD"
+            echo "OPENVITALS_RELEASE_KEY_ALIAS=$OPENVITALS_RELEASE_KEY_ALIAS"
+            echo "OPENVITALS_RELEASE_KEY_PASSWORD=$OPENVITALS_RELEASE_KEY_PASSWORD"
+          } >> "$FORGEJO_ENV"
+
+      - name: Install Gradle
+        run: |
+          set -euxo pipefail
+
+          cd "$FORGEJO_WORKSPACE"
+          gradle_version="$(sed -n 's#distributionUrl=.*gradle-\([0-9.]*\)-bin.zip#\1#p' gradle/wrapper/gradle-wrapper.properties)"
+          if [ -z "$gradle_version" ]; then
+            echo "Could not determine Gradle version from gradle-wrapper.properties" >&2
+            exit 1
+          fi
+
+          cd /tmp
+          curl -fsSLo gradle.zip "https://services.gradle.org/distributions/gradle-${gradle_version}-bin.zip"
+          unzip -q gradle.zip -d /opt
+          echo "OPENVITALS_GRADLE_BIN=/opt/gradle-${gradle_version}/bin/gradle" >> "$FORGEJO_ENV"
+
+      - name: Build signed release APK
+        run: |
+          set -euxo pipefail
+
+          cd "$FORGEJO_WORKSPACE"
+          export GRADLE_USER_HOME="$FORGEJO_WORKSPACE/.gradle-ci"
+          "$OPENVITALS_GRADLE_BIN" --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Prepare release artifact
+        run: |
+          set -euxo pipefail
+
+          cd "$FORGEJO_WORKSPACE"
+          apk_path="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
+          if [ -z "$apk_path" ]; then
+            echo "Release APK was not produced" >&2
+            exit 1
+          fi
+
+          release_apk="/tmp/OpenVitals-${FORGEJO_REF_NAME}.apk"
+          cp "$apk_path" "$release_apk"
+          sha256sum "$release_apk" > "${release_apk}.sha256"
+
+          {
+            echo "OPENVITALS_RELEASE_APK=$release_apk"
+            echo "OPENVITALS_RELEASE_APK_SHA256=${release_apk}.sha256"
+          } >> "$FORGEJO_ENV"
+
+      - name: Create or update Codeberg release
+        run: |
+          set -euxo pipefail
+
+          api_base="${FORGEJO_API_URL}/repos/${FORGEJO_REPOSITORY}/releases"
+          release_tag="$FORGEJO_REF_NAME"
+
+          case "$release_tag" in
+            *-alpha*|*-beta*|*-rc*)
+              prerelease=true
+              ;;
+            *)
+              prerelease=false
+              ;;
+          esac
+
+          export OPENVITALS_PRERELEASE="$prerelease"
+
+          status_code="$(curl -sS -o /tmp/release.json -w '%{http_code}' \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            -H "Accept: application/json" \
+            "${api_base}/tags/${release_tag}")"
+
+          if [ "$status_code" = "200" ]; then
+            release_id="$("$OPENVITALS_PYTHON" -c "import json; print(json.load(open('/tmp/release.json', encoding='utf-8'))['id'])")"
+
+            curl -fsS \
+              -X PATCH \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Accept: application/json" \
+              -H "Content-Type: application/json" \
+              -d "$("$OPENVITALS_PYTHON" -c "import json, os, pathlib; release_notes = pathlib.Path(os.environ['OPENVITALS_RELEASE_NOTES']).read_text(encoding='utf-8').strip(); print(json.dumps({'tag_name': os.environ['FORGEJO_REF_NAME'], 'target_commitish': os.environ['FORGEJO_SHA'], 'name': os.environ['OPENVITALS_RELEASE_NAME'], 'body': release_notes, 'draft': False, 'prerelease': os.environ['OPENVITALS_PRERELEASE'] == 'true'}))")" \
+              "${api_base}/${release_id}" \
+              > /tmp/release-updated.json
+            echo "OPENVITALS_RELEASE_JSON=/tmp/release-updated.json" >> "$FORGEJO_ENV"
+          elif [ "$status_code" = "404" ]; then
+            curl -fsS \
+              -X POST \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Accept: application/json" \
+              -H "Content-Type: application/json" \
+              -d "$("$OPENVITALS_PYTHON" -c "import json, os, pathlib; release_notes = pathlib.Path(os.environ['OPENVITALS_RELEASE_NOTES']).read_text(encoding='utf-8').strip(); print(json.dumps({'tag_name': os.environ['FORGEJO_REF_NAME'], 'target_commitish': os.environ['FORGEJO_SHA'], 'name': os.environ['OPENVITALS_RELEASE_NAME'], 'body': release_notes, 'draft': False, 'prerelease': os.environ['OPENVITALS_PRERELEASE'] == 'true'}))")" \
+              "${api_base}" \
+              > /tmp/release-created.json
+            echo "OPENVITALS_RELEASE_JSON=/tmp/release-created.json" >> "$FORGEJO_ENV"
+          else
+            cat /tmp/release.json >&2
+            echo "Unexpected response while looking up release: HTTP ${status_code}" >&2
+            exit 1
+          fi
+
+      - name: Upload release assets
+        run: |
+          set -euxo pipefail
+
+          api_base="${FORGEJO_API_URL}/repos/${FORGEJO_REPOSITORY}/releases"
+
+          release_id="$("$OPENVITALS_PYTHON" -c "import json, os; print(json.load(open(os.environ['OPENVITALS_RELEASE_JSON'], encoding='utf-8'))['id'])")"
+
+          "$OPENVITALS_PYTHON" -c "import json, os; release = json.load(open(os.environ['OPENVITALS_RELEASE_JSON'], encoding='utf-8')); [print(f\"{asset['id']}\t{asset['name']}\") for asset in release.get('assets', [])]" > /tmp/existing-assets.tsv
+
+          for asset_path in "$OPENVITALS_RELEASE_APK" "$OPENVITALS_RELEASE_APK_SHA256"; do
+            asset_name="$(basename "$asset_path")"
+            existing_asset_id="$(awk -F '\t' -v name="$asset_name" '$2 == name { print $1 }' /tmp/existing-assets.tsv || true)"
+
+            if [ -n "$existing_asset_id" ]; then
+              curl -fsS \
+                -X DELETE \
+                -H "Authorization: token ${FORGEJO_TOKEN}" \
+                -H "Accept: application/json" \
+                "${api_base}/${release_id}/assets/${existing_asset_id}"
+            fi
+
+            curl -fsS \
+              -X POST \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Accept: application/json" \
+              -F "attachment=@${asset_path}" \
+              "${api_base}/${release_id}/assets?name=${asset_name}"
+          done

@@ -5,6 +5,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val releaseStoreFilePath = System.getenv("OPENVITALS_RELEASE_STORE_FILE")
+val releaseStorePassword = System.getenv("OPENVITALS_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("OPENVITALS_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("OPENVITALS_RELEASE_KEY_PASSWORD")
+
+val hasReleaseSigning = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "dev.manu.openvitals"
     compileSdk = 36
@@ -17,8 +29,22 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(checkNotNull(releaseStoreFilePath))
+                storePassword = checkNotNull(releaseStorePassword)
+                keyAlias = checkNotNull(releaseKeyAlias)
+                keyPassword = checkNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
