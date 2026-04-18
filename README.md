@@ -116,6 +116,10 @@ Near-term roadmap items already tracked in [`docs/metrics-roadmap.md`](docs/metr
 - mindfulness
 - opt-in cycle tracking
 
+## License
+
+OpenVitals is licensed under the [`GNU Affero General Public License v3.0 or later`](LICENSE).
+
 ## Status
 
 OpenVitals is actively being shaped into a consistent Health Connect dashboard app. The current codebase already has the shared period-based detail architecture in place, but the product surface and project documentation are still evolving.
