@@ -10,11 +10,15 @@ import androidx.core.content.ContextCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.BasalMetabolicRateRecord
+import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
@@ -37,6 +41,7 @@ import dev.manu.openvitals.data.model.HeartRateSummary
 import dev.manu.openvitals.data.model.SleepData
 import dev.manu.openvitals.data.model.SleepStage
 import dev.manu.openvitals.data.model.StepProgressPoint
+import dev.manu.openvitals.data.model.BodyFatEntry
 import dev.manu.openvitals.data.model.WeightEntry
 import java.time.Duration
 import java.time.Instant
@@ -71,6 +76,10 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+        HealthPermission.getReadPermission(BasalMetabolicRateRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(HydrationRecord::class),
     )
@@ -585,6 +594,73 @@ class HealthConnectManager(private val context: Context) {
                     source = record.metadata.dataOrigin.packageName,
                 )
             }
+        }
+
+    // ─── Body composition helpers ─────────────────────────────────────────────
+
+    suspend fun readLatestHeight(): Double? =
+        withNullableLogging("readLatestHeight") {
+            client().readRecords(
+                ReadRecordsRequest(
+                    recordType = HeightRecord::class,
+                    timeRangeFilter = TimeRangeFilter.before(Instant.now()),
+                    ascendingOrder = false,
+                    pageSize = 1,
+                )
+            ).records.firstOrNull()?.height?.inMeters?.times(100.0)
+        }
+
+    suspend fun readLatestBodyFat(): Double? =
+        withNullableLogging("readLatestBodyFat") {
+            client().readRecords(
+                ReadRecordsRequest(
+                    recordType = BodyFatRecord::class,
+                    timeRangeFilter = TimeRangeFilter.before(Instant.now()),
+                    ascendingOrder = false,
+                    pageSize = 1,
+                )
+            ).records.firstOrNull()?.percentage?.value
+        }
+
+    suspend fun readBodyFatEntries(start: Instant, end: Instant): List<BodyFatEntry> =
+        withLogging("readBodyFatEntries[$start..$end]", emptyList()) {
+            client().readRecords(
+                ReadRecordsRequest(
+                    recordType = BodyFatRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    ascendingOrder = true,
+                )
+            ).records.map { record ->
+                BodyFatEntry(
+                    time = record.time,
+                    percent = record.percentage.value,
+                    source = record.metadata.dataOrigin.packageName,
+                )
+            }
+        }
+
+    suspend fun readLatestLeanBodyMass(): Double? =
+        withNullableLogging("readLatestLeanBodyMass") {
+            client().readRecords(
+                ReadRecordsRequest(
+                    recordType = LeanBodyMassRecord::class,
+                    timeRangeFilter = TimeRangeFilter.before(Instant.now()),
+                    ascendingOrder = false,
+                    pageSize = 1,
+                )
+            ).records.firstOrNull()?.mass?.inKilograms
+        }
+
+    suspend fun readLatestBMR(): Double? =
+        withNullableLogging("readLatestBMR") {
+            client().readRecords(
+                ReadRecordsRequest(
+                    recordType = BasalMetabolicRateRecord::class,
+                    timeRangeFilter = TimeRangeFilter.before(Instant.now()),
+                    ascendingOrder = false,
+                    pageSize = 1,
+                )
+            ).records.firstOrNull()?.basalMetabolicRate?.inKilocaloriesPerDay
         }
 
     // ─── Nutrition helpers ────────────────────────────────────────────────────

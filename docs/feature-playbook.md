@@ -50,7 +50,7 @@ Every new detail feature should include:
 1. One route
 2. One ViewModel
 3. One `UiState`
-4. One period-based screen shell
+4. One period-based screen using `MetricDetailScaffold`
 5. `Day / Week / Month / Year`
 6. Previous/next period navigation
 7. Calendar selection
@@ -118,27 +118,27 @@ The feature should load data for:
 
 Avoid inventing feature-specific date navigation rules unless the metric truly requires them.
 
-### 3. Add repository/query support
+### 3. Add Health Connect support
 
-The data layer should expose feature-oriented reads.
+**a. Manifest** — add `<uses-permission android:name="android.permission.health.READ_*" />` in `AndroidManifest.xml`.
 
-Prefer:
+**b. HealthConnectManager** — add the new record type to `phase2Permissions` (or phase 3/4 if opt-in) and add the read method(s).
 
-- `loadHydration(period)`
-- `loadHydrationDay(date)`
-- `loadHydrationTimeline(date)`
+**c. Feature repository** — add a load method with a permission guard. Follow the pattern from existing repos (`ActivityRepository`, `HeartRepository`, etc.).
 
-over piling more unrelated overloads into one generic repository without a plan.
+### 4. Add the data model
 
-If adding a reusable query object or period abstraction reduces duplication across multiple features, do that before copying code.
+Add new data classes to `data/model/HealthData.kt` under the relevant section.
 
-### 4. Implement the ViewModel
+If the metric also belongs on the dashboard, add a non-nullable field with a `0` default to `DashboardData` and set it in `HealthRepository.loadDashboard()`.
+
+### 5. Implement the ViewModel
 
 The ViewModel should:
 
 - own selected range/date state
 - compute the selected period
-- load metric data
+- load metric data in parallel with `async`
 - expose UI-ready state
 
 The ViewModel should not:
@@ -147,16 +147,39 @@ The ViewModel should not:
 - know about icon choices or display colors
 - duplicate period logic if a shared helper already exists
 
-### 5. Implement the screen
+### 6. Implement the screen
 
-The screen should follow the shared shell:
+Use `MetricDetailScaffold` from `ui/components/MetricDetailScaffold.kt` as the screen shell. It handles:
 
-- refresh
-- range selector
-- period navigator
-- error
-- feature content
-- date picker
+- pull-to-refresh
+- time range selector
+- period navigator + date picker
+- error block
+
+Your screen only needs the feature-specific content lambda:
+
+```kotlin
+@Composable
+fun HydrationScreen(viewModel: HydrationViewModel) {
+    val state by viewModel.uiState.collectAsState()
+
+    MetricDetailScaffold(
+        isLoading = state.isLoading,
+        selectedRange = state.selectedRange,
+        selectedDate = state.selectedDate,
+        error = state.error,
+        onRefresh = viewModel::load,
+        onSelectRange = viewModel::selectRange,
+        onPreviousPeriod = viewModel::previousPeriod,
+        onNextPeriod = viewModel::nextPeriod,
+        onSelectDate = viewModel::selectDate,
+    ) { period ->
+        // feature-specific items here
+    }
+}
+```
+
+If the feature needs items *before* the time range selector (e.g. category filter chips), use the `headerItems` slot.
 
 Then split the content into:
 
@@ -164,29 +187,35 @@ Then split the content into:
 - `Week / Month / Year` content
 - optional list/breakdown
 
-### 6. Register navigation
+### 7. Add the dashboard card
+
+Dashboard metrics always appear even when data is 0 — do not gate them with null checks.
+
+Add a non-nullable field to `DashboardData` with default `0` / `0.0`. Add a `MetricCard` to the relevant section of `DashboardScreen`. Add a new accent color to `ui/theme/Color.kt` if needed.
+
+### 8. Register navigation
 
 Update:
 
 - route in `navigation/Screen.kt`
 - destination in `navigation/AppNavigation.kt`
-- dashboard card routing if needed
+- dashboard card `onClick` routing if relevant
 
-### 7. Update docs if the pattern changes
+### 9. Update docs if the pattern changes
 
 If the feature introduces a better reusable pattern:
 
-- update `AGENTS.md`
 - update `docs/architecture.md`
 - update `docs/refactor-roadmap.md` if it changes migration order
+- update `docs/metrics-roadmap.md` to mark the item done
 
 ## Reuse Rules
 
 ### Reuse these
 
-- period selection logic
-- period navigator UI
-- screen shell
+- `MetricDetailScaffold` for the screen shell
+- `periodFor`, `periodTitle`, `periodSubtitle` from `ui/components/PeriodNavigator.kt`
+- `SectionHeader`, `SourceChip`, `InlineLoading`, `ErrorMessage` from `ui/components/`
 - common loading/error/empty patterns
 
 ### Keep these feature-specific
@@ -196,28 +225,14 @@ If the feature introduces a better reusable pattern:
 - metric-specific summaries
 - metric-specific formatting language when domain semantics differ
 
-## Legacy Warning
-
-Do not copy these older patterns for new work:
-
-- range-only feature screens with no selected date anchor
-- screen-local coroutine loading
-- new one-off navigator implementations
-- direct repository access from a large screen without a ViewModel
-
-Current legacy examples:
-
-- [../app/src/main/kotlin/dev/manu/hcdashboard/features/body](../app/src/main/kotlin/dev/manu/hcdashboard/features/body)
-- [../app/src/main/kotlin/dev/manu/hcdashboard/features/browse](../app/src/main/kotlin/dev/manu/hcdashboard/features/browse)
-
 ## Pull Request / Change Checklist
 
 Before finishing a new feature, verify:
 
-- the feature uses the period-based detail model
+- the feature uses `MetricDetailScaffold`
 - the screen can navigate backward and forward correctly
 - navigation does not move past the current period
-- the dashboard route is wired if relevant
+- the dashboard card is always visible (defaults to 0, not hidden when null)
 - empty/error states exist
 - the feature did not introduce another copy of shared period logic
-- docs are still accurate
+- `docs/metrics-roadmap.md` is updated

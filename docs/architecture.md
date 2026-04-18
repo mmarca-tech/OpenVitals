@@ -1,304 +1,452 @@
 # Architecture
 
-## Intent
+## Purpose
 
-This document defines the target architecture for the Health Connect Dashboard app.
+This document describes the architecture of OpenVitals as it exists today, plus the direction new work should follow.
 
-It is intentionally practical:
+The repo is still a single Android app module. The goal is not to force a multi-module design yet. The goal is to keep boundaries clear enough that new metrics can be added without copying screen scaffolding, period math, or Health Connect plumbing everywhere.
 
-- keep the app simple enough for a single-module Android project
-- make metric features easy to add
-- reduce repetition across detail screens
-- avoid premature abstractions that make charts harder to understand
+## Current Snapshot
+
+- App namespace: `dev.manu.openvitals`
+- Project shape: one Android app module under `app/`
+- Dependency wiring: manual, in [`OpenVitalsApp`](../app/src/main/kotlin/dev/manu/openvitals/OpenVitalsApp.kt)
+- UI stack: Jetpack Compose + Navigation Compose + `ViewModel` + coroutines/`StateFlow`
+- Health data backend: Health Connect AndroidX client, wrapped by [`HealthConnectManager`](../app/src/main/kotlin/dev/manu/openvitals/healthconnect/HealthConnectManager.kt)
+- Shared period shell: in place and used by all metric detail/list screens
+- Feature repositories: in place for activity, sleep, heart, and body
+- Dashboard: still a dedicated day-based summary screen, not a period-detail screen
+- Declared but not active architecture pillars: Room and WorkManager are dependencies, but they are not part of the current feature flows yet
+
+Most importantly, `body` and `browse` are no longer special legacy exceptions in the UI architecture. They now follow the same period-based shell as the other detail screens.
 
 ## Architectural Principles
 
-### 1. Feature-first organization
+### 1. Feature-first code organization
 
-The app should stay organized by feature, not by widget type.
+New product work should live under `features/<feature>/`.
 
-Use:
+Each feature owns:
 
-- `features/dashboard`
-- `features/activity`
-- `features/sleep`
-- `features/heart`
-- `features/body`
-- `features/<new-metric>`
+- screen composables
+- screen `UiState`
+- screen `ViewModel`
+- feature-specific charts, cards, rows, and formatting
 
-Each feature owns its own screen, state, ViewModel, and metric-specific UI.
+Shared code should only move out of a feature when it is clearly reused by multiple screens.
 
-### 2. Shared shells, feature-specific visuals
+### 2. Shared shell, feature-owned visuals
 
-The repeated shell around metric detail screens should be reusable.
+The app now has a real shared shell for period-based screens:
 
-The actual metric cards and charts should remain feature-owned.
-
-Reusable:
-
-- pull-to-refresh shell
-- time range selector
+- pull to refresh
+- range selector
 - period navigator
-- date picker handling
-- period math and period formatting
-- generic empty/error/loading blocks
+- date picker
+- shared loading/error framing
 
-Feature-owned:
+That shell belongs in shared UI.
+
+The actual metric presentation stays feature-local:
 
 - steps charts
-- sleep session timeline and sleep stages
-- heart timeline and range chart
-- metric-specific rows and summaries
+- sleep session timeline and stage bars
+- heart trend/timeline cards
+- workout rows
+- weight/body composition cards
+
+We do not want a universal chart abstraction that hides metric meaning.
 
 ### 3. Period-driven detail screens
 
-All metric detail screens should follow the same interaction model:
+The canonical interaction model for metric screens is:
 
 - `Day / Week / Month / Year`
 - selected anchor date
-- previous/next period navigation
-- calendar date selection
-- navigation blocked beyond the current period
+- previous/next navigation
+- direct calendar selection
+- forward navigation capped at the current period
 
-This is the canonical pattern for new metric detail screens.
+This pattern is implemented today by shared primitives in `ui/components`.
 
-### 4. Thin screen composables
+### 4. ViewModels own screen state and orchestration
 
-Screens should mostly:
-
-- collect state
-- wire callbacks
-- compose sections
-
-Screens should not:
-
-- implement loading orchestration
-- duplicate period math
-- contain large formatting policy blocks
-
-### 5. Feature ViewModels own screen state
-
-Each screen should have one ViewModel responsible for:
+Screens stay thin. ViewModels are responsible for:
 
 - selected range/date state
-- loading and refresh
-- combining repository results
+- triggering loads and refreshes
+- combining repository calls
 - exposing UI-ready state
 
-### 6. Query-oriented data access
+Screens should mostly collect state, wire callbacks, and render sections.
 
-Health Connect is the source of truth.
+### 5. Repositories are feature-facing and permission-aware
 
-The data layer should expose feature-oriented queries instead of screen-specific overload growth.
+Health Connect specifics stay below the feature layer.
 
-Target direction:
+Repository methods should answer feature questions such as:
 
-- `DatePeriod`
-- `MetricQuery`
-- feature repositories or query services
+- load workouts for a period
+- load sleep sessions for a period
+- load heart summaries for a period
+- load body entries for a period
 
-Avoid endless API growth like:
+They should not keep growing into one large grab-bag repository with screen-specific overloads.
 
-- `loadX(range)`
-- `loadX(date)`
-- `loadX(start, end)`
-- `loadXForChart(...)`
-- `loadXForSummary(...)`
+### 6. Keep abstractions proportional
 
-unless those are temporary migration steps.
+The current app does not need:
 
-## Target Layers
+- a DI framework
+- a reducer/effect architecture
+- a multi-module split
+- a cache/database architecture for all metrics
 
-Within the current single app module, aim for these logical layers:
+Those may become useful later, but they are not the baseline for new work today.
 
-### App layer
+## Logical Layers In The Current App
 
-Responsible for:
+These are logical layers inside one module, not Gradle modules.
+
+### App shell
+
+Responsibilities:
 
 - app startup
-- manual DI or future DI migration
-- navigation graph
-- screen registration
+- manual dependency wiring
+- theme setup
+- route registration
+- top app bar and global navigation shell
 
-Relevant files today:
+Current files:
 
-- [../app/src/main/kotlin/dev/manu/hcdashboard/HCDashboardApp.kt](../app/src/main/kotlin/dev/manu/hcdashboard/HCDashboardApp.kt)
-- [../app/src/main/kotlin/dev/manu/hcdashboard/MainActivity.kt](../app/src/main/kotlin/dev/manu/hcdashboard/MainActivity.kt)
-- [../app/src/main/kotlin/dev/manu/hcdashboard/navigation/AppNavigation.kt](../app/src/main/kotlin/dev/manu/hcdashboard/navigation/AppNavigation.kt)
+- [`OpenVitalsApp.kt`](../app/src/main/kotlin/dev/manu/openvitals/OpenVitalsApp.kt)
+- [`MainActivity.kt`](../app/src/main/kotlin/dev/manu/openvitals/MainActivity.kt)
+- [`navigation/AppNavigation.kt`](../app/src/main/kotlin/dev/manu/openvitals/navigation/AppNavigation.kt)
+- [`navigation/Screen.kt`](../app/src/main/kotlin/dev/manu/openvitals/navigation/Screen.kt)
 
-### Data layer
+Notes:
 
-Responsible for:
+- `OpenVitalsApp` manually exposes lazy repository instances.
+- `MainActivity` owns the onboarding-complete preference and chooses the start destination.
+- `AppNavigation` constructs screen-specific ViewModels with `remember(...)` and passes repositories explicitly.
 
-- Health Connect reads
-- permission-aware reads
-- mapping raw records to domain models
+### Data access
 
-Relevant files today:
+Responsibilities:
 
-- [../app/src/main/kotlin/dev/manu/hcdashboard/healthconnect/HealthConnectManager.kt](../app/src/main/kotlin/dev/manu/hcdashboard/healthconnect/HealthConnectManager.kt)
-- [../app/src/main/kotlin/dev/manu/hcdashboard/data/repository/HealthRepository.kt](../app/src/main/kotlin/dev/manu/hcdashboard/data/repository/HealthRepository.kt)
+- Health Connect availability checks
+- permission queries
+- record reads and aggregate reads
+- mapping Health Connect responses into app models
+- feature-facing repository APIs
 
-Target split over time:
+Current files:
 
-- raw Health Connect access stays in `healthconnect`
-- feature-facing repositories/query services move toward per-feature boundaries
+- [`healthconnect/HealthConnectManager.kt`](../app/src/main/kotlin/dev/manu/openvitals/healthconnect/HealthConnectManager.kt)
+- [`data/repository/HealthRepository.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/repository/HealthRepository.kt)
+- [`data/repository/ActivityRepository.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/repository/ActivityRepository.kt)
+- [`data/repository/SleepRepository.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/repository/SleepRepository.kt)
+- [`data/repository/HeartRepository.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/repository/HeartRepository.kt)
+- [`data/repository/BodyRepository.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/repository/BodyRepository.kt)
+- [`data/model/HealthData.kt`](../app/src/main/kotlin/dev/manu/openvitals/data/model/HealthData.kt)
 
-### Shared UI / core presentation layer
+Current boundary shape:
 
-Responsible for:
+- `HealthConnectManager` is the low-level integration wrapper. It talks to the AndroidX client, performs reads, and maps results into app models.
+- `HealthRepository` is now intentionally narrow: Health Connect availability, permission state, and dashboard aggregation.
+- Feature repositories are thin, permission-aware facades over `HealthConnectManager`.
 
-- period selection model
-- period formatting
-- reusable navigator
-- reusable detail screen scaffold
-- formatting utilities that are not metric-specific
+This is a meaningful improvement over the earlier centralized repository approach. New feature reads should follow the feature-repository pattern, not expand `HealthRepository`.
 
-Current partial location:
+### Shared UI / presentation
 
-- [../app/src/main/kotlin/dev/manu/hcdashboard/ui/components](../app/src/main/kotlin/dev/manu/hcdashboard/ui/components)
+Responsibilities:
 
-Target additions over time:
+- reusable shell components
+- period selection primitives
+- date navigation UI
+- loading/error primitives
+- dashboard/detail card building blocks
 
-- `core/period`
-- `core/presentation`
+Current files:
+
+- [`ui/components/MetricDetailScaffold.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/MetricDetailScaffold.kt)
+- [`ui/components/PeriodNavigator.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/PeriodNavigator.kt)
+- [`ui/components/DateNavigation.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/DateNavigation.kt)
+- [`ui/components/MetricCard.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/MetricCard.kt)
+- [`ui/components/LoadingState.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/LoadingState.kt)
+- [`ui/components/PullToRefreshBox.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/PullToRefreshBox.kt)
+- [`ui/components/PermissionCallout.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/PermissionCallout.kt)
+
+Important current detail:
+
+- `TimeRange` still lives in `data/model/HealthData.kt`
+- `DatePeriod`, `periodFor`, `periodTitle`, `periodSubtitle`, and `PeriodNavigator` live in `ui/components/PeriodNavigator.kt`
+
+That is acceptable for now, but it is still a good candidate for a future `core/period` package once the period model stabilizes further.
 
 ### Feature layer
 
-Responsible for:
+Responsibilities:
 
-- feature contract
-- ViewModel
-- feature-specific cards
-- feature-specific rows
-- feature-specific visual logic
+- feature contracts (`UiState`, actions, derived display fields)
+- screen-specific orchestration
+- feature-specific cards/charts/lists
+- feature-specific display language
 
-## Canonical Detail Screen Pattern
+Current feature packages:
 
-New detail features should follow this shape:
+- [`features/onboarding`](../app/src/main/kotlin/dev/manu/openvitals/features/onboarding)
+- [`features/dashboard`](../app/src/main/kotlin/dev/manu/openvitals/features/dashboard)
+- [`features/activity`](../app/src/main/kotlin/dev/manu/openvitals/features/activity)
+- [`features/sleep`](../app/src/main/kotlin/dev/manu/openvitals/features/sleep)
+- [`features/heart`](../app/src/main/kotlin/dev/manu/openvitals/features/heart)
+- [`features/body`](../app/src/main/kotlin/dev/manu/openvitals/features/body)
+- [`features/browse`](../app/src/main/kotlin/dev/manu/openvitals/features/browse)
+- [`features/settings`](../app/src/main/kotlin/dev/manu/openvitals/features/settings)
 
-### Contract
+One practical note: `features/activity` currently contains two screens:
 
-Each feature should expose a clear screen contract:
+- `ActivityScreen` for steps/distance/calories style metric detail
+- `ActivitiesScreen` for workout sessions
 
-- `UiState`
-- screen actions
-- optional derived display fields
+That is a reasonable local compromise today because both screens share `ActivityRepository`, but future metrics should still prefer one feature package per cohesive surface.
 
-### Period selection
+## Screen Families
 
-Use a shared period model:
+### Dashboard
 
-```kotlin
-data class DatePeriod(
-    val start: LocalDate,
-    val end: LocalDate,
-)
-```
+The dashboard is intentionally different from the period-based detail screens.
 
-And shared helpers:
+It is:
 
-- `periodFor(range, anchorDate)`
-- `periodTitle(range, period)`
-- `periodSubtitle(range, period)`
-- `canGoForward(range, anchorDate)`
+- a daily snapshot
+- navigated by day only
+- powered by one aggregated `DashboardData` object
+- the main entry point into feature screens
 
-### Screen scaffold
+Current files:
 
-The screen shell should eventually be standardized around:
+- [`features/dashboard/DashboardViewModel.kt`](../app/src/main/kotlin/dev/manu/openvitals/features/dashboard/DashboardViewModel.kt)
+- [`features/dashboard/DashboardScreen.kt`](../app/src/main/kotlin/dev/manu/openvitals/features/dashboard/DashboardScreen.kt)
+
+Shared pieces it uses:
 
 - `PullToRefreshBox`
-- `TimeRangeSelector`
-- shared period navigator
-- date picker dialog
-- error block
-- content slot
+- `DayNavigator`
+- `HealthDatePickerDialog`
+- `MetricCard`
+- `PermissionCallout`
 
-### Content slots
+The dashboard should stay summary-first. It should not become a second copy of detail-screen logic.
 
-The feature provides:
+### Period-based detail/list screens
 
-- `Day` content
-- `Week / Month / Year` content
-- optional list/breakdown section
+The aligned detail/list screens are:
 
-## Recommended Shared Building Blocks
+- steps/activity
+- activities
+- sleep
+- heart
+- body
+- browse
 
-These are the abstractions worth building.
+They all use [`MetricDetailScaffold`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/MetricDetailScaffold.kt) as the shared shell.
 
-### Worth extracting
+The scaffold currently owns:
 
-- `DatePeriod`
-- period calculator
-- period title/subtitle formatter
-- shared period navigator
-- shared detail screen scaffold
-- shared metric bar card primitive
-- shared intraday line card primitive if it stays simple
+- pull to refresh
+- time range selector
+- period navigator
+- date picker
+- shared error block
+- `headerItems` slot
+- `content: LazyListScope.(DatePeriod) -> Unit` slot
 
-### Not worth over-abstracting
+This is the main reusable architectural frame for metric work in the app today.
 
-- sleep stages bar
-- heart rate min/max/avg chart
-- workout list rows
-- steps plus calories plus distance combined feature cards
+### Permission surfaces
 
-These remain easier to reason about when they stay local to the feature.
+Onboarding and Settings are not metric screens, but they are important architectural surfaces because they centralize Health Connect availability and permission management.
 
-## State Management Pattern
+Current files:
 
-Use a lightweight screen-state pattern.
+- [`features/onboarding`](../app/src/main/kotlin/dev/manu/openvitals/features/onboarding)
+- [`features/settings`](../app/src/main/kotlin/dev/manu/openvitals/features/settings)
 
-Recommended minimum:
+These screens should continue to depend on `HealthRepository`, not on feature repositories.
+
+## Canonical Detail Feature Pattern
+
+New metric detail work should follow this shape.
+
+### 1. Define a feature-owned contract
+
+At minimum:
 
 - `UiState`
-- ViewModel methods for screen actions
+- selected range
+- selected date
+- loading state
+- feature payload
+- error state
 
-This codebase does not currently need a full reducer/event/effect framework everywhere.
+Keep derived fields in the state only when they genuinely simplify the UI.
 
-Add that only if flows become significantly more complex.
+### 2. Reuse the shared period model
 
-## Navigation Pattern
+Today the shared period model is:
 
-The dashboard is the entry point.
+- `TimeRange` in `data/model/HealthData.kt`
+- `DatePeriod` and `periodFor(...)` in `ui/components/PeriodNavigator.kt`
 
-Metric cards route to feature detail screens.
+The feature should load data against the selected period rather than inventing custom navigation rules.
 
-New features should:
+### 3. Keep the ViewModel in charge
 
-- have one route
-- have one top bar title
-- have one dashboard entry point when appropriate
+The ViewModel should:
 
-Avoid making the navigation graph the place where feature logic lives.
+- update range/date
+- clamp future navigation
+- compute the active period
+- call repositories
+- expose UI-ready data
 
-## Dependency Injection Pattern
+Most current ViewModels already follow this shape.
 
-Current state is manual DI through `HCDashboardApp` and `remember(...)` ViewModel construction.
+### 4. Use `MetricDetailScaffold` as the shell
 
-This is acceptable for now.
+The screen should pass shared shell parameters and provide only feature content.
 
-Do not introduce a DI framework only for this refactor.
+The content lambda should render:
 
-If DI grows later, the target should be:
+- `Day` mode content
+- `Week / Month / Year` content
+- optional list/breakdown sections
 
-- repositories/query services provided centrally
-- ViewModels created through a consistent factory approach
+### 5. Keep visuals local to the feature
 
-## Current Legacy Exceptions
+If the feature needs a custom chart, row, or timeline, keep it in the feature package unless another feature genuinely needs the same thing.
 
-These features do not yet follow the target pattern and should be treated as migration targets:
+## Repository Rules For New Work
 
-- [../app/src/main/kotlin/dev/manu/hcdashboard/features/body](../app/src/main/kotlin/dev/manu/hcdashboard/features/body)
-- [../app/src/main/kotlin/dev/manu/hcdashboard/features/browse](../app/src/main/kotlin/dev/manu/hcdashboard/features/browse)
+### Use `HealthRepository` only for app-level concerns
 
-Do not use them as the template for new features.
+Keep using `HealthRepository` for:
 
-## Anti-Patterns To Avoid
+- availability
+- permission contract access
+- granted/missing permissions
+- dashboard loading
 
-- giant abstract `BaseMetricViewModel`
-- one mega chart component for all metrics
-- screen-local coroutine loading for new feature work
-- new per-feature copies of period math and period navigator UI
-- continuing to grow one repository with screen-specific methods forever
-- pushing raw Health Connect quirks directly into composables
+Do not add new feature-detail data methods there unless the app is in a temporary migration step.
+
+### Add or extend feature repositories for feature data
+
+Follow the current pattern:
+
+- `ActivityRepository`
+- `SleepRepository`
+- `HeartRepository`
+- `BodyRepository`
+
+Each repository should:
+
+- guard required permissions
+- call `HealthConnectManager`
+- return app models ready for the ViewModel
+
+### Keep queries period-oriented
+
+Prefer APIs shaped like:
+
+- `loadX(date)`
+- `loadX(start, end)`
+
+and gradually converge toward a more explicit shared period/query model if duplication grows.
+
+### Compose existing repositories when the feature is an aggregate browser
+
+`BrowseViewModel` is a good current example. It composes activity, sleep, and body repositories rather than inventing a broad new repository abstraction.
+
+## What Should Stay Shared vs Local
+
+### Shared
+
+- period calculation and titles
+- period/day navigation components
+- date picker dialog
+- detail-screen scaffold
+- pull-to-refresh wrapper
+- loading/error components
+- general card primitives like `MetricCard`
+- general chips and section headers
+
+### Feature-local
+
+- metric-specific charts
+- metric-specific timelines
+- metric-specific list rows
+- metric-specific summaries
+- metric-specific empty-state language when the domain meaning differs
+
+## Known Seams And Next Refactors
+
+These are real seams in the current codebase, but they are not urgent enough to block feature work.
+
+### 1. Period state logic is still duplicated across ViewModels
+
+`selectRange`, `previousPeriod`, `nextPeriod`, `selectDate`, and the load pattern are repeated in multiple ViewModels.
+
+This is the clearest remaining candidate for shared extraction.
+
+Good future targets:
+
+- `core/period`
+- a reusable period-state helper
+- a small detail-screen contract/helper, but not a giant abstract base ViewModel
+
+### 2. Period primitives are split across `data` and `ui`
+
+`TimeRange` is in `data/model`, while `DatePeriod` and helpers are in `ui/components`.
+
+That works, but it is not the cleanest long-term boundary.
+
+### 3. Shared UI primitives are still grouped in broad files
+
+For example, [`MetricCard.kt`](../app/src/main/kotlin/dev/manu/openvitals/ui/components/MetricCard.kt) currently contains:
+
+- `MetricCard`
+- `MetricCardPlaceholder`
+- `SourceChip`
+- `SectionHeader`
+- `TimeRangeSelector`
+
+This is fine for the current repo size, but if shared UI keeps growing, these should split by responsibility.
+
+### 4. Room and WorkManager are not active architectural constraints yet
+
+The project declares both dependencies, and the manifest already removes the default WorkManager initializer, but there is no current repository/cache/job architecture built around them.
+
+Do not design new features as if a cache/database/background-sync layer already exists.
+
+### 5. Do not over-correct into a universal framework
+
+Still avoid:
+
+- a universal chart abstraction
+- a giant base ViewModel hierarchy
+- premature multi-module refactors
+- a full reducer/effect framework for straightforward screens
+
+## Success Criteria
+
+The architecture is working well when:
+
+- a new metric screen can be added without copying shell UI
+- Health Connect reads stay below the feature layer
+- feature repositories stay narrow and query-oriented
+- screens remain thin
+- charts remain understandable because metric-specific visuals stay local
+- shared extraction happens for scaffolding, not for semantics

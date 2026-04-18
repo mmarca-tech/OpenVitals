@@ -2,6 +2,7 @@ package dev.manu.openvitals.data.repository
 
 import android.util.Log
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
@@ -31,6 +32,7 @@ class HealthRepository(private val hc: HealthConnectManager) {
     private val readHeartRatePermission = HealthPermission.getReadPermission(HeartRateRecord::class)
     private val readRestingHRPermission = HealthPermission.getReadPermission(RestingHeartRateRecord::class)
     private val readWeightPermission = HealthPermission.getReadPermission(WeightRecord::class)
+    private val readBodyFatPermission = HealthPermission.getReadPermission(BodyFatRecord::class)
     private val readCaloriesPermission = HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
     private val readHydrationPermission = HealthPermission.getReadPermission(HydrationRecord::class)
 
@@ -74,6 +76,7 @@ class HealthRepository(private val hc: HealthConnectManager) {
         val calories = if (readCaloriesPermission in granted) async { hc.readCaloriesKcal(date) } else null
         val hydration = if (readHydrationPermission in granted) async { hc.readHydrationLiters(date) } else null
         val weight = if (readWeightPermission in granted) async { hc.readLatestWeight(date) } else null
+        val bodyFat = if (readBodyFatPermission in granted) async { hc.readLatestBodyFat() } else null
         val heartRate = if (readHeartRatePermission in granted) async { hc.readAvgHeartRate(date) } else null
         val restingHR = if (readRestingHRPermission in granted) async { hc.readRestingHeartRate(date) } else null
 
@@ -83,13 +86,14 @@ class HealthRepository(private val hc: HealthConnectManager) {
             date = date,
             steps = steps?.await() ?: 0L,
             distanceMeters = distance?.await() ?: 0.0,
-            caloriesKcal = calories?.await(),
-            hydrationLiters = hydration?.await(),
+            caloriesKcal = calories?.await() ?: 0.0,
+            hydrationLiters = hydration?.await() ?: 0.0,
             workout = workout?.await(),
             sleep = sleep?.await(),
-            weightKg = weight?.await()?.weightKg,
-            avgHeartRateBpm = heartRate?.await(),
-            restingHeartRateBpm = restingHR?.await(),
+            weightKg = weight?.await()?.weightKg ?: 0.0,
+            bodyFatPercent = bodyFat?.await() ?: 0.0,
+            avgHeartRateBpm = heartRate?.await() ?: 0,
+            restingHeartRateBpm = restingHR?.await() ?: 0,
             missingPermissions = missingPerms,
         )
     }

@@ -20,8 +20,8 @@ This folder documents the target architecture for future feature work.
 
 The codebase is currently in a transition state:
 
-- steps/activity, sleep, heart, and activities already follow the newer period-based detail pattern
-- body and browse are still older patterns
-- the repository is still centralized and will need cleanup over time
+- steps/activity, activities, sleep, heart, body, and browse all use the shared period-based detail shell
+- `HealthRepository` is now focused on permissions and dashboard loading; feature data lives in feature repositories
+- the main remaining cleanup is shared period state/orchestration across ViewModels and eventual `core/period` extraction
 
 New work should follow the target architecture in these docs, even if some older files still use legacy patterns.

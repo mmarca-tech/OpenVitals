@@ -2,11 +2,13 @@ package dev.manu.openvitals.features.body
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.manu.openvitals.data.model.BodyFatEntry
 import dev.manu.openvitals.data.model.TimeRange
 import dev.manu.openvitals.data.model.WeightEntry
 import dev.manu.openvitals.data.repository.BodyRepository
 import dev.manu.openvitals.ui.components.periodFor
 import java.time.LocalDate
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,15 +19,26 @@ data class BodyUiState(
     val selectedRange: TimeRange = TimeRange.MONTH,
     val selectedDate: LocalDate = LocalDate.now(),
     val weightEntries: List<WeightEntry> = emptyList(),
+    val heightCm: Double? = null,
+    val bodyFatEntries: List<BodyFatEntry> = emptyList(),
+    val leanMassKg: Double? = null,
+    val bmrKcal: Double? = null,
     val error: String? = null,
 ) {
     val latestWeightKg: Double? get() = weightEntries.maxByOrNull { it.time }?.weightKg
     val firstWeightKg: Double? get() = weightEntries.minByOrNull { it.time }?.weightKg
     val weightChangKg: Double?
-        get() =
-            if (latestWeightKg != null && firstWeightKg != null)
-                latestWeightKg!! - firstWeightKg!!
-            else null
+        get() = if (latestWeightKg != null && firstWeightKg != null && latestWeightKg != firstWeightKg)
+            latestWeightKg!! - firstWeightKg!! else null
+    val latestBodyFatPercent: Double? get() = bodyFatEntries.maxByOrNull { it.time }?.percent
+    val bmi: Double?
+        get() {
+            val w = latestWeightKg ?: return null
+            val h = heightCm ?: return null
+            if (h <= 0) return null
+            val hm = h / 100.0
+            return w / (hm * hm)
+        }
 }
 
 class BodyViewModel(private val repository: BodyRepository) : ViewModel() {
@@ -81,12 +94,29 @@ class BodyViewModel(private val repository: BodyRepository) : ViewModel() {
             val date = _uiState.value.selectedDate.coerceAtMost(LocalDate.now())
             val period = periodFor(range, date)
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            runCatching { repository.loadWeightEntries(period.start, period.end) }
-                .onSuccess { entries ->
+            runCatching {
+                val weightDeferred = async { repository.loadWeightEntries(period.start, period.end) }
+                val heightDeferred = async { repository.loadLatestHeight() }
+                val bodyFatDeferred = async { repository.loadBodyFatEntries(period.start, period.end) }
+                val leanMassDeferred = async { repository.loadLatestLeanBodyMass() }
+                val bmrDeferred = async { repository.loadLatestBMR() }
+                BodyLoadResult(
+                    weightEntries = weightDeferred.await(),
+                    heightCm = heightDeferred.await(),
+                    bodyFatEntries = bodyFatDeferred.await(),
+                    leanMassKg = leanMassDeferred.await(),
+                    bmrKcal = bmrDeferred.await(),
+                )
+            }
+                .onSuccess { result ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         selectedDate = date,
-                        weightEntries = entries,
+                        weightEntries = result.weightEntries,
+                        heightCm = result.heightCm,
+                        bodyFatEntries = result.bodyFatEntries,
+                        leanMassKg = result.leanMassKg,
+                        bmrKcal = result.bmrKcal,
                     )
                 }
                 .onFailure {
@@ -98,4 +128,12 @@ class BodyViewModel(private val repository: BodyRepository) : ViewModel() {
                 }
         }
     }
+
+    private data class BodyLoadResult(
+        val weightEntries: List<WeightEntry>,
+        val heightCm: Double?,
+        val bodyFatEntries: List<BodyFatEntry>,
+        val leanMassKg: Double?,
+        val bmrKcal: Double?,
+    )
 }

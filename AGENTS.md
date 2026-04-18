@@ -35,16 +35,16 @@ The codebase already has aligned period-based detail screens for:
 - sleep
 - heart
 - activities
+- body
+- browse
 
 These features already show the intended direction.
 
-The following areas are still legacy and should not be copied as the default pattern:
+The following areas are still transitional and should not be copied as the default pattern:
 
-- `features/body`
-- `features/browse`
-- duplicated period navigator implementations in multiple feature screens
 - duplicated period selection logic in multiple ViewModels
-- a growing `HealthRepository` with screen-specific overloads
+- broad shared component files that still mix several concerns
+- a future `core/period` extraction that has not happened yet
 
 ## Golden Path For New Metric Features
 
@@ -119,7 +119,7 @@ ViewModels should not:
 
 ### Repositories
 
-`HealthRepository` is transitional.
+`HealthRepository` is intentionally narrow and should stay that way.
 
 When adding new capability:
 

@@ -50,31 +50,13 @@ Responsibilities handled:
 
 All six feature screens now delegate the shell entirely to the scaffold.
 
-### Phase 3: Data layer cleanup
+### Phase 3: Data layer cleanup ✓ Done
 
-Refactor `HealthRepository` away from overload growth.
+`HealthRepository` trimmed to permissions + dashboard only. Feature data split into `ActivityRepository`, `SleepRepository`, `HeartRepository`, `BodyRepository`. Each ViewModel takes only its own repository.
 
-Target direction:
+### Phase 4: Legacy feature migration ✓ Done
 
-- feature-oriented repositories or query services
-- shared period query objects
-- consistent day/period loading model
-
-Expected outcome:
-
-- fewer ad hoc APIs
-- less screen-specific repository creep
-
-### Phase 4: Legacy feature migration
-
-Migrate:
-
-1. body
-2. browse or replace browse with feature-owned raw record screens
-
-Expected outcome:
-
-- one consistent UX model across all metric detail screens
+Body and Browse migrated to the same UX model as all other screens (period navigation, `MetricDetailScaffold`, feature-specific repository). All metric detail screens now follow one consistent model.
 
 ### Phase 5: Dashboard and metric registration cleanup
 

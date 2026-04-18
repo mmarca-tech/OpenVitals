@@ -44,6 +44,7 @@ import dev.manu.openvitals.ui.components.MetricCardPlaceholder
 import dev.manu.openvitals.ui.components.PermissionCallout
 import dev.manu.openvitals.ui.components.PullToRefreshBox
 import dev.manu.openvitals.ui.components.SectionHeader
+import dev.manu.openvitals.ui.theme.BodyFatColor
 import dev.manu.openvitals.ui.theme.CaloriesColor
 import dev.manu.openvitals.ui.theme.DistanceColor
 import dev.manu.openvitals.ui.theme.HeartColor
@@ -191,37 +192,31 @@ private fun DashboardContent(
             }
         }
 
-        if (data.caloriesKcal != null || data.hydrationLiters != null) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    data.caloriesKcal?.let { kcal ->
-                        MetricCard(
-                            title = "Calories burned",
-                            value = "%,d".format(kcal.roundToInt()),
-                            unit = "kcal",
-                            icon = Icons.Outlined.LocalFireDepartment,
-                            accentColor = CaloriesColor,
-                            modifier = Modifier.weight(1f),
-                            onClick = onOpenSteps,
-                        )
-                    }
-                    data.hydrationLiters?.let { liters ->
-                        MetricCard(
-                            title = "Hydration",
-                            value = "%.1f".format(liters),
-                            unit = "L",
-                            icon = Icons.Outlined.LocalDrink,
-                            accentColor = HydrationColor,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
+        item {
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MetricCard(
+                    title = "Calories burned",
+                    value = "%,d".format(data.caloriesKcal.roundToInt()),
+                    unit = "kcal",
+                    icon = Icons.Outlined.LocalFireDepartment,
+                    accentColor = CaloriesColor,
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenSteps,
+                )
+                MetricCard(
+                    title = "Hydration",
+                    value = "%.1f".format(data.hydrationLiters),
+                    unit = "L",
+                    icon = Icons.Outlined.LocalDrink,
+                    accentColor = HydrationColor,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
 
@@ -282,7 +277,7 @@ private fun DashboardContent(
             ) {
                 MetricCard(
                     title = "Avg heart rate",
-                    value = data.avgHeartRateBpm?.toString() ?: "–",
+                    value = data.avgHeartRateBpm.toString(),
                     unit = "bpm",
                     icon = Icons.Outlined.Favorite,
                     accentColor = HeartColor,
@@ -291,7 +286,7 @@ private fun DashboardContent(
                 )
                 MetricCard(
                     title = "Resting heart rate",
-                    value = data.restingHeartRateBpm?.toString() ?: "–",
+                    value = data.restingHeartRateBpm.toString(),
                     unit = "bpm",
                     icon = Icons.Outlined.FavoriteBorder,
                     accentColor = HeartColor,
@@ -301,18 +296,30 @@ private fun DashboardContent(
             }
         }
 
-        if (data.weightKg != null) {
-            item { SectionHeader("Body") }
-            item {
+        item { SectionHeader("Body") }
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 MetricCard(
                     title = "Latest weight",
                     value = "%.1f".format(data.weightKg),
                     unit = "kg",
                     icon = Icons.Outlined.MonitorWeight,
                     accentColor = WeightColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenBody,
+                )
+                MetricCard(
+                    title = "Body fat",
+                    value = "%.1f".format(data.bodyFatPercent),
+                    unit = "%",
+                    icon = Icons.Outlined.MonitorWeight,
+                    accentColor = BodyFatColor,
+                    modifier = Modifier.weight(1f),
                     onClick = onOpenBody,
                 )
             }

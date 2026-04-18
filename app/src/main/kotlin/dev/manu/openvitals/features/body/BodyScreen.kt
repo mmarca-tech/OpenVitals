@@ -21,10 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
+import dev.manu.openvitals.data.model.BodyFatEntry
 import dev.manu.openvitals.data.model.WeightEntry
 import dev.manu.openvitals.ui.components.MetricDetailScaffold
 import dev.manu.openvitals.ui.components.SectionHeader
 import dev.manu.openvitals.ui.components.SourceChip
+import dev.manu.openvitals.ui.theme.BodyFatColor
 import dev.manu.openvitals.ui.theme.WeightColor
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -47,6 +49,9 @@ fun BodyScreen(viewModel: BodyViewModel) {
         onNextPeriod = viewModel::nextPeriod,
         onSelectDate = viewModel::selectDate,
     ) { _ ->
+        val hasComposition = state.bmi != null || state.latestBodyFatPercent != null ||
+            state.leanMassKg != null || state.bmrKcal != null
+
         if (state.weightEntries.isNotEmpty()) {
             item { SectionHeader("Weight") }
             item {
@@ -74,7 +79,35 @@ fun BodyScreen(viewModel: BodyViewModel) {
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-        } else if (!state.isLoading) {
+        }
+
+        if (hasComposition) {
+            item { SectionHeader("Body composition") }
+            item {
+                BodyCompositionCard(
+                    bmi = state.bmi,
+                    bodyFatPercent = state.latestBodyFatPercent,
+                    leanMassKg = state.leanMassKg,
+                    bmrKcal = state.bmrKcal,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                )
+            }
+            if (state.bodyFatEntries.size >= 2) {
+                item { Spacer(Modifier.height(12.dp)) }
+                item {
+                    BodyFatLineChart(
+                        entries = state.bodyFatEntries,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    )
+                }
+            }
+        }
+
+        if (state.weightEntries.isEmpty() && !hasComposition && !state.isLoading) {
             item {
                 Text(
                     text = "No weight data in the selected period.\n\nSync a scale or wearable that reports weight to Health Connect.",
@@ -83,6 +116,126 @@ fun BodyScreen(viewModel: BodyViewModel) {
                     modifier = Modifier.padding(16.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BodyCompositionCard(
+    bmi: Double?,
+    bodyFatPercent: Double?,
+    leanMassKg: Double?,
+    bmrKcal: Double?,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            bmi?.let {
+                CompositionStat(
+                    label = "BMI",
+                    value = "%.1f".format(it),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            bodyFatPercent?.let {
+                CompositionStat(
+                    label = "Body fat",
+                    value = "%.1f%%".format(it),
+                    color = BodyFatColor,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            leanMassKg?.let {
+                CompositionStat(
+                    label = "Lean mass",
+                    value = "%.1f kg".format(it),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            bmrKcal?.let {
+                CompositionStat(
+                    label = "BMR",
+                    value = "%,d kcal".format(it.toInt()),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompositionStat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun BodyFatLineChart(entries: List<BodyFatEntry>, modifier: Modifier = Modifier) {
+    val sorted = entries.sortedBy { it.time }
+    val maxPct = sorted.maxOfOrNull { it.percent } ?: 30.0
+    val minPct = sorted.minOfOrNull { it.percent } ?: 0.0
+    val range = (maxPct - minPct).coerceAtLeast(0.5)
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+            ) {
+                if (sorted.size < 2) return@Canvas
+                val stepX = size.width / (sorted.size - 1)
+                val points = sorted.mapIndexed { i, entry ->
+                    val x = i * stepX
+                    val y = size.height * (1f - ((entry.percent - minPct) / range).toFloat())
+                    Offset(x, y)
+                }
+                for (i in 0 until points.size - 1) {
+                    drawLine(
+                        color = BodyFatColor,
+                        start = points[i],
+                        end = points[i + 1],
+                        strokeWidth = 2.dp.toPx(),
+                    )
+                }
+                points.forEach { pt ->
+                    drawCircle(color = BodyFatColor, radius = 4.dp.toPx(), center = pt)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "%.1f – %.1f%% · %d entries".format(minPct, maxPct, sorted.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

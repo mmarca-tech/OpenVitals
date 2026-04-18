@@ -9,13 +9,14 @@ data class DashboardData(
     val date: LocalDate,
     val steps: Long = 0L,
     val distanceMeters: Double = 0.0,
-    val caloriesKcal: Double? = null,
-    val hydrationLiters: Double? = null,
+    val caloriesKcal: Double = 0.0,
+    val hydrationLiters: Double = 0.0,
     val workout: ExerciseData? = null,
     val sleep: SleepData? = null,
-    val weightKg: Double? = null,
-    val avgHeartRateBpm: Long? = null,
-    val restingHeartRateBpm: Long? = null,
+    val weightKg: Double = 0.0,
+    val avgHeartRateBpm: Long = 0,
+    val restingHeartRateBpm: Long = 0,
+    val bodyFatPercent: Double = 0.0,
     val missingPermissions: Set<String> = emptySet(),
 )
 
@@ -130,6 +131,12 @@ data class DailyHrv(
 data class WeightEntry(
     val time: Instant,
     val weightKg: Double,
+    val source: String,
+)
+
+data class BodyFatEntry(
+    val time: Instant,
+    val percent: Double,
     val source: String,
 )
 
