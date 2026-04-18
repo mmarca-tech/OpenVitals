@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Bed
-import androidx.compose.material.icons.outlined.DirectionsRun
-import androidx.compose.material.icons.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -171,7 +171,7 @@ private fun DashboardContent(
                     title = "Steps",
                     value = "%,d".format(data.steps),
                     unit = "steps",
-                    icon = Icons.Outlined.DirectionsWalk,
+                    icon = Icons.AutoMirrored.Outlined.DirectionsWalk,
                     accentColor = StepsColor,
                     modifier = Modifier.weight(1f),
                     onClick = onOpenSteps,
@@ -234,7 +234,7 @@ private fun DashboardContent(
             } else {
                 MetricCardPlaceholder(
                     title = "Workout",
-                    icon = Icons.Outlined.DirectionsRun,
+                    icon = Icons.AutoMirrored.Outlined.DirectionsRun,
                     accentColor = WorkoutColor,
                     message = "No workouts recorded on this day.",
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -356,7 +356,7 @@ private fun WorkoutCard(
             workout.durationMinutes % 60,
         ),
         unit = exerciseTypeLabel(workout.exerciseType),
-        icon = Icons.Outlined.DirectionsRun,
+        icon = Icons.AutoMirrored.Outlined.DirectionsRun,
         accentColor = WorkoutColor,
         subtitle = "${dateFormatter.format(start)} · ${timeFormatter.format(start)}",
         source = workout.source,

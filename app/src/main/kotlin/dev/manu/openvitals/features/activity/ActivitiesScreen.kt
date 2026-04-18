@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -90,7 +90,7 @@ private fun WorkoutListItem(workout: ExerciseData, modifier: Modifier = Modifier
             verticalAlignment = Alignment.CenterVertically,
         ) {
             androidx.compose.material3.Icon(
-                imageVector = Icons.Outlined.DirectionsRun,
+                imageVector = Icons.AutoMirrored.Outlined.DirectionsRun,
                 contentDescription = null,
                 tint = WorkoutColor,
             )

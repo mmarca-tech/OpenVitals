@@ -27,7 +27,13 @@ captures/
 # Keystore / signing
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pkcs12
 keystore.properties
+.woodpecker/*.env
+.woodpecker/secrets/
+.woodpecker/tmp/
 
 # Generated
 gen/
