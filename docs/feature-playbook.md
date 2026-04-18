@@ -206,7 +206,6 @@ Update:
 If the feature introduces a better reusable pattern:
 
 - update `docs/architecture.md`
-- update `docs/refactor-roadmap.md` if it changes migration order
 - update `docs/metrics-roadmap.md` to mark the item done
 
 ## Reuse Rules

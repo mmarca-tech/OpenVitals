@@ -103,7 +103,6 @@ The current architecture is documented in more detail in [`docs/architecture.md`
 - [`plan.md`](plan.md): product direction and scope
 - [`docs/architecture.md`](docs/architecture.md): current architecture and target direction
 - [`docs/feature-playbook.md`](docs/feature-playbook.md): checklist for adding a new metric feature
-- [`docs/refactor-roadmap.md`](docs/refactor-roadmap.md): incremental architecture cleanup plan
 - [`docs/metrics-roadmap.md`](docs/metrics-roadmap.md): metric coverage gaps and future feature roadmap
 - [`AGENTS.md`](AGENTS.md): implementation guidance for future coding agents
 

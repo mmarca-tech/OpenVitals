@@ -7,14 +7,14 @@ This folder documents the target architecture for future feature work.
 1. [../plan.md](../plan.md)
 2. [architecture.md](architecture.md)
 3. [feature-playbook.md](feature-playbook.md)
-4. [refactor-roadmap.md](refactor-roadmap.md)
+4. [metrics-roadmap.md](metrics-roadmap.md)
 5. [../AGENTS.md](../AGENTS.md)
 
 ## What Each Doc Does
 
 - [architecture.md](architecture.md): target architecture, boundaries, and reusable patterns
 - [feature-playbook.md](feature-playbook.md): the checklist for implementing a new metric feature
-- [refactor-roadmap.md](refactor-roadmap.md): how to migrate the current codebase toward the target architecture without a rewrite
+- [metrics-roadmap.md](metrics-roadmap.md): current Health Connect coverage gaps and future feature roadmap
 
 ## Important Context
 
