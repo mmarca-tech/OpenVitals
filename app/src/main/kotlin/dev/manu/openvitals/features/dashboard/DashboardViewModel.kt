@@ -33,21 +33,20 @@ class DashboardViewModel(private val repository: HealthRepository) : ViewModel()
     fun load(date: LocalDate) {
         val clampedDate = date.coerceAtMost(LocalDate.now())
         viewModelScope.launch {
-            _uiState.value = DashboardUiState(
+            _uiState.value = _uiState.value.copy(
                 selectedDate = clampedDate,
                 isLoading = true,
+                errorMessage = null,
             )
             runCatching { repository.loadDashboard(clampedDate) }
                 .onSuccess { data ->
-                    _uiState.value = DashboardUiState(
-                        selectedDate = clampedDate,
+                    _uiState.value = _uiState.value.copy(
                         data = data,
                         isLoading = false,
                     )
                 }
                 .onFailure { error ->
-                    _uiState.value = DashboardUiState(
-                        selectedDate = clampedDate,
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Unknown error",
                     )

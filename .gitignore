@@ -38,6 +38,7 @@ keystore.properties
 # Generated
 gen/
 out/
+*.salive
 
 # OS
 .DS_Store

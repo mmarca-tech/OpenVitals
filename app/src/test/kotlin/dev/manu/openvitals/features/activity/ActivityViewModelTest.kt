@@ -187,9 +187,10 @@ class ActivityViewModelTest {
     }
 
     @Test fun `load for WEEK range returns empty activityProgress`() = runTest {
-        val vm = ActivityViewModel(emptyRepo())
+        val repo = emptyRepo()
+        val vm = ActivityViewModel(repo)
         // WEEK is the default range
         assertTrue(vm.uiState.value.activityProgress.isEmpty())
-        coVerify(exactly = 0) { emptyRepo().loadActivityProgress(any()) }
+        coVerify(exactly = 0) { repo.loadActivityProgress(any()) }
     }
 }
