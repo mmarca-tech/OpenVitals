@@ -26,11 +26,11 @@ val hasReleaseSigning = listOf(
 ).all { !it.isNullOrBlank() }
 
 android {
-    namespace = "dev.manu.openvitals"
+    namespace = "tech.mmarca.openvitals"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.manu.openvitals"
+        applicationId = "tech.mmarca.openvitals"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
