@@ -25,13 +25,6 @@ val hasReleaseSigning = listOf(
     effectiveReleaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
-fun gitVersionTag(): String = runCatching {
-    ProcessBuilder("git", "describe", "--tags", "--exact-match")
-        .redirectErrorStream(true)
-        .start()
-        .inputStream.bufferedReader().readText().trim()
-}.getOrDefault("")
-
 fun versionNameFromTag(tag: String): String =
     if (tag.matches(Regex("v\\d+\\.\\d+\\.\\d+"))) tag.removePrefix("v") else "0.0.0-dev"
 
@@ -40,7 +33,11 @@ fun versionCodeFromTag(tag: String): Int {
     return if (parts.size == 3) parts[0] * 10000 + parts[1] * 100 + parts[2] else 0
 }
 
-val gitTag = gitVersionTag()
+val gitTag: String = providers.exec {
+    commandLine("git", "describe", "--tags", "--exact-match")
+    isIgnoreExitValue = true
+}.standardOutput.asText.get().trim()
+
 val appVersionName = versionNameFromTag(gitTag)
 val appVersionCode = versionCodeFromTag(gitTag)
 
