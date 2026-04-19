@@ -8,7 +8,24 @@ OpenVitals is still in an early stage, but the core product direction is already
 
 ## Screenshots
 
-Screenshots will be added once the UI stabilizes further.
+### Dashboard
+
+![Dashboard](docs/images/Dashboard.png)
+
+### Activities
+
+![Steps and Calories](docs/images/StepsAndCalories.png)
+![Activities](docs/images/Activities.png)
+![Browse Activities](docs/images/BrowseActivities.png)
+
+### Sleep
+
+![Sleep](docs/images/Sleep.png)
+
+### Heart
+
+![Heart](docs/images/Heart.png)
+![Heart](docs/images/Heart2.png)
 
 ## Features
 
