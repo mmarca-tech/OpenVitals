@@ -25,6 +25,25 @@ val hasReleaseSigning = listOf(
     effectiveReleaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
+fun gitVersionTag(): String = runCatching {
+    ProcessBuilder("git", "describe", "--tags", "--exact-match")
+        .redirectErrorStream(true)
+        .start()
+        .inputStream.bufferedReader().readText().trim()
+}.getOrDefault("")
+
+fun versionNameFromTag(tag: String): String =
+    if (tag.matches(Regex("v\\d+\\.\\d+\\.\\d+"))) tag.removePrefix("v") else "0.0.0-dev"
+
+fun versionCodeFromTag(tag: String): Int {
+    val parts = tag.removePrefix("v").split(".").mapNotNull { it.toIntOrNull() }
+    return if (parts.size == 3) parts[0] * 10000 + parts[1] * 100 + parts[2] else 0
+}
+
+val gitTag = gitVersionTag()
+val appVersionName = versionNameFromTag(gitTag)
+val appVersionCode = versionCodeFromTag(gitTag)
+
 android {
     namespace = "tech.mmarca.openvitals"
     compileSdk = 36
@@ -33,8 +52,8 @@ android {
         applicationId = "tech.mmarca.openvitals"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     signingConfigs {
