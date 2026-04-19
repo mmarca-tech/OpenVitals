@@ -8,24 +8,17 @@ OpenVitals is still in an early stage, but the core product direction is already
 
 ## Screenshots
 
-### Dashboard
-
-![Dashboard](docs/images/Dashboard.png)
-
-### Activities
-
-![Steps and Calories](docs/images/StepsAndCalories.png)
-![Activities](docs/images/Activities.png)
-![Browse Activities](docs/images/BrowseActivities.png)
-
-### Sleep
-
-![Sleep](docs/images/Sleep.png)
-
-### Heart
-
-![Heart](docs/images/Heart.png)
-![Heart](docs/images/Heart2.png)
+<div>
+    <img width="23%" src="docs/images/Dashboard.png">
+    <img width="23%" src="docs/images/StepsAndCalories.png">
+    <img width="23%" src="docs/images/Activities.png">
+    <img width="23%" src="docs/images/BrowseActivities.png">
+</div>
+<div>
+    <img width="23%" src="docs/images/Sleep.png">
+    <img width="23%" src="docs/images/Heart.png">
+    <img width="23%" src="docs/images/Heart2.png">
+</div>
 
 ## Features
 
