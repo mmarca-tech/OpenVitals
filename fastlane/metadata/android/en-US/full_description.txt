@@ -1,0 +1,10 @@
+OpenVitals is a privacy-first Health Connect dashboard for Android. It reads your health data entirely on-device — no account, no cloud sync, no ads, no analytics. The app is read-only and never writes health data back.
+
+Features:
+
+* Daily dashboard with cards for steps, distance, calories, hydration, workout, sleep, heart rate, and body metrics
+* Period-based detail screens with Day / Week / Month / Year navigation
+* Dedicated screens for Activity, Activities, Sleep, Heart rate, Body composition, and more
+* Health Connect onboarding flow with availability checks and phased permission requests
+* Pull-to-refresh, range selection, period navigation, and calendar date picking
+* Works without an internet connection
