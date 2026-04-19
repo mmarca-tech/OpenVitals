@@ -3,7 +3,25 @@ when:
   ref: refs/tags/v*
 
 steps:
+  - name: test
+    image: ghcr.io/cirruslabs/android-sdk:36
+    commands:
+      - set -eu
+      - sdk_root="$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}"
+      - test -n "$${sdk_root}"
+      - printf 'sdk.dir=%s\n' "$${sdk_root}" > local.properties
+      - export GRADLE_USER_HOME="$${CI_WORKSPACE}/.gradle-ci"
+      - gradle_version="$$(sed -n 's#distributionUrl=.*gradle-\([0-9.]*\)-bin.zip#\1#p' gradle/wrapper/gradle-wrapper.properties)"
+      - test -n "$${gradle_version}"
+      - curl -fsSLo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-$${gradle_version}-bin.zip"
+      - rm -rf /tmp/gradle-dist
+      - unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+      - export PATH="/tmp/gradle-dist/gradle-$${gradle_version}/bin:$${PATH}"
+      - gradle --no-daemon :app:testDebugUnitTest
+
   - name: build-release-apk
+    depends_on:
+      - test
     image: ghcr.io/cirruslabs/android-sdk:36
     environment:
       OPENVITALS_RELEASE_KEYSTORE_BASE64:
