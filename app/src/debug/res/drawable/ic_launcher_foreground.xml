@@ -3,4 +3,4 @@
     android:antialias="true"
     android:filter="true"
     android:gravity="fill"
-    android:src="@drawable/open_vitals_launcher_prod" />
+    android:src="@drawable/open_vitals_launcher_debug" />
