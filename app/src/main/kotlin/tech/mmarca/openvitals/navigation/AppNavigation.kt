@@ -97,6 +97,10 @@ import tech.mmarca.openvitals.features.nutrition.NutritionViewModel
 import tech.mmarca.openvitals.features.nutrition.ProteinScreen
 import tech.mmarca.openvitals.features.onboarding.OnboardingScreen
 import tech.mmarca.openvitals.features.onboarding.OnboardingViewModel
+import tech.mmarca.openvitals.features.recovery.RecoveryScreen
+import tech.mmarca.openvitals.features.recovery.RecoveryViewModel
+import tech.mmarca.openvitals.features.recovery.SleepEfficiencyDetailScreen
+import tech.mmarca.openvitals.features.recovery.SleepScoreDetailScreen
 import tech.mmarca.openvitals.features.settings.SettingsScreen
 import tech.mmarca.openvitals.features.settings.SettingsViewModel
 import tech.mmarca.openvitals.features.sleep.SleepDetailScreen
@@ -110,6 +114,8 @@ import tech.mmarca.openvitals.ui.components.OpenVitalsNavigationDestination
 private const val ActivitiesTabRoute = "tab_activities"
 private const val CardioLoadDetailRoute = "activity/cardio_load"
 private const val RecoveryTabRoute = "tab_recovery"
+private const val SleepEfficiencyDetailRoute = "recovery/sleep_efficiency"
+private const val SleepScoreDetailRoute = "recovery/sleep_score"
 private const val VitalsTabRoute = "tab_vitals"
 
 @Composable
@@ -174,6 +180,7 @@ fun AppNavigation(
         setOf(
             Screen.Dashboard.route,
             ActivitiesTabRoute,
+            RecoveryTabRoute,
         )
     }
     val taskRoutes = remember {
@@ -210,7 +217,10 @@ fun AppNavigation(
     val topBarTitle = when (currentRoute) {
         Screen.Dashboard.route -> stringResource(R.string.app_name)
         ActivitiesTabRoute -> stringResource(R.string.bottom_nav_activities)
+        RecoveryTabRoute -> stringResource(R.string.bottom_nav_recovery)
         CardioLoadDetailRoute -> stringResource(R.string.metric_cardio_load)
+        SleepEfficiencyDetailRoute -> stringResource(R.string.recovery_sleep_efficiency)
+        SleepScoreDetailRoute -> stringResource(R.string.recovery_sleep_score)
         Screen.ManualEntry.route -> stringResource(R.string.screen_manual_entry)
         Screen.HydrationEntry.route -> stringResource(R.string.screen_hydration_entry)
         Screen.HydrationEntryEdit.route -> stringResource(R.string.screen_hydration_entry)
@@ -368,6 +378,39 @@ fun AppNavigation(
                 CardioLoadDetailScreen(
                     viewModel = activityOverviewViewModel,
                     unitFormatter = unitFormatter,
+                )
+            }
+
+            composable(RecoveryTabRoute) {
+                val recoveryViewModel = hiltViewModel<RecoveryViewModel>()
+                RecoveryScreen(
+                    viewModel = recoveryViewModel,
+                    unitFormatter = unitFormatter,
+                    dateTimeFormatterProvider = dateTimeFormatterProvider,
+                    onOpenSleepScore = {
+                        navController.navigate(SleepScoreDetailRoute)
+                    },
+                    onOpenSleepEfficiency = {
+                        navController.navigate(SleepEfficiencyDetailRoute)
+                    },
+                )
+            }
+
+            composable(SleepEfficiencyDetailRoute) {
+                val recoveryViewModel = hiltViewModel<RecoveryViewModel>()
+                SleepEfficiencyDetailScreen(
+                    viewModel = recoveryViewModel,
+                    unitFormatter = unitFormatter,
+                    dateTimeFormatterProvider = dateTimeFormatterProvider,
+                )
+            }
+
+            composable(SleepScoreDetailRoute) {
+                val recoveryViewModel = hiltViewModel<RecoveryViewModel>()
+                SleepScoreDetailScreen(
+                    viewModel = recoveryViewModel,
+                    unitFormatter = unitFormatter,
+                    dateTimeFormatterProvider = dateTimeFormatterProvider,
                 )
             }
 
