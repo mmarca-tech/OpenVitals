@@ -61,6 +61,9 @@
     <string name="screen_vitals_measurement_entry">Vitals entry</string>
 
     <string name="bottom_nav_dashboard">Dashboard</string>
+    <string name="bottom_nav_activities">Activities</string>
+    <string name="bottom_nav_recovery">Recovery</string>
+    <string name="bottom_nav_vitals">Vitals</string>
     <string name="bottom_nav_add_entry">Add entry</string>
     <string name="manual_entry_hydration_title">Hydration</string>
     <string name="manual_entry_activity_title">Activity</string>
@@ -491,6 +494,9 @@
     <string name="message_cycle_browse">View cycle calendar and readings.</string>
     <string name="dashboard_add_widgets">Add widgets</string>
     <string name="dashboard_all_widgets_added">All widgets are already on the dashboard.</string>
+    <string name="dashboard_action_log">Log</string>
+    <string name="dashboard_activities_today">Activities today</string>
+    <string name="dashboard_goal_of">of %1$s</string>
     <string name="message_no_activities_period">No activities in the selected period.</string>
     <string name="message_no_step_updates">No step updates were recorded</string>
     <string name="message_no_distance_updates">No distance updates were recorded</string>

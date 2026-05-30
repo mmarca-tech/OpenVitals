@@ -10,6 +10,7 @@ data class DashboardData(
     val activeCaloriesKcal: Double? = null,
     val hydrationLiters: Double = 0.0,
     val workout: ExerciseData? = null,
+    val workouts: List<ExerciseData> = emptyList(),
     val sleep: SleepData? = null,
     val weightKg: Double = 0.0,
     val heightCm: Double? = null,
@@ -49,6 +50,7 @@ fun DashboardData.mergeLoaded(other: DashboardData): DashboardData =
         activeCaloriesKcal = if (DashboardMetric.ACTIVE_CALORIES in other.loadedMetrics) other.activeCaloriesKcal else activeCaloriesKcal,
         hydrationLiters = if (DashboardMetric.HYDRATION in other.loadedMetrics) other.hydrationLiters else hydrationLiters,
         workout = if (DashboardMetric.WORKOUT in other.loadedMetrics) other.workout else workout,
+        workouts = if (DashboardMetric.WORKOUT in other.loadedMetrics) other.workouts else workouts,
         sleep = if (DashboardMetric.SLEEP in other.loadedMetrics) other.sleep else sleep,
         weightKg = if (DashboardMetric.WEIGHT in other.loadedMetrics || DashboardMetric.BMI in other.loadedMetrics) {
             other.weightKg

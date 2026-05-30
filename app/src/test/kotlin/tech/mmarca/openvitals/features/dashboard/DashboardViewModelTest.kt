@@ -1,7 +1,8 @@
 package tech.mmarca.openvitals.features.dashboard
 
-import tech.mmarca.openvitals.core.preferences.SleepRangeMode
+import tech.mmarca.openvitals.core.insights.MetricDailyGoalKey
 import tech.mmarca.openvitals.core.performance.RefreshMode
+import tech.mmarca.openvitals.core.preferences.SleepRangeMode
 import tech.mmarca.openvitals.data.model.DashboardData
 import tech.mmarca.openvitals.data.model.DashboardMetric
 import tech.mmarca.openvitals.data.model.DashboardQuery
@@ -39,6 +40,8 @@ class DashboardViewModelTest {
         every { it.acknowledgePermissions(any()) } returns Unit
         every { it.trackCycle } returns trackCycle
         every { it.sleepRangeMode } returns sleepRangeMode
+        every { it.dailyGoalFor(any()) } answers { firstArg<MetricDailyGoalKey>().defaultValue }
+        every { it.hydrationDailyGoalLiters } returns 2.0
         every { it.dashboardWidgetOrder() } returns null
         every { it.setDashboardWidgetOrder(any()) } returns Unit
     }
@@ -255,7 +258,7 @@ class DashboardViewModelTest {
         coVerify { repo.loadDashboard(match<DashboardQuery> { it.date == today && it.sleepRangeMode == SleepRangeMode.NOON }) }
     }
 
-    @Test fun `load scopes dashboard query to first fixed widgets`() = runTest {
+    @Test fun `load scopes dashboard query to dashboard focus widgets`() = runTest {
         val repo = mockk<HealthRepository>()
         val queries = mutableListOf<DashboardQuery>()
         coEvery { repo.loadDashboard(any<DashboardQuery>()) } coAnswers {
@@ -278,7 +281,7 @@ class DashboardViewModelTest {
                 DashboardMetric.SLEEP,
                 DashboardMetric.STEPS,
                 DashboardMetric.HYDRATION,
-                DashboardMetric.DISTANCE,
+                DashboardMetric.WORKOUT,
             ),
             queries.first().visibleMetrics,
         )
@@ -361,6 +364,21 @@ class DashboardViewModelTest {
         val vm = DashboardViewModel(repo, prefs())
 
         assertEquals(DefaultDashboardWidgetIds, vm.uiState.value.dashboardWidgets)
+    }
+
+    @Test fun `dashboard daily goals follow preferences`() = runTest {
+        val repo = mockk<HealthRepository>()
+        coEvery { repo.loadDashboard(any<DashboardQuery>()) } returns DashboardData(date = today)
+        val prefs = prefs()
+        every { prefs.dailyGoalFor(MetricDailyGoalKey.STEPS) } returns 12_000.0
+        every { prefs.dailyGoalFor(MetricDailyGoalKey.SLEEP_HOURS) } returns 7.5
+        every { prefs.hydrationDailyGoalLiters } returns 3.0
+
+        val vm = DashboardViewModel(repo, prefs)
+
+        assertEquals(12_000.0, vm.uiState.value.dailyGoals.steps, 0.001)
+        assertEquals(7.5, vm.uiState.value.dailyGoals.sleepHours, 0.001)
+        assertEquals(3.0, vm.uiState.value.dailyGoals.hydrationLiters, 0.001)
     }
 
     @Test fun `dashboard widgets restore saved order`() = runTest {

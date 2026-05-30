@@ -211,8 +211,8 @@ class HealthRepository @Inject constructor(
         val distance = readIfNeeded(wants(DashboardMetric.DISTANCE), readDistancePermission, "distance") {
             hc.readDistanceMeters(date)
         }
-        val workout = readIfNeeded(wants(DashboardMetric.WORKOUT), readExercisePermission, "latest workout") {
-            hc.readLatestWorkout(date)
+        val workouts = readIfNeeded(wants(DashboardMetric.WORKOUT), readExercisePermission, "workouts") {
+            hc.readExerciseSessions(dayStart, dayEnd)
         }
         val sleep = readIfNeeded(wants(DashboardMetric.SLEEP), readSleepPermission, "sleep") {
             readDashboardSleep(date, sleepRangeMode)
@@ -358,6 +358,7 @@ class HealthRepository @Inject constructor(
         val latestWeight = weight?.await()?.weightKg
         val latestHeight = height?.await()
         val dailyMacros = macros?.await()
+        val dayWorkouts = workouts?.await().orEmpty()
 
         DashboardData(
             date = date,
@@ -370,7 +371,8 @@ class HealthRepository @Inject constructor(
             carbsGrams = dailyMacros?.carbsGrams,
             fatGrams = dailyMacros?.fatGrams,
             hydrationLiters = hydration?.await() ?: 0.0,
-            workout = workout?.await(),
+            workout = dayWorkouts.firstOrNull(),
+            workouts = dayWorkouts,
             sleep = sleep?.await(),
             weightKg = latestWeight ?: 0.0,
             heightCm = latestHeight,

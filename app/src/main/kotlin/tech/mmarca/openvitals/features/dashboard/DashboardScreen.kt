@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +17,6 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,10 +29,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bed
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocalDrink
@@ -50,33 +51,40 @@ import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Stairs
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Terrain
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -88,6 +96,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
@@ -99,13 +109,11 @@ import tech.mmarca.openvitals.core.presentation.DisplayValue
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.data.model.DashboardData
 import tech.mmarca.openvitals.data.model.ExerciseData
-import tech.mmarca.openvitals.data.model.SleepData
 import tech.mmarca.openvitals.features.activity.exerciseTypeLabel
 import tech.mmarca.openvitals.ui.components.DayNavigator
 import tech.mmarca.openvitals.ui.components.ErrorMessage
 import tech.mmarca.openvitals.ui.components.FullScreenLoading
 import tech.mmarca.openvitals.ui.components.HealthDatePickerDialog
-import tech.mmarca.openvitals.ui.components.MetricCard
 import tech.mmarca.openvitals.ui.components.MetricCardPlaceholder
 import tech.mmarca.openvitals.ui.components.PermissionCallout
 import tech.mmarca.openvitals.ui.components.PullToRefreshBox
@@ -130,12 +138,11 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
 
-private const val DashboardGridColumns = 2
-private const val DashboardCarouselRows = 3
-private const val DashboardCarouselPageSize = DashboardGridColumns * DashboardCarouselRows
 private const val DashboardDragLongPressMillis = 500L
 private const val DashboardEditWiggleDegrees = 0.45f
 private const val DashboardCarouselEdgeScrollDelayMillis = 450L
+private val DashboardCompactWidgetHeight = 82.dp
+private val DashboardWidgetGridSpacing = 12.dp
 private val DashboardCarouselEdgeScrollThreshold = 56.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -146,7 +153,9 @@ fun DashboardScreen(
     dateTimeFormatterProvider: DateTimeFormatterProvider,
     onGrantPermissions: () -> Unit,
     onOpenMetric: (DashboardWidgetId) -> Unit,
-    onEditStateChanged: (Boolean, () -> Unit) -> Unit = { _, _ -> },
+    onOpenActivity: (String) -> Unit,
+    onOpenLog: () -> Unit,
+    onStartActivity: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dashboardData = state.data
@@ -154,13 +163,6 @@ fun DashboardScreen(
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshPreferences()
-    }
-
-    LaunchedEffect(state.isEditingDashboard) {
-        onEditStateChanged(state.isEditingDashboard, viewModel::toggleDashboardEdit)
-    }
-    DisposableEffect(Unit) {
-        onDispose { onEditStateChanged(false) {} }
     }
 
     PullToRefreshBox(
@@ -180,6 +182,7 @@ fun DashboardScreen(
                 showPermissionsCallout = state.showPermissionsCallout,
                 trackCycle = state.trackCycle,
                 dashboardWidgets = state.dashboardWidgets,
+                dailyGoals = state.dailyGoals,
                 isEditingDashboard = state.isEditingDashboard,
                 onPreviousDay = viewModel::previousDay,
                 onNextDay = viewModel::nextDay,
@@ -193,6 +196,10 @@ fun DashboardScreen(
                 onRemoveWidget = viewModel::removeDashboardWidget,
                 onAddWidget = viewModel::addDashboardWidget,
                 onOpenMetric = onOpenMetric,
+                onOpenActivity = onOpenActivity,
+                onOpenLog = onOpenLog,
+                onStartActivity = onStartActivity,
+                onToggleDashboardEdit = viewModel::toggleDashboardEdit,
             )
             else -> ErrorMessage(stringResource(R.string.message_no_dashboard_data))
         }
@@ -219,6 +226,7 @@ private fun DashboardContent(
     showPermissionsCallout: Boolean,
     trackCycle: Boolean,
     dashboardWidgets: List<DashboardWidgetId>,
+    dailyGoals: DashboardDailyGoals,
     isEditingDashboard: Boolean,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
@@ -229,14 +237,17 @@ private fun DashboardContent(
     onRemoveWidget: (DashboardWidgetId) -> Unit,
     onAddWidget: (DashboardWidgetId) -> Unit,
     onOpenMetric: (DashboardWidgetId) -> Unit,
+    onOpenActivity: (String) -> Unit,
+    onOpenLog: () -> Unit,
+    onStartActivity: () -> Unit,
+    onToggleDashboardEdit: () -> Unit,
 ) {
     val zone = ZoneId.systemDefault()
     val specs = dashboardWidgetSpecs(
         data = data,
-        zone = zone,
         unitFormatter = unitFormatter,
-        dateTimeFormatterProvider = dateTimeFormatterProvider,
         trackCycle = trackCycle,
+        dailyGoals = dailyGoals,
         isEditingDashboard = isEditingDashboard,
         onOpenMetric = onOpenMetric,
     )
@@ -307,17 +318,142 @@ private fun DashboardContent(
                     onDraggingWidgetChanged = { widgetId -> draggingWidgetId = widgetId },
                     onMoveWidgetToTarget = onMoveWidgetToTarget,
                     onRemoveWidget = onRemoveWidget,
+                    actionContent = {
+                        DashboardQuickActions(
+                            isEditingDashboard = isEditingDashboard,
+                            onOpenLog = onOpenLog,
+                            onStartActivity = onStartActivity,
+                            onToggleDashboardEdit = onToggleDashboardEdit,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    },
+                    hiddenContent = {
+                        if (isEditingDashboard) {
+                            DashboardHiddenWidgets(
+                                hiddenSpecs = hiddenSpecs,
+                                onAddWidget = onAddWidget,
+                            )
+                        }
+                    },
                 )
             }
 
-            if (isEditingDashboard) {
-                hiddenDashboardWidgets(
-                    hiddenSpecs = hiddenSpecs,
-                    onAddWidget = onAddWidget,
-                )
-            }
+            dashboardActivitiesToday(
+                workouts = data.workouts.ifEmpty { data.workout?.let(::listOf).orEmpty() },
+                zone = zone,
+                unitFormatter = unitFormatter,
+                dateTimeFormatterProvider = dateTimeFormatterProvider,
+                onOpenActivity = onOpenActivity,
+            )
 
             item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun DashboardQuickActions(
+    isEditingDashboard: Boolean,
+    onOpenLog: () -> Unit,
+    onStartActivity: () -> Unit,
+    onToggleDashboardEdit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(
+            onClick = onOpenLog,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Icon(Icons.Outlined.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.dashboard_action_log))
+        }
+        Button(
+            onClick = onStartActivity,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.DirectionsRun, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.action_start))
+        }
+        IconButton(
+            onClick = onToggleDashboardEdit,
+            modifier = Modifier
+                .size(52.dp)
+                .background(
+                    color = if (isEditingDashboard) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                    shape = CircleShape,
+                ),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Edit,
+                contentDescription = stringResource(
+                    if (isEditingDashboard) {
+                        R.string.cd_finish_dashboard_editing
+                    } else {
+                        R.string.cd_edit_dashboard
+                    }
+                ),
+                tint = if (isEditingDashboard) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+    }
+}
+
+private fun LazyListScope.dashboardActivitiesToday(
+    workouts: List<ExerciseData>,
+    zone: ZoneId,
+    unitFormatter: UnitFormatter,
+    dateTimeFormatterProvider: DateTimeFormatterProvider,
+    onOpenActivity: (String) -> Unit,
+) {
+    item {
+        SectionHeader(stringResource(R.string.dashboard_activities_today))
+    }
+    if (workouts.isNotEmpty()) {
+        items(
+            count = workouts.size,
+            key = { index -> workouts[index].id.ifBlank { "workout_$index" } },
+        ) { index ->
+            val workout = workouts[index]
+            WorkoutCard(
+                workout = workout,
+                zone = zone,
+                unitFormatter = unitFormatter,
+                dateTimeFormatterProvider = dateTimeFormatterProvider,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                onClick = workout.id.takeIf { it.isNotBlank() }?.let { activityId ->
+                    { onOpenActivity(activityId) }
+                },
+            )
+        }
+    } else {
+        item {
+            MetricCardPlaceholder(
+                title = stringResource(R.string.section_activities),
+                icon = Icons.AutoMirrored.Outlined.DirectionsRun,
+                accentColor = WorkoutColor,
+                message = stringResource(R.string.message_no_workouts_day),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
         }
     }
 }
@@ -333,10 +469,19 @@ private fun DashboardWidgetSections(
     onDraggingWidgetChanged: (DashboardWidgetId?) -> Unit,
     onMoveWidgetToTarget: (DashboardWidgetId, DashboardWidgetId) -> Unit,
     onRemoveWidget: (DashboardWidgetId) -> Unit,
+    actionContent: @Composable () -> Unit,
+    hiddenContent: @Composable () -> Unit,
 ) {
-    val fixedIds = visibleIds.take(DashboardFixedWidgetCount)
-    val carouselIds = visibleIds.drop(DashboardFixedWidgetCount)
-    val carouselPages = carouselIds.chunked(DashboardCarouselPageSize)
+    val fixedIds = dashboardWidgetIdsThatFitRows(
+        widgetIds = visibleIds,
+        rows = DashboardFixedWidgetRows,
+    )
+    val fixedIdSet = fixedIds.toSet()
+    val carouselIds = visibleIds.filterNot { it in fixedIdSet }
+    val carouselPages = dashboardWidgetIdsInGridPages(
+        widgetIds = carouselIds,
+        rows = DashboardCarouselWidgetRows,
+    )
     val pagerState = rememberPagerState(pageCount = { carouselPages.size.coerceAtLeast(1) })
     var sectionBounds by remember { mutableStateOf<Rect?>(null) }
     var fixedSectionBounds by remember { mutableStateOf<Rect?>(null) }
@@ -404,8 +549,9 @@ private fun DashboardWidgetSections(
             .onGloballyPositioned { coordinates -> sectionBounds = coordinates.boundsInRoot() },
     ) {
         Column {
-            DashboardWidgetGridRows(
+            DashboardWidgetGrid(
                 ids = fixedIds,
+                rows = DashboardFixedWidgetRows,
                 specsById = specsById,
                 dropTargetIdsProvider = currentDropTargetIds,
                 isEditingDashboard = isEditingDashboard,
@@ -420,6 +566,8 @@ private fun DashboardWidgetSections(
                     .onGloballyPositioned { coordinates -> fixedSectionBounds = coordinates.boundsInRoot() }
                     .zIndex(if (draggingWidgetId in fixedIds) 2f else 0f),
             )
+
+            actionContent()
 
             if (carouselPages.isNotEmpty()) {
                 HorizontalDivider(
@@ -436,8 +584,9 @@ private fun DashboardWidgetSections(
                     beyondViewportPageCount = 1.coerceAtMost(carouselPages.lastIndex),
                 ) { page ->
                     val pageIds = carouselPages.getOrNull(page).orEmpty()
-                    DashboardWidgetGridRows(
+                    DashboardWidgetGrid(
                         ids = pageIds,
+                        rows = DashboardCarouselWidgetRows,
                         specsById = specsById,
                         dropTargetIdsProvider = currentDropTargetIds,
                         isEditingDashboard = isEditingDashboard,
@@ -474,6 +623,8 @@ private fun DashboardWidgetSections(
                     }
                 }
             }
+
+            hiddenContent()
         }
 
         DashboardDraggedWidgetOverlay(
@@ -488,8 +639,9 @@ private fun DashboardWidgetSections(
 }
 
 @Composable
-private fun DashboardWidgetGridRows(
+private fun DashboardWidgetGrid(
     ids: List<DashboardWidgetId>,
+    rows: Int,
     specsById: Map<DashboardWidgetId, DashboardWidgetSpec>,
     dropTargetIdsProvider: (DashboardWidgetId, Offset) -> List<DashboardWidgetId>,
     isEditingDashboard: Boolean,
@@ -502,22 +654,28 @@ private fun DashboardWidgetGridRows(
     onRemoveWidget: (DashboardWidgetId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val specs = ids.mapNotNull { specsById[it] }
-    Column(modifier = modifier) {
-        specs.chunked(DashboardGridColumns).forEach { rowSpecs ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(if (rowSpecs.any { it.id == draggingWidgetId }) 1f else 0f)
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(IntrinsicSize.Min)
-                    .animateContentSize(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                rowSpecs.forEach { spec ->
-                    val visibleIndex = ids.indexOf(spec.id)
-                    val previousId = ids.getOrNull(visibleIndex - 1)
-                    val nextId = ids.getOrNull(visibleIndex + 1)
+    val placements = remember(ids, specsById, rows) {
+        dashboardGridPlacements(
+            ids = ids,
+            specsById = specsById,
+            rows = rows,
+        )
+    }
+
+    if (placements.isEmpty()) return
+
+    Layout(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .animateContentSize(),
+        content = {
+            placements.forEach { placement ->
+                val spec = placement.spec
+                val visibleIndex = ids.indexOf(spec.id)
+                val previousId = ids.getOrNull(visibleIndex - 1)
+                val nextId = ids.getOrNull(visibleIndex + 1)
+                key(spec.id) {
                     DashboardWidgetTile(
                         spec = spec,
                         specsById = specsById,
@@ -545,40 +703,84 @@ private fun DashboardWidgetGridRows(
                         onMoveNext = nextId?.let { targetId ->
                             { onMoveWidgetToTarget(spec.id, targetId) }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
-                if (rowSpecs.size == 1) {
-                    Spacer(
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
-                }
+            }
+        },
+    ) { measurables, constraints ->
+        val spacingPx = DashboardWidgetGridSpacing.roundToPx()
+        val cellHeightPx = DashboardCompactWidgetHeight.roundToPx()
+        val layoutWidth = constraints.maxWidth
+        val cellWidth = (
+            (layoutWidth - spacingPx * (DashboardWidgetGridColumns - 1)) / DashboardWidgetGridColumns
+            ).coerceAtLeast(0)
+        val layoutHeight = cellHeightPx * rows + spacingPx * (rows - 1)
+        val placeables = measurables.mapIndexed { index, measurable ->
+            val rowSpan = placements[index].rowSpan
+            val widgetHeight = cellHeightPx * rowSpan + spacingPx * (rowSpan - 1)
+            measurable.measure(Constraints.fixed(cellWidth, widgetHeight))
+        }
+
+        layout(layoutWidth, layoutHeight) {
+            placeables.forEachIndexed { index, placeable ->
+                val placement = placements[index]
+                val x = placement.column * (cellWidth + spacingPx)
+                val y = placement.row * (cellHeightPx + spacingPx)
+                placeable.placeRelative(x, y)
             }
         }
     }
 }
 
-private fun LazyListScope.hiddenDashboardWidgets(
+private data class DashboardGridPlacement(
+    val spec: DashboardWidgetSpec,
+    val row: Int,
+    val column: Int,
+    val rowSpan: Int,
+)
+
+private fun dashboardGridPlacements(
+    ids: List<DashboardWidgetId>,
+    specsById: Map<DashboardWidgetId, DashboardWidgetSpec>,
+    rows: Int,
+): List<DashboardGridPlacement> {
+    val usedRows = IntArray(DashboardWidgetGridColumns)
+    return buildList {
+        ids.forEach { widgetId ->
+            val spec = specsById[widgetId] ?: return@forEach
+            val rowSpan = spec.rowSpan.coerceIn(1, rows)
+            val column = usedRows.indices.firstOrNull { usedRows[it] + rowSpan <= rows } ?: return@forEach
+            val row = usedRows[column]
+            usedRows[column] += rowSpan
+            add(
+                DashboardGridPlacement(
+                    spec = spec,
+                    row = row,
+                    column = column,
+                    rowSpan = rowSpan,
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardHiddenWidgets(
     hiddenSpecs: List<DashboardWidgetSpec>,
     onAddWidget: (DashboardWidgetId) -> Unit,
 ) {
-    item { SectionHeader(stringResource(R.string.dashboard_add_widgets)) }
+    SectionHeader(stringResource(R.string.dashboard_add_widgets))
 
     if (hiddenSpecs.isEmpty()) {
-        item {
-            Text(
-                text = stringResource(R.string.dashboard_all_widgets_added),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
+        Text(
+            text = stringResource(R.string.dashboard_all_widgets_added),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     } else {
-        items(hiddenSpecs, key = { "add_${it.id.name}" }) { spec ->
+        hiddenSpecs.forEach { spec ->
             OutlinedButton(
                 onClick = { onAddWidget(spec.id) },
                 modifier = Modifier
@@ -822,16 +1024,16 @@ private fun Rect.containsPoint(point: Offset): Boolean =
 @Composable
 private fun dashboardWidgetSpecs(
     data: DashboardData,
-    zone: ZoneId,
     unitFormatter: UnitFormatter,
-    dateTimeFormatterProvider: DateTimeFormatterProvider,
     trackCycle: Boolean,
+    dailyGoals: DashboardDailyGoals,
     isEditingDashboard: Boolean,
     onOpenMetric: (DashboardWidgetId) -> Unit,
 ): List<DashboardWidgetSpec> = buildList {
     val openMetric: (DashboardWidgetId) -> (() -> Unit)? = { widgetId ->
         if (isEditingDashboard) null else ({ onOpenMetric(widgetId) })
     }
+    val sleepGoalMs = (dailyGoals.sleepHours * 60.0 * 60.0 * 1000.0).toLong()
 
     addMetric(
         id = DashboardWidgetId.STEPS,
@@ -839,6 +1041,12 @@ private fun dashboardWidgetSpecs(
         value = DisplayValue(unitFormatter.count(data.steps), stringResource(R.string.unit_steps)),
         icon = Icons.AutoMirrored.Outlined.DirectionsWalk,
         accentColor = StepsColor,
+        progress = dashboardGoalProgress(
+            current = data.steps.toDouble(),
+            target = dailyGoals.steps,
+            label = stringResource(R.string.dashboard_goal_of, unitFormatter.count(dailyGoals.steps.roundToInt())),
+        ),
+        style = DashboardWidgetStyle.CIRCLE,
         onClick = openMetric(DashboardWidgetId.STEPS),
     )
     addMetric(
@@ -847,6 +1055,11 @@ private fun dashboardWidgetSpecs(
         value = unitFormatter.distance(data.distanceMeters),
         icon = Icons.Outlined.Straighten,
         accentColor = DistanceColor,
+        progress = dashboardGoalProgress(
+            current = data.distanceMeters,
+            target = dailyGoals.distanceMeters,
+            label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.distance(dailyGoals.distanceMeters))),
+        ),
         onClick = openMetric(DashboardWidgetId.DISTANCE),
     )
     addMetric(
@@ -855,6 +1068,11 @@ private fun dashboardWidgetSpecs(
         value = unitFormatter.energy(data.caloriesKcal),
         icon = Icons.Outlined.LocalFireDepartment,
         accentColor = CaloriesColor,
+        progress = dashboardGoalProgress(
+            current = data.caloriesKcal,
+            target = dailyGoals.caloriesOutKcal,
+            label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.energy(dailyGoals.caloriesOutKcal))),
+        ),
         onClick = openMetric(DashboardWidgetId.CALORIES_OUT),
     )
     addOptionalMetric(
@@ -863,6 +1081,13 @@ private fun dashboardWidgetSpecs(
         value = data.activeCaloriesKcal?.let(unitFormatter::energy),
         icon = Icons.Outlined.LocalFireDepartment,
         accentColor = ActiveCaloriesColor,
+        progress = data.activeCaloriesKcal?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.activeCaloriesKcal,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.energy(dailyGoals.activeCaloriesKcal))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.ACTIVE_CALORIES),
     )
     addOptionalMetric(
@@ -873,6 +1098,13 @@ private fun dashboardWidgetSpecs(
         },
         icon = Icons.Outlined.Stairs,
         accentColor = FloorsColor,
+        progress = data.floorsClimbed?.let {
+            dashboardGoalProgress(
+                current = it.toDouble(),
+                target = dailyGoals.floors,
+                label = stringResource(R.string.dashboard_goal_of, unitFormatter.count(dailyGoals.floors.roundToInt())),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.FLOORS),
     )
     addOptionalMetric(
@@ -881,49 +1113,30 @@ private fun dashboardWidgetSpecs(
         value = data.elevationGainedMeters?.let(unitFormatter::elevation),
         icon = Icons.Outlined.Terrain,
         accentColor = ElevationColor,
+        progress = data.elevationGainedMeters?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.elevationMeters,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.elevation(dailyGoals.elevationMeters))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.ELEVATION),
     )
-    add(
-        DashboardWidgetSpec(DashboardWidgetId.WORKOUT, stringResource(R.string.metric_workout)) { modifier ->
-            data.workout?.let { workout ->
-                WorkoutCard(
-                    workout = workout,
-                    zone = zone,
-                    unitFormatter = unitFormatter,
-                    dateTimeFormatterProvider = dateTimeFormatterProvider,
-                    modifier = modifier,
-                    onClick = openMetric(DashboardWidgetId.WORKOUT),
-                )
-            } ?: MetricCardPlaceholder(
-                title = stringResource(R.string.metric_workout),
-                icon = Icons.AutoMirrored.Outlined.DirectionsRun,
-                accentColor = WorkoutColor,
-                message = stringResource(R.string.message_no_workouts_day),
-                modifier = modifier,
-                contentAtBottom = true,
-                onClick = openMetric(DashboardWidgetId.WORKOUT),
+    addOptionalMetric(
+        id = DashboardWidgetId.SLEEP,
+        title = stringResource(R.string.metric_sleep),
+        value = data.sleep?.let { DisplayValue(unitFormatter.duration(it.durationMs), "") },
+        icon = Icons.Outlined.Bed,
+        accentColor = SleepColor,
+        noDataMessage = stringResource(R.string.message_no_sleep_day),
+        progress = data.sleep?.let {
+            dashboardGoalProgress(
+                current = it.durationMs.toDouble(),
+                target = sleepGoalMs.toDouble(),
+                label = stringResource(R.string.dashboard_goal_of, unitFormatter.duration(sleepGoalMs)),
             )
-        }
-    )
-    add(
-        DashboardWidgetSpec(DashboardWidgetId.SLEEP, stringResource(R.string.metric_sleep)) { modifier ->
-            data.sleep?.let { sleep ->
-                SleepCard(
-                    sleep = sleep,
-                    unitFormatter = unitFormatter,
-                    modifier = modifier,
-                    onClick = openMetric(DashboardWidgetId.SLEEP),
-                )
-            } ?: MetricCardPlaceholder(
-                title = stringResource(R.string.metric_sleep),
-                icon = Icons.Outlined.Bed,
-                accentColor = SleepColor,
-                message = stringResource(R.string.message_no_sleep_day),
-                modifier = modifier,
-                contentAtBottom = true,
-                onClick = openMetric(DashboardWidgetId.SLEEP),
-            )
-        }
+        },
+        onClick = openMetric(DashboardWidgetId.SLEEP),
     )
     addMetric(
         id = DashboardWidgetId.HYDRATION,
@@ -931,6 +1144,11 @@ private fun dashboardWidgetSpecs(
         value = unitFormatter.hydration(data.hydrationLiters),
         icon = Icons.Outlined.LocalDrink,
         accentColor = HydrationColor,
+        progress = dashboardGoalProgress(
+            current = data.hydrationLiters,
+            target = dailyGoals.hydrationLiters,
+            label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.hydration(dailyGoals.hydrationLiters))),
+        ),
         onClick = openMetric(DashboardWidgetId.HYDRATION),
     )
     addOptionalMetric(
@@ -939,6 +1157,13 @@ private fun dashboardWidgetSpecs(
         value = data.caloriesInKcal?.let(unitFormatter::energy),
         icon = Icons.Outlined.Restaurant,
         accentColor = NutritionColor,
+        progress = data.caloriesInKcal?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.caloriesInKcal,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.energy(dailyGoals.caloriesInKcal))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.CALORIES_IN),
     )
     addOptionalMetric(
@@ -947,6 +1172,13 @@ private fun dashboardWidgetSpecs(
         value = data.proteinGrams?.let { DisplayValue(unitFormatter.count(it.roundToInt()), stringResource(R.string.unit_grams)) },
         icon = Icons.Outlined.Restaurant,
         accentColor = NutritionColor,
+        progress = data.proteinGrams?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.proteinGrams,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(dashboardGramDisplayValue(dailyGoals.proteinGrams, unitFormatter))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.PROTEIN),
     )
     addOptionalMetric(
@@ -955,6 +1187,13 @@ private fun dashboardWidgetSpecs(
         value = data.carbsGrams?.let { DisplayValue(unitFormatter.count(it.roundToInt()), stringResource(R.string.unit_grams)) },
         icon = Icons.Outlined.Restaurant,
         accentColor = NutritionColor,
+        progress = data.carbsGrams?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.carbsGrams,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(dashboardGramDisplayValue(dailyGoals.carbsGrams, unitFormatter))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.CARBS),
     )
     addOptionalMetric(
@@ -963,6 +1202,13 @@ private fun dashboardWidgetSpecs(
         value = data.fatGrams?.let { DisplayValue(unitFormatter.count(it.roundToInt()), stringResource(R.string.unit_grams)) },
         icon = Icons.Outlined.Restaurant,
         accentColor = NutritionColor,
+        progress = data.fatGrams?.let {
+            dashboardGoalProgress(
+                current = it,
+                target = dailyGoals.fatGrams,
+                label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(dashboardGramDisplayValue(dailyGoals.fatGrams, unitFormatter))),
+            )
+        },
         onClick = openMetric(DashboardWidgetId.FAT),
     )
     addMetric(
@@ -1098,34 +1344,26 @@ private fun dashboardWidgetSpecs(
         value = unitFormatter.minutes((data.mindfulnessMinutes ?: 0).toLong()),
         icon = Icons.Outlined.SelfImprovement,
         accentColor = MindfulnessColor,
+        progress = dashboardGoalProgress(
+            current = (data.mindfulnessMinutes ?: 0).toDouble(),
+            target = dailyGoals.mindfulnessMinutes,
+            label = stringResource(R.string.dashboard_goal_of, dashboardDisplayValue(unitFormatter.minutes(dailyGoals.mindfulnessMinutes.roundToInt().toLong()))),
+        ),
         onClick = openMetric(DashboardWidgetId.MINDFULNESS),
     )
     if (trackCycle) {
         add(
             DashboardWidgetSpec(DashboardWidgetId.CYCLE, stringResource(R.string.metric_cycle)) { modifier ->
                 val cycleValue = cycleDisplayValue(data, unitFormatter)
-                if (cycleValue != null) {
-                    MetricCard(
-                        title = stringResource(R.string.metric_cycle),
-                        value = cycleValue.value,
-                        unit = cycleValue.unit,
-                        icon = Icons.Outlined.CalendarMonth,
-                        accentColor = CycleColor,
-                        modifier = modifier,
-                        contentAtBottom = true,
-                        onClick = openMetric(DashboardWidgetId.CYCLE),
-                    )
-                } else {
-                    MetricCardPlaceholder(
-                        title = stringResource(R.string.metric_cycle),
-                        icon = Icons.Outlined.CalendarMonth,
-                        accentColor = CycleColor,
-                        message = stringResource(R.string.message_cycle_browse),
-                        modifier = modifier,
-                        contentAtBottom = true,
-                        onClick = openMetric(DashboardWidgetId.CYCLE),
-                    )
-                }
+                DashboardPillWidget(
+                    title = stringResource(R.string.metric_cycle),
+                    value = cycleValue ?: DisplayValue("", ""),
+                    icon = Icons.Outlined.CalendarMonth,
+                    accentColor = CycleColor,
+                    message = if (cycleValue == null) stringResource(R.string.message_cycle_browse) else null,
+                    modifier = modifier,
+                    onClick = openMetric(DashboardWidgetId.CYCLE),
+                )
             }
         )
     }
@@ -1137,20 +1375,33 @@ private fun MutableList<DashboardWidgetSpec>.addMetric(
     value: DisplayValue,
     icon: ImageVector,
     accentColor: Color,
+    progress: DashboardWidgetProgress? = null,
+    style: DashboardWidgetStyle = DashboardWidgetStyle.PILL,
     onClick: (() -> Unit)?,
 ) {
     add(
-        DashboardWidgetSpec(id, title) { modifier ->
-            MetricCard(
-                title = title,
-                value = value.value,
-                unit = value.unit,
-                icon = icon,
-                accentColor = accentColor,
-                modifier = modifier,
-                contentAtBottom = true,
-                onClick = onClick,
-            )
+        DashboardWidgetSpec(id = id, title = title, style = style) { modifier ->
+            if (style == DashboardWidgetStyle.CIRCLE && progress != null) {
+                DashboardCircleWidget(
+                    title = title,
+                    value = value,
+                    icon = icon,
+                    accentColor = accentColor,
+                    progress = progress,
+                    modifier = modifier,
+                    onClick = onClick,
+                )
+            } else {
+                DashboardPillWidget(
+                    title = title,
+                    value = value,
+                    icon = icon,
+                    accentColor = accentColor,
+                    progress = progress,
+                    modifier = modifier,
+                    onClick = onClick,
+                )
+            }
         }
     )
 }
@@ -1162,29 +1413,29 @@ private fun MutableList<DashboardWidgetSpec>.addOptionalMetric(
     icon: ImageVector,
     accentColor: Color,
     noDataMessage: String? = null,
+    progress: DashboardWidgetProgress? = null,
     onClick: (() -> Unit)?,
 ) {
     add(
         DashboardWidgetSpec(id, title) { modifier ->
             if (value != null) {
-                MetricCard(
+                DashboardPillWidget(
                     title = title,
-                    value = value.value,
-                    unit = value.unit,
+                    value = value,
                     icon = icon,
                     accentColor = accentColor,
+                    progress = progress,
                     modifier = modifier,
-                    contentAtBottom = true,
                     onClick = onClick,
                 )
             } else {
-                MetricCardPlaceholder(
+                DashboardPillWidget(
                     title = title,
+                    value = DisplayValue("", ""),
                     icon = icon,
                     accentColor = accentColor,
                     message = noDataMessage ?: stringResource(R.string.no_data),
                     modifier = modifier,
-                    contentAtBottom = true,
                     onClick = onClick,
                 )
             }
@@ -1211,11 +1462,228 @@ private fun cycleDisplayValue(data: DashboardData, unitFormatter: UnitFormatter)
         else -> null
     }
 
+private enum class DashboardWidgetStyle {
+    PILL,
+    CIRCLE,
+}
+
 private data class DashboardWidgetSpec(
     val id: DashboardWidgetId,
     val title: String,
+    val style: DashboardWidgetStyle = DashboardWidgetStyle.PILL,
     val content: @Composable (Modifier) -> Unit,
 )
+
+private val DashboardWidgetSpec.rowSpan: Int
+    get() = id.dashboardWidgetRowSpan()
+
+private data class DashboardWidgetProgress(
+    val fraction: Float,
+    val label: String,
+)
+
+@Composable
+private fun DashboardPillWidget(
+    title: String,
+    value: DisplayValue,
+    icon: ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    progress: DashboardWidgetProgress? = null,
+    message: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(28.dp)
+    val containerColor = if (progress != null) {
+        accentColor.copy(alpha = 0.24f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape),
+        ) {
+            progress?.let { goal ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(goal.fraction)
+                        .background(accentColor.copy(alpha = 0.62f)),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = message ?: dashboardDisplayValue(value),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (message == null) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardCircleWidget(
+    title: String,
+    value: DisplayValue,
+    icon: ImageVector,
+    accentColor: Color,
+    progress: DashboardWidgetProgress,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
+    Card(
+        modifier = modifier
+            .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 16.dp.toPx()
+                val diameter = size.minDimension - strokeWidth
+                val topLeft = Offset(
+                    x = (size.width - diameter) / 2f,
+                    y = (size.height - diameter) / 2f,
+                )
+                val arcSize = Size(diameter, diameter)
+                drawArc(
+                    color = trackColor,
+                    startAngle = 130f,
+                    sweepAngle = 280f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                )
+                drawArc(
+                    color = accentColor,
+                    startAngle = 130f,
+                    sweepAngle = 280f * progress.fraction,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = value.value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                Text(
+                    text = progress.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = accentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+private fun dashboardDisplayValue(value: DisplayValue): String =
+    if (value.unit.isBlank()) {
+        value.value
+    } else {
+        "${value.value} ${value.unit}"
+    }
+
+@Composable
+private fun dashboardGramDisplayValue(value: Double, unitFormatter: UnitFormatter): DisplayValue =
+    DisplayValue(unitFormatter.count(value.roundToInt()), stringResource(R.string.unit_grams))
+
+private fun dashboardGoalProgress(current: Double, target: Double, label: String): DashboardWidgetProgress =
+    DashboardWidgetProgress(
+        fraction = if (target > 0.0) {
+            (current / target).toFloat().coerceIn(0f, 1f)
+        } else {
+            0f
+        },
+        label = label,
+    )
 
 @Composable
 private fun WorkoutCard(
@@ -1276,23 +1744,4 @@ private fun WorkoutCard(
             )
         }
     }
-}
-
-@Composable
-private fun SleepCard(
-    sleep: SleepData,
-    unitFormatter: UnitFormatter,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    MetricCard(
-        title = stringResource(R.string.metric_sleep),
-        value = unitFormatter.duration(sleep.durationMs),
-        unit = "",
-        icon = Icons.Outlined.Bed,
-        accentColor = SleepColor,
-        modifier = modifier,
-        contentAtBottom = true,
-        onClick = onClick,
-    )
 }

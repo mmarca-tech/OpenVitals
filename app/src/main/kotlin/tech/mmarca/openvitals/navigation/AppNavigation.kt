@@ -3,9 +3,12 @@ package tech.mmarca.openvitals.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Bed
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -101,6 +104,10 @@ import tech.mmarca.openvitals.ui.components.MetricAction
 import tech.mmarca.openvitals.ui.components.OpenVitalsAdaptiveScaffold
 import tech.mmarca.openvitals.ui.components.OpenVitalsNavigationDestination
 
+private const val ActivitiesTabRoute = "tab_activities"
+private const val RecoveryTabRoute = "tab_recovery"
+private const val VitalsTabRoute = "tab_vitals"
+
 @Composable
 fun AppNavigation(
     unitFormatter: UnitFormatter,
@@ -133,7 +140,6 @@ fun AppNavigation(
     } else {
         null
     }
-    var dashboardTopBarState by remember { mutableStateOf(TopBarEditState()) }
     var manualEntryTopBarState by remember { mutableStateOf(TopBarEditState()) }
 
     val topLevelDestinations = remember {
@@ -143,10 +149,25 @@ fun AppNavigation(
                 labelRes = R.string.bottom_nav_dashboard,
                 icon = Icons.Outlined.Dashboard,
             ),
+            OpenVitalsNavigationDestination(
+                route = ActivitiesTabRoute,
+                labelRes = R.string.bottom_nav_activities,
+                icon = Icons.AutoMirrored.Outlined.DirectionsRun,
+            ),
+            OpenVitalsNavigationDestination(
+                route = RecoveryTabRoute,
+                labelRes = R.string.bottom_nav_recovery,
+                icon = Icons.Outlined.Bed,
+            ),
+            OpenVitalsNavigationDestination(
+                route = VitalsTabRoute,
+                labelRes = R.string.bottom_nav_vitals,
+                icon = Icons.Outlined.Favorite,
+            ),
         )
     }
-    val topLevelRoutes = remember(topLevelDestinations) {
-        topLevelDestinations.map { it.route }.toSet()
+    val topLevelRoutes = remember {
+        setOf(Screen.Dashboard.route)
     }
     val taskRoutes = remember {
         setOf(
@@ -166,7 +187,7 @@ fun AppNavigation(
 
     val showTopBar = currentRoute != null && currentRoute != Screen.Onboarding.route
     val isTaskRoute = currentRoute?.let { it in taskRoutes } == true
-    val showNavigation = showTopBar && !isTaskRoute && topLevelDestinations.size > 1
+    val showNavigation = currentRoute == Screen.Dashboard.route
     val canNavigateBack =
         currentRoute != null &&
             currentRoute != Screen.Onboarding.route &&
@@ -221,10 +242,12 @@ fun AppNavigation(
         canNavigateBack = canNavigateBack,
         onNavigateBack = { navController.popBackStack() },
         onNavigate = { route ->
-            navController.navigate(route) {
-                popUpTo(Screen.Dashboard.route) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
+            if (route == Screen.Dashboard.route) {
+                navController.navigate(route) {
+                    popUpTo(Screen.Dashboard.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
             }
         },
         navigationIcon = Icons.AutoMirrored.Outlined.ArrowBack,
@@ -232,7 +255,6 @@ fun AppNavigation(
         action = addEntryAction,
         topBarActions = {
             val topBarEditState = when (currentRoute) {
-                Screen.Dashboard.route -> dashboardTopBarState
                 Screen.ManualEntry.route -> manualEntryTopBarState
                 else -> null
             }
@@ -299,8 +321,12 @@ fun AppNavigation(
                     dateTimeFormatterProvider = dateTimeFormatterProvider,
                     onGrantPermissions = { navController.navigate(Screen.Settings.route) },
                     onOpenMetric = { metricId -> navController.navigate(Screen.Metric.createRoute(metricId.name)) },
-                    onEditStateChanged = { isEditing, onToggleEdit ->
-                        dashboardTopBarState = TopBarEditState(isEditing, onToggleEdit)
+                    onOpenActivity = { activityId ->
+                        navController.navigate(Screen.ActivityDetail.createRoute(activityId))
+                    },
+                    onOpenLog = { navController.navigate(Screen.ManualEntry.route) },
+                    onStartActivity = {
+                        navController.navigate(Screen.ActivityEntry.route)
                     },
                 )
             }
@@ -636,7 +662,6 @@ private fun addEntryActionForCurrentRoute(
     onNavigate: (String) -> Unit,
 ): MetricAction? {
     val destinationRoute = when {
-        currentRoute == Screen.Dashboard.route -> Screen.ManualEntry.route
         currentRoute == Screen.Hydration.route -> Screen.HydrationEntry.route
         currentRoute == Screen.Activity.route -> Screen.ActivityEntry.route
         currentRoute == Screen.Mindfulness.route -> Screen.MindfulnessEntry.route
