@@ -33,12 +33,15 @@ import tech.mmarca.openvitals.core.presentation.DateTimeFormatterProvider
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.features.activity.ActivityDetailScreen
 import tech.mmarca.openvitals.features.activity.ActivityDetailViewModel
+import tech.mmarca.openvitals.features.activity.ActivityOverviewScreen
+import tech.mmarca.openvitals.features.activity.ActivityOverviewViewModel
 import tech.mmarca.openvitals.features.activity.ActiveCaloriesScreen
 import tech.mmarca.openvitals.features.activity.ActivityMetric
 import tech.mmarca.openvitals.features.activity.ActivityViewModel
 import tech.mmarca.openvitals.features.activity.ActivitiesScreen
 import tech.mmarca.openvitals.features.activity.ActivitiesViewModel
 import tech.mmarca.openvitals.features.activity.CaloriesOutScreen
+import tech.mmarca.openvitals.features.activity.CardioLoadDetailScreen
 import tech.mmarca.openvitals.features.activity.DistanceScreen
 import tech.mmarca.openvitals.features.activity.ElevationScreen
 import tech.mmarca.openvitals.features.activity.FloorsScreen
@@ -105,6 +108,7 @@ import tech.mmarca.openvitals.ui.components.OpenVitalsAdaptiveScaffold
 import tech.mmarca.openvitals.ui.components.OpenVitalsNavigationDestination
 
 private const val ActivitiesTabRoute = "tab_activities"
+private const val CardioLoadDetailRoute = "activity/cardio_load"
 private const val RecoveryTabRoute = "tab_recovery"
 private const val VitalsTabRoute = "tab_vitals"
 
@@ -167,7 +171,10 @@ fun AppNavigation(
         )
     }
     val topLevelRoutes = remember {
-        setOf(Screen.Dashboard.route)
+        setOf(
+            Screen.Dashboard.route,
+            ActivitiesTabRoute,
+        )
     }
     val taskRoutes = remember {
         setOf(
@@ -187,7 +194,7 @@ fun AppNavigation(
 
     val showTopBar = currentRoute != null && currentRoute != Screen.Onboarding.route
     val isTaskRoute = currentRoute?.let { it in taskRoutes } == true
-    val showNavigation = currentRoute == Screen.Dashboard.route
+    val showNavigation = currentRoute?.let { it in topLevelRoutes } == true
     val canNavigateBack =
         currentRoute != null &&
             currentRoute != Screen.Onboarding.route &&
@@ -202,6 +209,8 @@ fun AppNavigation(
 
     val topBarTitle = when (currentRoute) {
         Screen.Dashboard.route -> stringResource(R.string.app_name)
+        ActivitiesTabRoute -> stringResource(R.string.bottom_nav_activities)
+        CardioLoadDetailRoute -> stringResource(R.string.metric_cardio_load)
         Screen.ManualEntry.route -> stringResource(R.string.screen_manual_entry)
         Screen.HydrationEntry.route -> stringResource(R.string.screen_hydration_entry)
         Screen.HydrationEntryEdit.route -> stringResource(R.string.screen_hydration_entry)
@@ -242,7 +251,7 @@ fun AppNavigation(
         canNavigateBack = canNavigateBack,
         onNavigateBack = { navController.popBackStack() },
         onNavigate = { route ->
-            if (route == Screen.Dashboard.route) {
+            if (route in topLevelRoutes) {
                 navController.navigate(route) {
                     popUpTo(Screen.Dashboard.route) { saveState = true }
                     launchSingleTop = true
@@ -328,6 +337,37 @@ fun AppNavigation(
                     onStartActivity = {
                         navController.navigate(Screen.ActivityEntry.route)
                     },
+                )
+            }
+
+            composable(ActivitiesTabRoute) {
+                val activityOverviewViewModel = hiltViewModel<ActivityOverviewViewModel>()
+                ActivityOverviewScreen(
+                    viewModel = activityOverviewViewModel,
+                    unitFormatter = unitFormatter,
+                    onOpenCardioLoad = {
+                        navController.navigate(CardioLoadDetailRoute)
+                    },
+                    onOpenSteps = {
+                        navController.navigate(Screen.Metric.createRoute(DashboardWidgetId.STEPS.name))
+                    },
+                    onOpenDistance = {
+                        navController.navigate(Screen.Metric.createRoute(DashboardWidgetId.DISTANCE.name))
+                    },
+                    onOpenEnergyBurned = {
+                        navController.navigate(Screen.Metric.createRoute(DashboardWidgetId.CALORIES_OUT.name))
+                    },
+                    onOpenHrv = {
+                        navController.navigate(Screen.Metric.createRoute(DashboardWidgetId.HRV.name))
+                    },
+                )
+            }
+
+            composable(CardioLoadDetailRoute) {
+                val activityOverviewViewModel = hiltViewModel<ActivityOverviewViewModel>()
+                CardioLoadDetailScreen(
+                    viewModel = activityOverviewViewModel,
+                    unitFormatter = unitFormatter,
                 )
             }
 

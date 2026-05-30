@@ -91,6 +91,18 @@ class HeartRepository @Inject constructor(
         return hc.readHeartRateSamples(start, end)
     }
 
+    suspend fun loadHeartRateSamples(start: LocalDate, end: LocalDate): List<HeartRateSample> {
+        val granted = grantedPermissionsIfAvailable()
+        if (readHeartRatePermission !in granted) {
+            Log.w(TAG, "Skipping loadHeartRateSamples start=$start end=$end missing=$readHeartRatePermission")
+            return emptyList()
+        }
+        val zone = ZoneId.systemDefault()
+        val startInstant = start.atStartOfDay(zone).toInstant()
+        val endInstant = end.plusDays(1).atStartOfDay(zone).toInstant()
+        return hc.readHeartRateSamples(startInstant, endInstant)
+    }
+
     suspend fun loadDailyHeartRateSummaries(start: LocalDate, end: LocalDate): List<HeartRateSummary> {
         val granted = grantedPermissionsIfAvailable()
         if (readHeartRatePermission !in granted) {
