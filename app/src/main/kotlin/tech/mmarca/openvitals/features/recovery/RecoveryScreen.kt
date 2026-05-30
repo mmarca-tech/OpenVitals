@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.util.Locale
 import tech.mmarca.openvitals.R
 import tech.mmarca.openvitals.core.presentation.DateTimeFormatterProvider
 import tech.mmarca.openvitals.core.presentation.DisplayValue
@@ -338,6 +338,7 @@ private fun RecoverySparkline(
     dates: List<LocalDate>,
     accentColor: Color,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
             modifier = Modifier
@@ -376,7 +377,7 @@ private fun RecoverySparkline(
         ) {
             dates.forEach { date ->
                 Text(
-                    text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(1),
+                    text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).take(1),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.0-beta.1 - 2026-05-30
+
+### English
+
+- Revamp the dashboard with a denser widget grid, editable widget ordering, and clearer summary cards.
+- Add a Recovery tab with sleep score, sleep efficiency, trend detail screens, confidence notes, and localized explanations.
+- Add an Activities overview with cardio load, weekly progress, route-aware activity summaries, and a cardio load detail screen.
+- Add high and low heart-rate threshold checks with adjustable settings in the Heart detail screen.
+- Improve repository and Health Connect query performance with shared dispatcher wiring, query caching, and broader test coverage.
+
+### Español
+
+- Renueva el panel con una cuadrícula de widgets más densa, orden editable y tarjetas de resumen más claras.
+- Añade una pestaña Recuperación con puntuación de sueño, eficiencia del sueño, pantallas de tendencia, notas de confianza y explicaciones localizadas.
+- Añade una vista general de Actividades con carga cardiovascular, progreso semanal, resúmenes con rutas y detalle de carga cardiovascular.
+- Añade comprobaciones de frecuencia cardiaca alta y baja con umbrales ajustables en el detalle de Corazón.
+- Mejora el rendimiento de repositorios y consultas de Health Connect con dispatchers compartidos, caché de consultas y más cobertura de tests.
+
+### Deutsch
+
+- Überarbeitet das Dashboard mit dichterem Widget-Raster, bearbeitbarer Widget-Reihenfolge und klareren Übersichtskarten.
+- Fügt einen Erholungs-Tab mit Schlafscore, Schlafeffizienz, Trenddetails, Vertrauenshinweisen und lokalisierten Erklärungen hinzu.
+- Fügt eine Aktivitätenübersicht mit Cardio Load, Wochenfortschritt, routenbezogenen Aktivitätszusammenfassungen und Cardio-Load-Detailansicht hinzu.
+- Ergänzt Prüfungen für hohe und niedrige Herzfrequenz mit einstellbaren Schwellenwerten in der Herz-Detailansicht.
+- Verbessert Repository- und Health-Connect-Abfrageleistung mit gemeinsamem Dispatcher-Wiring, Abfrage-Cache und breiterer Testabdeckung.
+
 ## 0.7.1 - 2026-05-28
 
 ### English

@@ -1,0 +1,4 @@
+- Revamped dashboard with editable widget order and clearer summary cards.
+- Added Recovery tab with sleep score and sleep efficiency details.
+- Added Activities overview, cardio load, and high/low heart-rate checks.
+- Improved Health Connect query performance and tests.

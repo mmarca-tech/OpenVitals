@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,7 +62,6 @@ import tech.mmarca.openvitals.ui.theme.HeartColor
 import tech.mmarca.openvitals.ui.theme.StepsColor
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.util.Locale
 
 private val ActivityOverviewCardHeight = 132.dp
 private val ActivityOverviewChartWidth = 152.dp
@@ -427,6 +427,7 @@ private fun ActivityMetricSparkline(
     style: ActivityMetricChartStyle,
     accentColor: Color,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         when (style) {
             ActivityMetricChartStyle.BAR -> ActivityMiniBarChart(values, accentColor)
@@ -439,7 +440,7 @@ private fun ActivityMetricSparkline(
         ) {
             dates.forEach { date ->
                 Text(
-                    text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(1),
+                    text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).take(1),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
