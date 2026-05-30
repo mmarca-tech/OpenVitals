@@ -33,7 +33,6 @@ enum class DashboardWidgetId {
     BODY_TEMPERATURE,
     MINDFULNESS,
     CYCLE,
-    BROWSE,
 }
 
 const val DashboardFixedWidgetCount = 4
@@ -71,10 +70,8 @@ val DefaultDashboardWidgetIds: List<DashboardWidgetId> = listOf(
     DashboardWidgetId.CYCLE,
 )
 
-private val FixedDashboardWidgetIds = setOf(DashboardWidgetId.BROWSE)
-
 fun customizableDashboardWidgetIds(widgetIds: List<DashboardWidgetId>): List<DashboardWidgetId> =
-    widgetIds.filterNot { it in FixedDashboardWidgetIds }.distinct()
+    widgetIds.distinct()
 
 fun dashboardWidgetIdsFromStored(storedIds: List<String>?): List<DashboardWidgetId> {
     if (storedIds == null) return DefaultDashboardWidgetIds
@@ -120,5 +117,4 @@ fun DashboardWidgetId.toDashboardMetricOrNull(): DashboardMetric? = when (this) 
     DashboardWidgetId.BODY_TEMPERATURE -> DashboardMetric.BODY_TEMPERATURE
     DashboardWidgetId.MINDFULNESS -> DashboardMetric.MINDFULNESS
     DashboardWidgetId.CYCLE -> DashboardMetric.CYCLE
-    DashboardWidgetId.BROWSE -> null
 }

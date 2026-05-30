@@ -42,7 +42,6 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.MonitorWeight
@@ -147,7 +146,6 @@ fun DashboardScreen(
     dateTimeFormatterProvider: DateTimeFormatterProvider,
     onGrantPermissions: () -> Unit,
     onOpenMetric: (DashboardWidgetId) -> Unit,
-    onOpenBrowse: () -> Unit,
     onEditStateChanged: (Boolean, () -> Unit) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -195,7 +193,6 @@ fun DashboardScreen(
                 onRemoveWidget = viewModel::removeDashboardWidget,
                 onAddWidget = viewModel::addDashboardWidget,
                 onOpenMetric = onOpenMetric,
-                onOpenBrowse = onOpenBrowse,
             )
             else -> ErrorMessage(stringResource(R.string.message_no_dashboard_data))
         }
@@ -232,7 +229,6 @@ private fun DashboardContent(
     onRemoveWidget: (DashboardWidgetId) -> Unit,
     onAddWidget: (DashboardWidgetId) -> Unit,
     onOpenMetric: (DashboardWidgetId) -> Unit,
-    onOpenBrowse: () -> Unit,
 ) {
     val zone = ZoneId.systemDefault()
     val specs = dashboardWidgetSpecs(
@@ -320,11 +316,6 @@ private fun DashboardContent(
                     onAddWidget = onAddWidget,
                 )
             }
-
-            browseDashboardItem(
-                onOpenBrowse = onOpenBrowse,
-                isEditingDashboard = isEditingDashboard,
-            )
 
             item { Spacer(Modifier.height(16.dp)) }
         }
@@ -601,22 +592,6 @@ private fun LazyListScope.hiddenDashboardWidgets(
                 )
             }
         }
-    }
-}
-
-private fun LazyListScope.browseDashboardItem(
-    onOpenBrowse: () -> Unit,
-    isEditingDashboard: Boolean,
-) {
-    item(key = "fixed_browse") {
-        MetricCardPlaceholder(
-            title = stringResource(R.string.metric_browse),
-            icon = Icons.Outlined.FolderOpen,
-            accentColor = MaterialTheme.colorScheme.primary,
-            message = stringResource(R.string.message_browse_records),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            onClick = if (isEditingDashboard) null else onOpenBrowse,
-        )
     }
 }
 

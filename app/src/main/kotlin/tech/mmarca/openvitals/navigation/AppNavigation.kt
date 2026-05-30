@@ -6,7 +6,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,8 +49,6 @@ import tech.mmarca.openvitals.features.body.BoneMassScreen
 import tech.mmarca.openvitals.features.body.HeightScreen
 import tech.mmarca.openvitals.features.body.LeanMassScreen
 import tech.mmarca.openvitals.features.body.WeightScreen
-import tech.mmarca.openvitals.features.browse.BrowseScreen
-import tech.mmarca.openvitals.features.browse.BrowseViewModel
 import tech.mmarca.openvitals.features.cycle.CycleScreen
 import tech.mmarca.openvitals.features.cycle.CycleViewModel
 import tech.mmarca.openvitals.features.dashboard.DashboardScreen
@@ -146,16 +143,6 @@ fun AppNavigation(
                 labelRes = R.string.bottom_nav_dashboard,
                 icon = Icons.Outlined.Dashboard,
             ),
-            OpenVitalsNavigationDestination(
-                route = Screen.Browse.route,
-                labelRes = R.string.screen_browse,
-                icon = Icons.Outlined.FolderOpen,
-            ),
-            OpenVitalsNavigationDestination(
-                route = Screen.Settings.route,
-                labelRes = R.string.screen_settings,
-                icon = Icons.Outlined.Settings,
-            ),
         )
     }
     val topLevelRoutes = remember(topLevelDestinations) {
@@ -179,7 +166,7 @@ fun AppNavigation(
 
     val showTopBar = currentRoute != null && currentRoute != Screen.Onboarding.route
     val isTaskRoute = currentRoute?.let { it in taskRoutes } == true
-    val showNavigation = showTopBar && !isTaskRoute
+    val showNavigation = showTopBar && !isTaskRoute && topLevelDestinations.size > 1
     val canNavigateBack =
         currentRoute != null &&
             currentRoute != Screen.Onboarding.route &&
@@ -193,7 +180,7 @@ fun AppNavigation(
     )
 
     val topBarTitle = when (currentRoute) {
-        Screen.Dashboard.route -> stringResource(R.string.screen_dashboard)
+        Screen.Dashboard.route -> stringResource(R.string.app_name)
         Screen.ManualEntry.route -> stringResource(R.string.screen_manual_entry)
         Screen.HydrationEntry.route -> stringResource(R.string.screen_hydration_entry)
         Screen.HydrationEntryEdit.route -> stringResource(R.string.screen_hydration_entry)
@@ -221,7 +208,6 @@ fun AppNavigation(
         Screen.Nutrition.route -> stringResource(R.string.screen_nutrition)
         Screen.Mindfulness.route -> stringResource(R.string.screen_mindfulness)
         Screen.Cycle.route -> stringResource(R.string.screen_cycle)
-        Screen.Browse.route -> stringResource(R.string.screen_browse)
         Screen.Settings.route -> stringResource(R.string.screen_settings)
         else -> ""
     }
@@ -271,6 +257,20 @@ fun AppNavigation(
                     )
                 }
             }
+            if (showTopBar && !isTaskRoute && currentRoute != Screen.Settings.route) {
+                IconButton(
+                    onClick = {
+                        navController.navigate(Screen.Settings.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.cd_settings),
+                    )
+                }
+            }
         },
     ) { innerPadding ->
         NavHost(
@@ -299,7 +299,6 @@ fun AppNavigation(
                     dateTimeFormatterProvider = dateTimeFormatterProvider,
                     onGrantPermissions = { navController.navigate(Screen.Settings.route) },
                     onOpenMetric = { metricId -> navController.navigate(Screen.Metric.createRoute(metricId.name)) },
-                    onOpenBrowse = { navController.navigate(Screen.Browse.route) },
                     onEditStateChanged = { isEditing, onToggleEdit ->
                         dashboardTopBarState = TopBarEditState(isEditing, onToggleEdit)
                     },
@@ -617,27 +616,6 @@ fun AppNavigation(
                     viewModel = cycleViewModel,
                     unitFormatter = unitFormatter,
                     dateTimeFormatterProvider = dateTimeFormatterProvider,
-                )
-            }
-
-            composable(Screen.Browse.route) {
-                val browseViewModel = hiltViewModel<BrowseViewModel>()
-                BrowseScreen(
-                    viewModel = browseViewModel,
-                    unitFormatter = unitFormatter,
-                    dateTimeFormatterProvider = dateTimeFormatterProvider,
-                    onOpenActivity = { activityId ->
-                        navController.navigate(Screen.ActivityDetail.createRoute(activityId))
-                    },
-                    onOpenSleepSession = { sleepId ->
-                        navController.navigate(Screen.SleepDetail.createRoute(sleepId))
-                    },
-                    onEditActivity = { activityId ->
-                        navController.navigate(Screen.ActivityEntryEdit.createRoute(activityId))
-                    },
-                    onEditBodyMeasurement = { type, entryId ->
-                        navController.navigate(Screen.BodyMeasurementEntryEdit.createRoute(type.name, entryId))
-                    },
                 )
             }
 
@@ -978,7 +956,6 @@ private fun metricTitleRes(metricId: DashboardWidgetId): Int =
         DashboardWidgetId.BODY_TEMPERATURE -> R.string.metric_body_temp
         DashboardWidgetId.MINDFULNESS -> R.string.metric_mindfulness
         DashboardWidgetId.CYCLE -> R.string.metric_cycle
-        DashboardWidgetId.BROWSE -> R.string.metric_browse
     }
 
 private data class TopBarEditState(

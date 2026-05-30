@@ -391,11 +391,11 @@ class DashboardViewModelTest {
         assertEquals(listOf(DashboardWidgetId.STEPS), vm.uiState.value.dashboardWidgets)
     }
 
-    @Test fun `dashboard widgets ignore fixed browse saved id`() = runTest {
+    @Test fun `dashboard widgets ignore legacy browse saved id`() = runTest {
         val repo = mockk<HealthRepository>()
         val prefs = prefs()
         every { prefs.dashboardWidgetOrder() } returns listOf(
-            DashboardWidgetId.BROWSE.name,
+            "BROWSE",
             DashboardWidgetId.STEPS.name,
         )
         coEvery { repo.loadDashboard(any<DashboardQuery>()) } returns DashboardData(date = today)
@@ -422,17 +422,6 @@ class DashboardViewModelTest {
             DashboardWidgetId.DISTANCE,
             vm.uiState.value.dashboardWidgets[vm.uiState.value.dashboardWidgets.lastIndex - 1],
         )
-    }
-
-    @Test fun `dashboard widget add ignores fixed browse widget`() = runTest {
-        val repo = mockk<HealthRepository>()
-        val prefs = prefs()
-        coEvery { repo.loadDashboard(any<DashboardQuery>()) } returns DashboardData(date = today)
-        val vm = DashboardViewModel(repo, prefs)
-
-        vm.addDashboardWidget(DashboardWidgetId.BROWSE)
-
-        assertFalse(DashboardWidgetId.BROWSE in vm.uiState.value.dashboardWidgets)
     }
 
     @Test fun `dashboard widget moves to target drop position`() = runTest {
