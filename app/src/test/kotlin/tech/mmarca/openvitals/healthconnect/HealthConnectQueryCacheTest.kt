@@ -1,6 +1,8 @@
 package tech.mmarca.openvitals.healthconnect
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import tech.mmarca.openvitals.core.performance.RefreshMode
@@ -34,6 +36,31 @@ class HealthConnectQueryCacheTest {
 
         assertEquals(3, cache.getOrPut(key, ttlMillis = 100L) { 3 })
         assertEquals(4, cache.getOrPut(key, refreshMode = RefreshMode.FORCE, ttlMillis = 100L) { 4 })
+    }
+
+    @Test fun `force refresh starts new load instead of joining stale in flight load`() = runTest {
+        val cache = HealthConnectQueryCache()
+        val key = HealthConnectQueryKey("dashboard", listOf("today"))
+        val normalStarted = CompletableDeferred<Unit>()
+        val finishNormal = CompletableDeferred<Unit>()
+
+        val normal = async {
+            cache.getOrPut(key) {
+                normalStarted.complete(Unit)
+                finishNormal.await()
+                "normal"
+            }
+        }
+        normalStarted.await()
+
+        assertEquals(
+            "force",
+            cache.getOrPut(key, refreshMode = RefreshMode.FORCE) { "force" },
+        )
+
+        finishNormal.complete(Unit)
+        assertEquals("normal", normal.await())
+        assertEquals("force", cache.getOrPut(key) { "reloaded" })
     }
 
     @Test fun `invalidateOperations clears only matching operations`() = runTest {

@@ -111,8 +111,9 @@ class ActivityRepository @Inject constructor(
         end: LocalDate,
         granted: Set<String>,
     ): List<DailySteps> {
-        if (readStepsPermission !in granted || readDistancePermission !in granted) {
-            Log.w(TAG, "Skipping loadDailySteps start=$start end=$end missing=${listOf(readStepsPermission, readDistancePermission).filterNot { it in granted }}")
+        val missing = listOf(readStepsPermission, readDistancePermission).filterNot { it in granted }
+        if (missing.isNotEmpty()) {
+            Log.w(TAG, "Skipping loadDailySteps missingCount=${missing.size}")
             return emptyList()
         }
         return hc.readDailySteps(
@@ -134,7 +135,7 @@ class ActivityRepository @Inject constructor(
         granted: Set<String>,
     ): List<ActivityProgressPoint> {
         if (readStepsPermission !in granted) {
-            Log.w(TAG, "Skipping loadActivityProgress date=$date missing=$readStepsPermission")
+            Log.w(TAG, "Skipping loadActivityProgress missingCount=1")
             return emptyList()
         }
         return hc.readActivityProgress(
@@ -158,7 +159,7 @@ class ActivityRepository @Inject constructor(
         granted: Set<String>,
     ): List<ExerciseData> {
         if (readExercisePermission !in granted) {
-            Log.w(TAG, "Skipping loadWorkouts start=$start end=$end missing=$readExercisePermission")
+            Log.w(TAG, "Skipping loadWorkouts missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -170,7 +171,7 @@ class ActivityRepository @Inject constructor(
     suspend fun loadWorkout(id: String): ExerciseData? {
         val granted = grantedPermissionsIfAvailable()
         if (readExercisePermission !in granted) {
-            Log.w(TAG, "Skipping loadWorkout id=$id missing=$readExercisePermission")
+            Log.w(TAG, "Skipping loadWorkout missingCount=1")
             return null
         }
         return hc.readExerciseSession(
@@ -195,7 +196,7 @@ class ActivityRepository @Inject constructor(
         granted: Set<String>,
     ): List<DailyNutrition> {
         if (readCaloriesPermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyNutrition start=$start end=$end missing=$readCaloriesPermission")
+            Log.w(TAG, "Skipping loadDailyNutrition missingCount=1")
             return emptyList()
         }
         return hc.readDailyNutrition(start, end, includeHydration = false)
@@ -263,7 +264,7 @@ class ActivityRepository @Inject constructor(
     suspend fun writeActivityEntry(request: ActivityWriteRequest): String {
         val missingPermissions = activityWritePermissions(request) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping writeActivityEntry missing=$missingPermissions")
+            Log.w(TAG, "Skipping writeActivityEntry missingCount=${missingPermissions.size}")
             throw SecurityException("Missing Health Connect activity write permission.")
         }
         return hc.writeActivityEntry(request).also {
@@ -274,7 +275,7 @@ class ActivityRepository @Inject constructor(
     suspend fun updateActivityEntry(id: String, request: ActivityWriteRequest) {
         val missingPermissions = activityWritePermissions(request) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping updateActivityEntry id=$id missing=$missingPermissions")
+            Log.w(TAG, "Skipping updateActivityEntry missingCount=${missingPermissions.size}")
             throw SecurityException("Missing Health Connect activity write permission.")
         }
         hc.updateActivityEntry(id, request)

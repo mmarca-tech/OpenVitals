@@ -196,7 +196,7 @@ class HealthRepository @Inject constructor(
         val sleepRangeMode = query.sleepRangeMode
         Log.d(
             TAG,
-            "loadDashboard date=$date metrics=${metrics.sortedBy { it.name }} granted=${granted.sorted()}",
+            "loadDashboard date=$date metrics=${metrics.sortedBy { it.name }} grantedCount=${granted.size}",
         )
 
         fun wants(metric: DashboardMetric): Boolean = metric in metrics
@@ -374,7 +374,7 @@ class HealthRepository @Inject constructor(
                 ?.temperatureCelsius
         }
 
-        val missingPerms = onboardingPermissions.filterNot { it in granted }.toSet()
+        val missingPerms = dashboardPermissionsFor(metrics).filterNot { it in granted }.toSet()
         val latestBloodPressure = bloodPressure?.await()
         val latestWeight = weight?.await()?.weightKg
         val latestHeight = height?.await()
@@ -557,6 +557,51 @@ class HealthRepository @Inject constructor(
             this
         } else {
             this - DashboardMetric.CYCLE
+        }
+
+    private fun dashboardPermissionsFor(metrics: Set<DashboardMetric>): Set<String> =
+        metrics.flatMapTo(mutableSetOf()) { metric ->
+            when (metric) {
+                DashboardMetric.STEPS -> setOf(readStepsPermission)
+                DashboardMetric.DISTANCE -> setOf(readDistancePermission)
+                DashboardMetric.CALORIES_OUT -> setOf(readCaloriesPermission)
+                DashboardMetric.ACTIVE_CALORIES -> setOf(
+                    readActiveCaloriesPermission,
+                    readStepsPermission,
+                    readDistancePermission,
+                )
+                DashboardMetric.FLOORS -> setOf(readFloorsPermission)
+                DashboardMetric.ELEVATION -> setOf(readElevationPermission)
+                DashboardMetric.WORKOUT -> setOf(readExercisePermission)
+                DashboardMetric.SLEEP -> setOf(readSleepPermission)
+                DashboardMetric.HYDRATION -> setOf(readHydrationPermission)
+                DashboardMetric.CALORIES_IN,
+                DashboardMetric.PROTEIN,
+                DashboardMetric.CARBS,
+                DashboardMetric.FAT -> setOf(readNutritionPermission)
+                DashboardMetric.WEIGHT -> setOf(readWeightPermission)
+                DashboardMetric.HEIGHT -> setOf(readHeightPermission)
+                DashboardMetric.BMI -> setOf(readWeightPermission, readHeightPermission)
+                DashboardMetric.BODY_FAT -> setOf(readBodyFatPermission)
+                DashboardMetric.LEAN_MASS -> setOf(readLeanMassPermission)
+                DashboardMetric.BMR -> setOf(readBmrPermission)
+                DashboardMetric.BONE_MASS -> setOf(readBoneMassPermission)
+                DashboardMetric.AVG_HEART_RATE -> setOf(readHeartRatePermission)
+                DashboardMetric.RESTING_HEART_RATE -> setOf(readRestingHRPermission)
+                DashboardMetric.HRV -> setOf(readHrvPermission)
+                DashboardMetric.BLOOD_PRESSURE -> setOf(readBloodPressurePermission)
+                DashboardMetric.SPO2 -> setOf(readSpO2Permission)
+                DashboardMetric.VO2_MAX -> setOf(readVo2MaxPermission)
+                DashboardMetric.RESPIRATORY_RATE -> setOf(readRespiratoryRatePermission)
+                DashboardMetric.BODY_TEMPERATURE -> setOf(readBodyTemperaturePermission)
+                DashboardMetric.WEEKLY_CARDIO_LOAD -> setOf(readStepsPermission)
+                DashboardMetric.MINDFULNESS -> setOf(readMindfulnessPermission)
+                DashboardMetric.CYCLE -> setOf(
+                    readMenstruationPeriodPermission,
+                    readOvulationTestPermission,
+                    readBasalBodyTemperaturePermission,
+                )
+            }
         }
 }
 

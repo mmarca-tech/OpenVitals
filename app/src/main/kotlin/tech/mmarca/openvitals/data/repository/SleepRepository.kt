@@ -54,7 +54,7 @@ class SleepRepository @Inject constructor(
         granted: Set<String>,
     ): List<SleepData> {
         if (readSleepPermission !in granted) {
-            Log.w(TAG, "Skipping loadSleepSessions start=$start end=$end missing=$readSleepPermission")
+            Log.w(TAG, "Skipping loadSleepSessions missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -70,7 +70,7 @@ class SleepRepository @Inject constructor(
     suspend fun loadSleepSession(id: String): SleepData? {
         val granted = grantedPermissionsIfAvailable()
         if (readSleepPermission !in granted) {
-            Log.w(TAG, "Skipping loadSleepSession id=$id missing=$readSleepPermission")
+            Log.w(TAG, "Skipping loadSleepSession missingCount=1")
             return null
         }
         return hc.readSleepSession(id)

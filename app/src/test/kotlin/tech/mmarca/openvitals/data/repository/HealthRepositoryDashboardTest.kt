@@ -129,6 +129,26 @@ class HealthRepositoryDashboardTest {
         coVerify(exactly = 0) { hc.readDistanceMeters(any()) }
     }
 
+    @Test fun `loadDashboard reports missing permissions only for visible metrics`() = runTest {
+        val date = LocalDate.of(2026, 5, 16)
+        val hc = mockk<HealthConnectManager>()
+        every { hc.availability() } returns HealthConnectAvailability.AVAILABLE
+        every { hc.requestableAllPermissions } returns setOf(stepsPermission, distancePermission, sleepPermission)
+        coEvery { hc.grantedPermissions() } returns setOf(stepsPermission)
+        coEvery { hc.readSteps(date) } returns 9876L
+
+        val data = HealthRepository(hc).loadDashboard(
+            DashboardQuery(
+                date = date,
+                visibleMetrics = setOf(DashboardMetric.STEPS, DashboardMetric.DISTANCE),
+            )
+        )
+
+        assertEquals(setOf(distancePermission), data.missingPermissions)
+        assertEquals(9876L, data.steps)
+        coVerify(exactly = 0) { hc.readSleepSessions(any(), any()) }
+    }
+
     @Test fun `loadDashboard loads all workouts for selected day`() = runTest {
         val date = LocalDate.of(2026, 5, 16)
         val latestWorkout = workout(

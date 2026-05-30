@@ -38,13 +38,16 @@ class HealthConnectQueryCache(
         val lookup = mutex.withLock {
             if (refreshMode == RefreshMode.FORCE) {
                 entries.remove(key)
+                inFlight.remove(key)
             }
 
             entries[key]
                 ?.takeUnless { it.isExpired(now, ttlMillis) }
                 ?.let { cached -> return cached.value.uncheckedCast() }
 
-            inFlight[key]?.let { return@withLock CacheLookup.Pending(it) }
+            if (refreshMode != RefreshMode.FORCE) {
+                inFlight[key]?.let { return@withLock CacheLookup.Pending(it) }
+            }
 
             CompletableDeferred<Any?>().also { deferred ->
                 inFlight[key] = deferred
@@ -59,14 +62,18 @@ class HealthConnectQueryCache(
         return try {
             val value = loader()
             mutex.withLock {
-                entries[key] = CacheEntry(value, nowMillis())
-                inFlight.remove(key)
+                if (inFlight[key] === pending) {
+                    entries[key] = CacheEntry(value, nowMillis())
+                    inFlight.remove(key)
+                }
             }
             pending.complete(value)
             value
         } catch (t: Throwable) {
             mutex.withLock {
-                inFlight.remove(key)
+                if (inFlight[key] === pending) {
+                    inFlight.remove(key)
+                }
             }
             pending.completeExceptionally(t)
             throw t

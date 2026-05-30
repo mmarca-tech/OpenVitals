@@ -55,7 +55,7 @@ class NutritionRepository @Inject constructor(
         granted: Set<String>,
     ): List<DailyMacros> {
         if (readNutritionPermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyMacros start=$start end=$end missing=$readNutritionPermission")
+            Log.w(TAG, "Skipping loadDailyMacros missingCount=1")
             return emptyList()
         }
         return hc.readDailyMacros(start, end)
@@ -72,7 +72,7 @@ class NutritionRepository @Inject constructor(
         granted: Set<String>,
     ): List<NutritionEntry> {
         if (readNutritionPermission !in granted) {
-            Log.w(TAG, "Skipping loadNutritionEntries start=$start end=$end missing=$readNutritionPermission")
+            Log.w(TAG, "Skipping loadNutritionEntries missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()

@@ -120,7 +120,7 @@ class HeartRepository @Inject constructor(
         granted: Set<String>,
     ): List<HeartRateSample> {
         if (readHeartRatePermission !in granted) {
-            Log.w(TAG, "Skipping loadHeartRateSamples date=$date missing=$readHeartRatePermission")
+            Log.w(TAG, "Skipping loadHeartRateSamples missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -140,7 +140,7 @@ class HeartRepository @Inject constructor(
         granted: Set<String>,
     ): List<HeartRateSample> {
         if (readHeartRatePermission !in granted) {
-            Log.w(TAG, "Skipping loadHeartRateSamples start=$start end=$end missing=$readHeartRatePermission")
+            Log.w(TAG, "Skipping loadHeartRateSamples missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -160,7 +160,7 @@ class HeartRepository @Inject constructor(
         granted: Set<String>,
     ): List<HeartRateSummary> {
         if (readHeartRatePermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyHeartRateSummaries start=$start end=$end missing=$readHeartRatePermission")
+            Log.w(TAG, "Skipping loadDailyHeartRateSummaries missingCount=1")
             return emptyList()
         }
         return hc.readDailyHeartRateSummaries(start, end)
@@ -190,7 +190,7 @@ class HeartRepository @Inject constructor(
         granted: Set<String>,
     ): List<DailyRestingHR> {
         if (readRestingHRPermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyRestingHR start=$start end=$end missing=$readRestingHRPermission")
+            Log.w(TAG, "Skipping loadDailyRestingHR missingCount=1")
             return emptyList()
         }
         return hc.readDailyRestingHR(start, end)
@@ -220,7 +220,7 @@ class HeartRepository @Inject constructor(
         granted: Set<String>,
     ): List<DailyHrv> {
         if (readHrvPermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyHRV start=$start end=$end missing=$readHrvPermission")
+            Log.w(TAG, "Skipping loadDailyHRV missingCount=1")
             return emptyList()
         }
         return hc.readDailyHRV(start, end)

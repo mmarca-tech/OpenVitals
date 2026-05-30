@@ -59,7 +59,7 @@ class MindfulnessRepository @Inject constructor(
         granted: Set<String>,
     ): List<MindfulnessSession> {
         if (readMindfulnessPermission !in granted) {
-            Log.w(TAG, "Skipping loadMindfulnessSessions start=$start end=$end missing=$readMindfulnessPermission")
+            Log.w(TAG, "Skipping loadMindfulnessSessions missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -81,7 +81,7 @@ class MindfulnessRepository @Inject constructor(
         }
         val missingPermissions = mindfulnessWritePermissions - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping writeMindfulnessSessionEntry missing=$missingPermissions")
+            Log.w(TAG, "Skipping writeMindfulnessSessionEntry missingCount=${missingPermissions.size}")
             throw IllegalStateException("Missing Health Connect write permission for mindfulness.")
         }
         return hc.writeMindfulnessSessionEntry(request).also {
@@ -92,7 +92,7 @@ class MindfulnessRepository @Inject constructor(
     suspend fun loadMindfulnessSession(id: String): MindfulnessSession? {
         val granted = grantedPermissionsIfAvailable()
         if (readMindfulnessPermission !in granted) {
-            Log.w(TAG, "Skipping loadMindfulnessSession id=$id missing=$readMindfulnessPermission")
+            Log.w(TAG, "Skipping loadMindfulnessSession missingCount=1")
             return null
         }
         return hc.readMindfulnessSession(id)
@@ -105,7 +105,7 @@ class MindfulnessRepository @Inject constructor(
         }
         val missingPermissions = mindfulnessWritePermissions - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping updateMindfulnessSessionEntry id=$id missing=$missingPermissions")
+            Log.w(TAG, "Skipping updateMindfulnessSessionEntry missingCount=${missingPermissions.size}")
             throw IllegalStateException("Missing Health Connect write permission for mindfulness.")
         }
         hc.updateMindfulnessSessionEntry(id, request)

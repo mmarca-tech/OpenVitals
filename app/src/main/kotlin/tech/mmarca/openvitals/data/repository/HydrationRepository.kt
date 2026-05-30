@@ -60,7 +60,7 @@ class HydrationRepository @Inject constructor(
         granted: Set<String>,
     ): List<DailyHydration> {
         if (readHydrationPermission !in granted) {
-            Log.w(TAG, "Skipping loadDailyHydration start=$start end=$end missing=$readHydrationPermission")
+            Log.w(TAG, "Skipping loadDailyHydration missingCount=1")
             return emptyList()
         }
         return hc.readDailyHydration(start, end)
@@ -77,7 +77,7 @@ class HydrationRepository @Inject constructor(
         granted: Set<String>,
     ): List<HydrationEntry> {
         if (readHydrationPermission !in granted) {
-            Log.w(TAG, "Skipping loadHydrationEntries start=$start end=$end missing=$readHydrationPermission")
+            Log.w(TAG, "Skipping loadHydrationEntries missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -93,7 +93,7 @@ class HydrationRepository @Inject constructor(
     suspend fun writeHydrationEntry(request: HydrationWriteRequest): String {
         val granted = grantedPermissionsIfAvailable()
         if (writeHydrationPermission !in granted) {
-            Log.w(TAG, "Skipping writeHydrationEntry missing=$writeHydrationPermission")
+            Log.w(TAG, "Skipping writeHydrationEntry missingCount=1")
             throw SecurityException("Missing Health Connect hydration write permission.")
         }
         return hc.writeHydrationEntry(request).also {
@@ -104,7 +104,7 @@ class HydrationRepository @Inject constructor(
     suspend fun loadHydrationEntry(id: String): HydrationEntry? {
         val granted = grantedPermissionsIfAvailable()
         if (readHydrationPermission !in granted) {
-            Log.w(TAG, "Skipping loadHydrationEntry id=$id missing=$readHydrationPermission")
+            Log.w(TAG, "Skipping loadHydrationEntry missingCount=1")
             return null
         }
         return hc.readHydrationEntry(id)
@@ -113,7 +113,7 @@ class HydrationRepository @Inject constructor(
     suspend fun updateHydrationEntry(id: String, request: HydrationWriteRequest) {
         val granted = grantedPermissionsIfAvailable()
         if (writeHydrationPermission !in granted) {
-            Log.w(TAG, "Skipping updateHydrationEntry id=$id missing=$writeHydrationPermission")
+            Log.w(TAG, "Skipping updateHydrationEntry missingCount=1")
             throw SecurityException("Missing Health Connect hydration write permission.")
         }
         hc.updateHydrationEntry(id, request)

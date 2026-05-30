@@ -151,7 +151,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<WeightEntry> {
         if (readWeightPermission !in granted) {
-            Log.w(TAG, "Skipping loadWeightEntries missing=$readWeightPermission")
+            Log.w(TAG, "Skipping loadWeightEntries missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -181,7 +181,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<HeightEntry> {
         if (readHeightPermission !in granted) {
-            Log.w(TAG, "Skipping loadHeightEntries missing=$readHeightPermission")
+            Log.w(TAG, "Skipping loadHeightEntries missingCount=1")
             return emptyList()
         }
         return hc.readHeightEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -198,7 +198,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<BodyFatEntry> {
         if (readBodyFatPermission !in granted) {
-            Log.w(TAG, "Skipping loadBodyFatEntries missing=$readBodyFatPermission")
+            Log.w(TAG, "Skipping loadBodyFatEntries missingCount=1")
             return emptyList()
         }
         val zone = ZoneId.systemDefault()
@@ -228,7 +228,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<LeanBodyMassEntry> {
         if (readLeanMassPermission !in granted) {
-            Log.w(TAG, "Skipping loadLeanBodyMassEntries missing=$readLeanMassPermission")
+            Log.w(TAG, "Skipping loadLeanBodyMassEntries missingCount=1")
             return emptyList()
         }
         return hc.readLeanBodyMassEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -255,7 +255,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<BmrEntry> {
         if (readBMRPermission !in granted) {
-            Log.w(TAG, "Skipping loadBmrEntries missing=$readBMRPermission")
+            Log.w(TAG, "Skipping loadBmrEntries missingCount=1")
             return emptyList()
         }
         return hc.readBmrEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -282,7 +282,7 @@ class BodyRepository @Inject constructor(
         granted: Set<String>,
     ): List<BoneMassEntry> {
         if (readBoneMassPermission !in granted) {
-            Log.w(TAG, "Skipping loadBoneMassEntries missing=$readBoneMassPermission")
+            Log.w(TAG, "Skipping loadBoneMassEntries missingCount=1")
             return emptyList()
         }
         return hc.readBoneMassEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -294,7 +294,7 @@ class BodyRepository @Inject constructor(
     suspend fun writeBodyMeasurementEntry(request: BodyMeasurementWriteRequest): String {
         val missingPermissions = bodyWritePermissions(request.type) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping writeBodyMeasurementEntry type=${request.type} missing=$missingPermissions")
+            Log.w(TAG, "Skipping writeBodyMeasurementEntry type=${request.type} missingCount=${missingPermissions.size}")
             throw SecurityException("Missing Health Connect body write permission.")
         }
         return hc.writeBodyMeasurementEntry(request).also {
@@ -310,7 +310,7 @@ class BodyRepository @Inject constructor(
         }
         val granted = grantedPermissionsIfAvailable()
         if (readPermission !in granted) {
-            Log.w(TAG, "Skipping loadBodyMeasurementEntry type=$type id=$id missing=$readPermission")
+            Log.w(TAG, "Skipping loadBodyMeasurementEntry type=$type missingCount=1")
             return null
         }
         return hc.readBodyMeasurementEntry(type, id)
@@ -319,7 +319,7 @@ class BodyRepository @Inject constructor(
     suspend fun updateBodyMeasurementEntry(id: String, request: BodyMeasurementWriteRequest) {
         val missingPermissions = bodyWritePermissions(request.type) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping updateBodyMeasurementEntry type=${request.type} id=$id missing=$missingPermissions")
+            Log.w(TAG, "Skipping updateBodyMeasurementEntry type=${request.type} missingCount=${missingPermissions.size}")
             throw SecurityException("Missing Health Connect body write permission.")
         }
         hc.updateBodyMeasurementEntry(id, request)

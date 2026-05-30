@@ -144,7 +144,7 @@ class VitalsRepository @Inject constructor(
         granted: Set<String>,
     ): List<BloodPressureEntry> {
         if (readBloodPressurePermission !in granted) {
-            Log.w(TAG, "Skipping loadBloodPressure start=$start end=$end missing=$readBloodPressurePermission")
+            Log.w(TAG, "Skipping loadBloodPressure missingCount=1")
             return emptyList()
         }
         return hc.readBloodPressureEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -161,7 +161,7 @@ class VitalsRepository @Inject constructor(
         granted: Set<String>,
     ): List<SpO2Entry> {
         if (readSpO2Permission !in granted) {
-            Log.w(TAG, "Skipping loadSpO2 start=$start end=$end missing=$readSpO2Permission")
+            Log.w(TAG, "Skipping loadSpO2 missingCount=1")
             return emptyList()
         }
         return hc.readSpO2Entries(start.toInstant(), end.plusDays(1).toInstant())
@@ -178,7 +178,7 @@ class VitalsRepository @Inject constructor(
         granted: Set<String>,
     ): List<RespiratoryRateEntry> {
         if (readRespiratoryRatePermission !in granted) {
-            Log.w(TAG, "Skipping loadRespiratoryRate start=$start end=$end missing=$readRespiratoryRatePermission")
+            Log.w(TAG, "Skipping loadRespiratoryRate missingCount=1")
             return emptyList()
         }
         return hc.readRespiratoryRateEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -195,7 +195,7 @@ class VitalsRepository @Inject constructor(
         granted: Set<String>,
     ): List<BodyTempEntry> {
         if (readBodyTemperaturePermission !in granted) {
-            Log.w(TAG, "Skipping loadBodyTemperature start=$start end=$end missing=$readBodyTemperaturePermission")
+            Log.w(TAG, "Skipping loadBodyTemperature missingCount=1")
             return emptyList()
         }
         return hc.readBodyTemperatureEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -212,7 +212,7 @@ class VitalsRepository @Inject constructor(
         granted: Set<String>,
     ): List<Vo2MaxEntry> {
         if (readVo2MaxPermission !in granted) {
-            Log.w(TAG, "Skipping loadVo2Max start=$start end=$end missing=$readVo2MaxPermission")
+            Log.w(TAG, "Skipping loadVo2Max missingCount=1")
             return emptyList()
         }
         return hc.readVo2MaxEntries(start.toInstant(), end.plusDays(1).toInstant())
@@ -224,7 +224,7 @@ class VitalsRepository @Inject constructor(
     suspend fun writeVitalsMeasurementEntry(request: VitalsMeasurementWriteRequest): String {
         val missingPermissions = vitalsWritePermissions(request.type) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping writeVitalsMeasurementEntry type=${request.type} missing=$missingPermissions")
+            Log.w(TAG, "Skipping writeVitalsMeasurementEntry type=${request.type} missingCount=${missingPermissions.size}")
             throw IllegalStateException("Missing Health Connect write permission for ${request.type}")
         }
         return hc.writeVitalsMeasurementEntry(request).also {
@@ -241,7 +241,7 @@ class VitalsRepository @Inject constructor(
         }
         val granted = grantedPermissionsIfAvailable()
         if (readPermission !in granted) {
-            Log.w(TAG, "Skipping loadVitalsMeasurementEntry type=$type id=$id missing=$readPermission")
+            Log.w(TAG, "Skipping loadVitalsMeasurementEntry type=$type missingCount=1")
             return null
         }
         return hc.readVitalsMeasurementEntry(type, id)
@@ -250,7 +250,7 @@ class VitalsRepository @Inject constructor(
     suspend fun updateVitalsMeasurementEntry(id: String, request: VitalsMeasurementWriteRequest) {
         val missingPermissions = vitalsWritePermissions(request.type) - grantedPermissionsIfAvailable()
         if (missingPermissions.isNotEmpty()) {
-            Log.w(TAG, "Skipping updateVitalsMeasurementEntry type=${request.type} id=$id missing=$missingPermissions")
+            Log.w(TAG, "Skipping updateVitalsMeasurementEntry type=${request.type} missingCount=${missingPermissions.size}")
             throw IllegalStateException("Missing Health Connect write permission for ${request.type}")
         }
         hc.updateVitalsMeasurementEntry(id, request)
