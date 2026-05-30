@@ -9,14 +9,18 @@ import tech.mmarca.openvitals.data.model.HydrationEntry
 import tech.mmarca.openvitals.data.model.HydrationWriteRequest
 import tech.mmarca.openvitals.data.model.HealthConnectAvailability
 import tech.mmarca.openvitals.healthconnect.HealthConnectManager
+import tech.mmarca.openvitals.healthconnect.HealthConnectQueryCache
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @Singleton
 class HydrationRepository @Inject constructor(
     private val hc: HealthConnectManager,
+    private val queryCache: HealthConnectQueryCache = HealthConnectQueryCache(),
 ) {
 
     companion object {
@@ -30,18 +34,31 @@ class HydrationRepository @Inject constructor(
     private suspend fun grantedPermissionsIfAvailable(): Set<String> =
         if (hc.availability() == HealthConnectAvailability.AVAILABLE) hc.grantedPermissions() else emptySet()
 
-    suspend fun loadHydrationPeriod(query: PeriodLoadQuery): HydrationPeriodData {
+    suspend fun loadHydrationPeriod(query: PeriodLoadQuery): HydrationPeriodData = coroutineScope {
         val windows = query.windows
-        return HydrationPeriodData(
-            dailyHydration = loadDailyHydration(windows.current.start, windows.current.end),
-            previousDailyHydration = loadDailyHydration(windows.previous.start, windows.previous.end),
-            baselineDailyHydration = loadDailyHydration(windows.baseline.start, windows.baseline.end),
-            hydrationEntries = loadHydrationEntries(windows.current.start, windows.current.end),
+        val granted = grantedPermissionsIfAvailable()
+        val dailyHydration = async { loadDailyHydration(windows.current.start, windows.current.end, granted) }
+        val previousDailyHydration = async { loadDailyHydration(windows.previous.start, windows.previous.end, granted) }
+        val baselineDailyHydration = async { loadDailyHydration(windows.baseline.start, windows.baseline.end, granted) }
+        val hydrationEntries = async { loadHydrationEntries(windows.current.start, windows.current.end, granted) }
+        HydrationPeriodData(
+            dailyHydration = dailyHydration.await(),
+            previousDailyHydration = previousDailyHydration.await(),
+            baselineDailyHydration = baselineDailyHydration.await(),
+            hydrationEntries = hydrationEntries.await(),
         )
     }
 
     suspend fun loadDailyHydration(start: LocalDate, end: LocalDate): List<DailyHydration> {
         val granted = grantedPermissionsIfAvailable()
+        return loadDailyHydration(start, end, granted)
+    }
+
+    private suspend fun loadDailyHydration(
+        start: LocalDate,
+        end: LocalDate,
+        granted: Set<String>,
+    ): List<DailyHydration> {
         if (readHydrationPermission !in granted) {
             Log.w(TAG, "Skipping loadDailyHydration start=$start end=$end missing=$readHydrationPermission")
             return emptyList()
@@ -51,6 +68,14 @@ class HydrationRepository @Inject constructor(
 
     suspend fun loadHydrationEntries(start: LocalDate, end: LocalDate): List<HydrationEntry> {
         val granted = grantedPermissionsIfAvailable()
+        return loadHydrationEntries(start, end, granted)
+    }
+
+    private suspend fun loadHydrationEntries(
+        start: LocalDate,
+        end: LocalDate,
+        granted: Set<String>,
+    ): List<HydrationEntry> {
         if (readHydrationPermission !in granted) {
             Log.w(TAG, "Skipping loadHydrationEntries start=$start end=$end missing=$readHydrationPermission")
             return emptyList()
@@ -71,7 +96,9 @@ class HydrationRepository @Inject constructor(
             Log.w(TAG, "Skipping writeHydrationEntry missing=$writeHydrationPermission")
             throw SecurityException("Missing Health Connect hydration write permission.")
         }
-        return hc.writeHydrationEntry(request)
+        return hc.writeHydrationEntry(request).also {
+            queryCache.invalidateOperations("dashboard")
+        }
     }
 
     suspend fun loadHydrationEntry(id: String): HydrationEntry? {
@@ -90,6 +117,7 @@ class HydrationRepository @Inject constructor(
             throw SecurityException("Missing Health Connect hydration write permission.")
         }
         hc.updateHydrationEntry(id, request)
+        queryCache.invalidateOperations("dashboard")
     }
 }
 

@@ -74,7 +74,7 @@ class ActivityOverviewViewModelTest {
             hrv = listOf(DailyHrv(today, rmssdMs = 42.5)),
         )
 
-        val vm = ActivityOverviewViewModel(activityRepo, heartRepo)
+        val vm = ActivityOverviewViewModel(activityRepo, heartRepo, mainDispatcherRule.dispatcherProvider)
 
         val state = vm.uiState.value
         assertFalse(state.isLoading)
@@ -109,6 +109,7 @@ class ActivityOverviewViewModelTest {
                 heartRateSamples = heartRateSamples,
                 restingHeartRate = listOf(DailyRestingHR(today, 60L)),
             ),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         assertTrue(vm.uiState.value.today.cardioLoad > 0)
@@ -140,6 +141,7 @@ class ActivityOverviewViewModelTest {
                 heartRateSamples = heartRateSamples,
                 restingHeartRate = listOf(DailyRestingHR(today, 60L)),
             ),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         assertTrue(vm.uiState.value.today.cardioLoad > 0)
@@ -151,6 +153,7 @@ class ActivityOverviewViewModelTest {
         val vm = ActivityOverviewViewModel(
             activityRepository = activityRepo(),
             heartRepository = heartRepo(),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         assertEquals(0, vm.uiState.value.today.cardioLoad)
@@ -170,6 +173,7 @@ class ActivityOverviewViewModelTest {
                 ),
             ),
             heartRepository = heartRepo(),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         assertEquals(1, vm.uiState.value.today.cardioLoad)
@@ -189,6 +193,7 @@ class ActivityOverviewViewModelTest {
         val vm = ActivityOverviewViewModel(
             activityRepository = activityRepo(steps = recentDays),
             heartRepository = heartRepo(),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         assertEquals(6, vm.uiState.value.recentActivities.size)
@@ -205,7 +210,7 @@ class ActivityOverviewViewModelTest {
         val activityRepo = activityRepo()
         val heartRepo = heartRepo()
 
-        ActivityOverviewViewModel(activityRepo, heartRepo)
+        ActivityOverviewViewModel(activityRepo, heartRepo, mainDispatcherRule.dispatcherProvider)
 
         coVerify {
             activityRepo.loadDailySteps(today.minusDays(29), today)
@@ -224,6 +229,7 @@ class ActivityOverviewViewModelTest {
         val vm = ActivityOverviewViewModel(
             activityRepository = activityRepo,
             heartRepository = heartRepo(),
+            dispatchers = mainDispatcherRule.dispatcherProvider,
         )
 
         val state = vm.uiState.value

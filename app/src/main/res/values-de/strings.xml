@@ -42,6 +42,7 @@
     <string name="not_available">Nicht verfügbar</string>
     <string name="not_recorded">Nicht aufgezeichnet</string>
     <string name="no_data">Keine Daten</string>
+    <string name="loading">Wird geladen...</string>
 
     <string name="screen_dashboard">Dashboard</string>
     <string name="screen_steps">Schritte</string>

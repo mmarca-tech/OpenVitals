@@ -17,6 +17,9 @@ import kotlin.math.sin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import tech.mmarca.openvitals.core.performance.DefaultDispatcherProvider
+import tech.mmarca.openvitals.core.performance.DispatcherProvider
 import tech.mmarca.openvitals.core.performance.LoadCoordinator
 import tech.mmarca.openvitals.data.model.SleepData
 import tech.mmarca.openvitals.data.model.SleepStage
@@ -95,6 +98,7 @@ data class RecoveryUiState(
 @HiltViewModel
 class RecoveryViewModel @Inject constructor(
     private val sleepRepository: SleepRepository,
+    private val dispatchers: DispatcherProvider = DefaultDispatcherProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecoveryUiState())
@@ -117,10 +121,14 @@ class RecoveryViewModel @Inject constructor(
                 sleepRepository.loadSleepSessions(start, today)
             }.onSuccess { sessions ->
                 if (!isCurrent) return@load
+                val days = withContext(dispatchers.default) {
+                    sessions.toRecoveryDays(start, today)
+                }
+                if (!isCurrent) return@load
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     selectedDate = today,
-                    days = sessions.toRecoveryDays(start, today),
+                    days = days,
                 )
             }.onFailure { error ->
                 if (!isCurrent) return@load

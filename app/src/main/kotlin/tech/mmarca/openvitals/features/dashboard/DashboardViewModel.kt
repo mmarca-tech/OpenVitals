@@ -30,6 +30,7 @@ data class DashboardUiState(
     val dashboardWidgets: List<DashboardWidgetId> = DefaultDashboardWidgetIds,
     val dailyGoals: DashboardDailyGoals = DashboardDailyGoals(),
     val isEditingDashboard: Boolean = false,
+    val pendingWidgets: Set<DashboardWidgetId> = emptySet(),
 )
 
 data class DashboardDailyGoals(
@@ -96,20 +97,14 @@ class DashboardViewModel @Inject constructor(
             val sleepRangeMode = prefs.sleepRangeMode
             val dailyGoals = prefs.dashboardDailyGoals()
             val dashboardWidgets = _uiState.value.dashboardWidgets
-            val fixedWidgetIds = dashboardWidgetIdsThatFitRows(
-                widgetIds = dashboardWidgets.filterNot { it == DashboardWidgetId.WORKOUT },
-                rows = DashboardFixedWidgetRows,
-            )
-            val primaryMetrics = fixedWidgetIds
-                .mapNotNull { it.toDashboardMetricOrNull() }
-                .plus(DashboardMetric.WORKOUT)
+            val primaryMetrics = DashboardFastMetrics
+            val deferredWidgets = dashboardWidgets
+                .filter { widgetId ->
+                    widgetId.toDashboardMetricOrNull()
+                        ?.let { metric -> metric !in primaryMetrics }
+                        ?: false
+                }
                 .toSet()
-            val remainingMetrics = dashboardWidgets
-                .filterNot { it == DashboardWidgetId.WORKOUT }
-                .filterNot { it in fixedWidgetIds }
-                .mapNotNull { it.toDashboardMetricOrNull() }
-                .toSet()
-                .minus(primaryMetrics)
             _uiState.value = _uiState.value.copy(
                 selectedDate = clampedDate,
                 isLoading = true,
@@ -117,6 +112,7 @@ class DashboardViewModel @Inject constructor(
                 trackCycle = trackCycle,
                 sleepRangeMode = sleepRangeMode,
                 dailyGoals = dailyGoals,
+                pendingWidgets = deferredWidgets,
             )
             runCatching {
                 repository.loadDashboard(
@@ -134,16 +130,16 @@ class DashboardViewModel @Inject constructor(
                     val unacknowledged = data.missingPermissions - prefs.acknowledgedPermissions()
                     _uiState.value = _uiState.value.copy(
                         data = data,
-                        isLoading = remainingMetrics.isNotEmpty() && data.loadedMetrics.isNotEmpty(),
+                        isLoading = false,
                         showPermissionsCallout = unacknowledged.isNotEmpty(),
                         trackCycle = prefs.trackCycle,
                         sleepRangeMode = sleepRangeMode,
                         dailyGoals = prefs.dashboardDailyGoals(),
                     )
-                    loadRemainingDashboardMetrics(
+                    loadDeferredDashboardMetrics(
                         date = clampedDate,
                         sleepRangeMode = sleepRangeMode,
-                        visibleMetrics = remainingMetrics,
+                        widgets = deferredWidgets.toList(),
                         trackCycle = trackCycle,
                         refreshMode = refreshMode,
                         isCurrentLoad = { isCurrent },
@@ -243,50 +239,75 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(dashboardWidgets = customizableWidgets)
     }
 
-    private suspend fun loadRemainingDashboardMetrics(
+    private suspend fun loadDeferredDashboardMetrics(
         date: LocalDate,
         sleepRangeMode: SleepRangeMode,
-        visibleMetrics: Set<DashboardMetric>,
+        widgets: List<DashboardWidgetId>,
         trackCycle: Boolean,
         refreshMode: RefreshMode,
         isCurrentLoad: () -> Boolean,
     ) {
         val currentData = _uiState.value.data ?: return
-        if (visibleMetrics.isEmpty() || currentData.loadedMetrics.isEmpty()) {
-            _uiState.value = _uiState.value.copy(isLoading = false)
+        if (widgets.isEmpty()) return
+        if (currentData.loadedMetrics.isEmpty()) {
+            _uiState.value = _uiState.value.copy(pendingWidgets = emptySet())
             return
         }
 
-        runCatching {
-            repository.loadDashboard(
-                DashboardQuery(
-                    date = date,
-                    sleepRangeMode = sleepRangeMode,
-                    visibleMetrics = visibleMetrics,
-                    trackCycle = trackCycle,
-                    refreshMode = refreshMode,
+        val metricsByWidget = widgets
+            .mapNotNull { widgetId -> widgetId.toDashboardMetricOrNull()?.let { widgetId to it } }
+        val orderedMetrics = metricsByWidget
+            .map { (_, metric) -> metric }
+            .distinct()
+
+        orderedMetrics.forEach { metric ->
+            if (!isCurrentLoad()) return
+            runCatching {
+                repository.loadDashboard(
+                    DashboardQuery(
+                        date = date,
+                        sleepRangeMode = sleepRangeMode,
+                        visibleMetrics = setOf(metric),
+                        trackCycle = trackCycle,
+                        refreshMode = refreshMode,
+                    )
                 )
-            )
+            }
+                .onSuccess { remainingData ->
+                    if (!isCurrentLoad()) return
+                    val loadedWidgets = metricsByWidget
+                        .filter { (_, widgetMetric) -> widgetMetric == metric }
+                        .map { (widgetId, _) -> widgetId }
+                        .toSet()
+                    val mergedData = (_uiState.value.data ?: currentData).mergeLoaded(remainingData)
+                    val unacknowledged = mergedData.missingPermissions - prefs.acknowledgedPermissions()
+                    _uiState.value = _uiState.value.copy(
+                        data = mergedData,
+                        showPermissionsCallout = unacknowledged.isNotEmpty(),
+                        pendingWidgets = _uiState.value.pendingWidgets - loadedWidgets,
+                    )
+                }
+                .onFailure { error ->
+                    if (!isCurrentLoad()) return
+                    val failedWidgets = metricsByWidget
+                        .filter { (_, widgetMetric) -> widgetMetric == metric }
+                        .map { (widgetId, _) -> widgetId }
+                        .toSet()
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: "Unknown error",
+                        pendingWidgets = _uiState.value.pendingWidgets - failedWidgets,
+                    )
+                }
         }
-            .onSuccess { remainingData ->
-                if (!isCurrentLoad()) return
-                val mergedData = (_uiState.value.data ?: currentData).mergeLoaded(remainingData)
-                val unacknowledged = mergedData.missingPermissions - prefs.acknowledgedPermissions()
-                _uiState.value = _uiState.value.copy(
-                    data = mergedData,
-                    isLoading = false,
-                    showPermissionsCallout = unacknowledged.isNotEmpty(),
-                )
-            }
-            .onFailure { error ->
-                if (!isCurrentLoad()) return
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = error.message ?: "Unknown error",
-                )
-            }
     }
 }
+
+private val DashboardFastMetrics = setOf(
+    DashboardMetric.STEPS,
+    DashboardMetric.DISTANCE,
+    DashboardMetric.CALORIES_OUT,
+    DashboardMetric.WORKOUT,
+)
 
 private fun PreferencesRepository.dashboardDailyGoals(): DashboardDailyGoals =
     DashboardDailyGoals(

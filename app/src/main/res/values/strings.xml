@@ -42,6 +42,7 @@
     <string name="not_available">Not available</string>
     <string name="not_recorded">Not recorded</string>
     <string name="no_data">No data</string>
+    <string name="loading">Loading...</string>
 
     <string name="screen_dashboard">Dashboard</string>
     <string name="screen_steps">Steps</string>

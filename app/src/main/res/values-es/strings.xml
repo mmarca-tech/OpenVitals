@@ -42,6 +42,7 @@
     <string name="not_available">No disponible</string>
     <string name="not_recorded">No registrado</string>
     <string name="no_data">Sin datos</string>
+    <string name="loading">Cargando...</string>
 
     <string name="screen_dashboard">Panel</string>
     <string name="screen_steps">Pasos</string>

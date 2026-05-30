@@ -1,6 +1,7 @@
 package tech.mmarca.openvitals.healthconnect
 
 import java.time.LocalDate
+import java.util.LinkedHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -14,9 +15,17 @@ data class HealthConnectQueryKey(
 
 class HealthConnectQueryCache(
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val maxEntries: Int = DefaultMaxEntries,
 ) {
     private val mutex = Mutex()
-    private val entries = mutableMapOf<HealthConnectQueryKey, CacheEntry>()
+    private val entries = object : LinkedHashMap<HealthConnectQueryKey, CacheEntry>(
+        maxEntries.coerceAtLeast(1),
+        0.75f,
+        true,
+    ) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<HealthConnectQueryKey, CacheEntry>?): Boolean =
+            size > maxEntries.coerceAtLeast(1)
+    }
     private val inFlight = mutableMapOf<HealthConnectQueryKey, CompletableDeferred<Any?>>()
 
     suspend fun <T> getOrPut(
@@ -71,6 +80,15 @@ class HealthConnectQueryCache(
         }
     }
 
+    suspend fun invalidateOperations(vararg operations: String) {
+        val operationSet = operations.toSet()
+        if (operationSet.isEmpty()) return
+        mutex.withLock {
+            entries.keys.removeAll { it.operation in operationSet }
+            inFlight.keys.removeAll { it.operation in operationSet }
+        }
+    }
+
     suspend fun invalidateAll() {
         mutex.withLock {
             entries.clear()
@@ -92,6 +110,10 @@ class HealthConnectQueryCache(
     private sealed interface CacheLookup {
         data class Pending(val deferred: CompletableDeferred<Any?>) : CacheLookup
         data class Owner(val deferred: CompletableDeferred<Any?>) : CacheLookup
+    }
+
+    private companion object {
+        private const val DefaultMaxEntries = 128
     }
 }
 

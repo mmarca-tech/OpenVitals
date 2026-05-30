@@ -36,7 +36,7 @@ class RecoveryViewModelTest {
             ),
         )
 
-        val vm = RecoveryViewModel(repo)
+        val vm = RecoveryViewModel(repo, mainDispatcherRule.dispatcherProvider)
 
         val state = vm.uiState.value
         assertFalse(state.isLoading)
@@ -62,7 +62,7 @@ class RecoveryViewModelTest {
             ),
         )
 
-        val vm = RecoveryViewModel(repo)
+        val vm = RecoveryViewModel(repo, mainDispatcherRule.dispatcherProvider)
 
         assertEquals("overnight", vm.uiState.value.today.mainSleepSession?.id)
     }
@@ -75,7 +75,7 @@ class RecoveryViewModelTest {
             },
         )
 
-        val vm = RecoveryViewModel(repo)
+        val vm = RecoveryViewModel(repo, mainDispatcherRule.dispatcherProvider)
 
         assertEquals(SleepScoreConfidence.HIGH, vm.uiState.value.today.sleepScore.confidence)
         assertEquals(0.0, vm.uiState.value.today.sleepScore.regularityDifferenceMinutes!!, 0.001)
@@ -83,7 +83,7 @@ class RecoveryViewModelTest {
 
     @Test
     fun `load returns empty days when repository has no sleep data`() = runTest {
-        val vm = RecoveryViewModel(sleepRepo())
+        val vm = RecoveryViewModel(sleepRepo(), mainDispatcherRule.dispatcherProvider)
 
         val state = vm.uiState.value
         assertFalse(state.isLoading)
@@ -99,7 +99,7 @@ class RecoveryViewModelTest {
         val repo = mockk<SleepRepository>()
         coEvery { repo.loadSleepSessions(any(), any()) } throws RuntimeException("offline")
 
-        val vm = RecoveryViewModel(repo)
+        val vm = RecoveryViewModel(repo, mainDispatcherRule.dispatcherProvider)
 
         assertFalse(vm.uiState.value.isLoading)
         assertEquals("offline", vm.uiState.value.error)

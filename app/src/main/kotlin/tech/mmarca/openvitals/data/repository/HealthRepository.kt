@@ -472,48 +472,50 @@ class HealthRepository @Inject constructor(
             emptyList()
         }
 
-        val stepsByDate = dailySteps.associateBy { it.date }
-        val restingHeartRateByDate = restingHeartRates.associateBy { it.date }
-        val baselineRestingHeartRate = restingHeartRates.map { it.bpm }.medianLongOrNull()
-        val observedMaxHeartRate = heartRateSamples.maxOfOrNull { it.beatsPerMinute }
-        val heartRateSamplesByDate = heartRateSamples
-            .sortedBy { it.time }
-            .groupBy { it.time.atZone(zone).toLocalDate() }
+        return withContext(dispatchers.default) {
+            val stepsByDate = dailySteps.associateBy { it.date }
+            val restingHeartRateByDate = restingHeartRates.associateBy { it.date }
+            val baselineRestingHeartRate = restingHeartRates.map { it.bpm }.medianLongOrNull()
+            val observedMaxHeartRate = heartRateSamples.maxOfOrNull { it.beatsPerMinute }
+            val heartRateSamplesByDate = heartRateSamples
+                .sortedBy { it.time }
+                .groupBy { it.time.atZone(zone).toLocalDate() }
 
-        val estimatesByDate = datesInRange(rangeStart, rangeEnd).associateWith { day ->
-            calculateCardioLoad(
-                steps = stepsByDate[day],
-                samples = heartRateSamplesByDate[day].orEmpty(),
-                restingHeartRate = restingHeartRateByDate[day]?.bpm,
-                baselineRestingHeartRate = baselineRestingHeartRate,
-                observedMaxHeartRate = observedMaxHeartRate,
-                activityWindows = workouts.cardioLoadWindows(day, zone),
+            val estimatesByDate = datesInRange(rangeStart, rangeEnd).associateWith { day ->
+                calculateCardioLoad(
+                    steps = stepsByDate[day],
+                    samples = heartRateSamplesByDate[day].orEmpty(),
+                    restingHeartRate = restingHeartRateByDate[day]?.bpm,
+                    baselineRestingHeartRate = baselineRestingHeartRate,
+                    observedMaxHeartRate = observedMaxHeartRate,
+                    activityWindows = workouts.cardioLoadWindows(day, zone),
+                )
+            }
+            val currentWeekEstimates = datesInRange(currentWeek.start, currentWeek.end)
+                .map { day -> estimatesByDate[day] ?: CardioLoadEstimate.NoData }
+                .toList()
+            val currentScore = currentWeekEstimates.sumOf { it.score }
+            val todayScore = estimatesByDate[date]?.score ?: 0
+            val previousWeekScores = (1L..4L).map { weeksAgo ->
+                val weekStart = currentWeek.start.minusWeeks(weeksAgo)
+                val weekEnd = weekStart.plusDays(6)
+                datesInRange(weekStart, weekEnd).sumOf { day -> estimatesByDate[day]?.score ?: 0 }
+            }
+            val daysElapsed = ChronoUnit.DAYS.between(currentWeek.start, currentWeek.end).toInt() + 1
+            val target = dashboardWeeklyCardioTarget(
+                currentScore = currentScore,
+                daysElapsed = daysElapsed,
+                previousWeekScores = previousWeekScores,
+            ) ?: return@withContext null
+
+            DashboardWeeklyCardioLoad(
+                currentScore = currentScore,
+                targetScore = target.score,
+                todayScore = todayScore,
+                confidence = currentWeekEstimates.weeklyCardioConfidence(),
+                targetSource = target.source,
             )
         }
-        val currentWeekEstimates = datesInRange(currentWeek.start, currentWeek.end)
-            .map { day -> estimatesByDate[day] ?: CardioLoadEstimate.NoData }
-            .toList()
-        val currentScore = currentWeekEstimates.sumOf { it.score }
-        val todayScore = estimatesByDate[date]?.score ?: 0
-        val previousWeekScores = (1L..4L).map { weeksAgo ->
-            val weekStart = currentWeek.start.minusWeeks(weeksAgo)
-            val weekEnd = weekStart.plusDays(6)
-            datesInRange(weekStart, weekEnd).sumOf { day -> estimatesByDate[day]?.score ?: 0 }
-        }
-        val daysElapsed = ChronoUnit.DAYS.between(currentWeek.start, currentWeek.end).toInt() + 1
-        val target = dashboardWeeklyCardioTarget(
-            currentScore = currentScore,
-            daysElapsed = daysElapsed,
-            previousWeekScores = previousWeekScores,
-        ) ?: return null
-
-        return DashboardWeeklyCardioLoad(
-            currentScore = currentScore,
-            targetScore = target.score,
-            todayScore = todayScore,
-            confidence = currentWeekEstimates.weeklyCardioConfidence(),
-            targetSource = target.source,
-        )
     }
 
     private suspend fun readDashboardCardioLoadSteps(

@@ -9,15 +9,19 @@ import tech.mmarca.openvitals.data.model.HealthConnectAvailability
 import tech.mmarca.openvitals.data.model.MindfulnessSession
 import tech.mmarca.openvitals.data.model.MindfulnessSessionWriteRequest
 import tech.mmarca.openvitals.healthconnect.HealthConnectManager
+import tech.mmarca.openvitals.healthconnect.HealthConnectQueryCache
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @OptIn(ExperimentalMindfulnessSessionApi::class)
 @Singleton
 class MindfulnessRepository @Inject constructor(
     private val hc: HealthConnectManager,
+    private val queryCache: HealthConnectQueryCache = HealthConnectQueryCache(),
 ) {
 
     companion object {
@@ -31,17 +35,29 @@ class MindfulnessRepository @Inject constructor(
     private suspend fun grantedPermissionsIfAvailable(): Set<String> =
         if (hc.availability() == HealthConnectAvailability.AVAILABLE) hc.grantedPermissions() else emptySet()
 
-    suspend fun loadMindfulnessPeriod(query: PeriodLoadQuery): MindfulnessPeriodData {
+    suspend fun loadMindfulnessPeriod(query: PeriodLoadQuery): MindfulnessPeriodData = coroutineScope {
         val windows = query.windows
-        return MindfulnessPeriodData(
-            sessions = loadMindfulnessSessions(windows.current.start, windows.current.end),
-            previousSessions = loadMindfulnessSessions(windows.previous.start, windows.previous.end),
-            baselineSessions = loadMindfulnessSessions(windows.baseline.start, windows.baseline.end),
+        val granted = grantedPermissionsIfAvailable()
+        val sessions = async { loadMindfulnessSessions(windows.current.start, windows.current.end, granted) }
+        val previousSessions = async { loadMindfulnessSessions(windows.previous.start, windows.previous.end, granted) }
+        val baselineSessions = async { loadMindfulnessSessions(windows.baseline.start, windows.baseline.end, granted) }
+        MindfulnessPeriodData(
+            sessions = sessions.await(),
+            previousSessions = previousSessions.await(),
+            baselineSessions = baselineSessions.await(),
         )
     }
 
     suspend fun loadMindfulnessSessions(start: LocalDate, end: LocalDate): List<MindfulnessSession> {
         val granted = grantedPermissionsIfAvailable()
+        return loadMindfulnessSessions(start, end, granted)
+    }
+
+    private suspend fun loadMindfulnessSessions(
+        start: LocalDate,
+        end: LocalDate,
+        granted: Set<String>,
+    ): List<MindfulnessSession> {
         if (readMindfulnessPermission !in granted) {
             Log.w(TAG, "Skipping loadMindfulnessSessions start=$start end=$end missing=$readMindfulnessPermission")
             return emptyList()
@@ -68,7 +84,9 @@ class MindfulnessRepository @Inject constructor(
             Log.w(TAG, "Skipping writeMindfulnessSessionEntry missing=$missingPermissions")
             throw IllegalStateException("Missing Health Connect write permission for mindfulness.")
         }
-        return hc.writeMindfulnessSessionEntry(request)
+        return hc.writeMindfulnessSessionEntry(request).also {
+            queryCache.invalidateOperations("dashboard")
+        }
     }
 
     suspend fun loadMindfulnessSession(id: String): MindfulnessSession? {
@@ -91,6 +109,7 @@ class MindfulnessRepository @Inject constructor(
             throw IllegalStateException("Missing Health Connect write permission for mindfulness.")
         }
         hc.updateMindfulnessSessionEntry(id, request)
+        queryCache.invalidateOperations("dashboard")
     }
 }
 

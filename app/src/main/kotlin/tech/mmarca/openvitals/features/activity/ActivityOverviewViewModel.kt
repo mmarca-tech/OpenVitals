@@ -7,6 +7,8 @@ import tech.mmarca.openvitals.core.insights.CardioLoadConfidence
 import tech.mmarca.openvitals.core.insights.CardioLoadEstimate
 import tech.mmarca.openvitals.core.insights.CardioLoadTimeWindow
 import tech.mmarca.openvitals.core.insights.calculateCardioLoad
+import tech.mmarca.openvitals.core.performance.DefaultDispatcherProvider
+import tech.mmarca.openvitals.core.performance.DispatcherProvider
 import tech.mmarca.openvitals.core.performance.LoadCoordinator
 import tech.mmarca.openvitals.data.model.DailyHrv
 import tech.mmarca.openvitals.data.model.DailyNutrition
@@ -22,6 +24,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 private const val ActivityOverviewLookbackDays = 30L
 private const val RecentActivityInitialCount = 3
@@ -77,6 +82,7 @@ data class ActivityOverviewUiState(
 class ActivityOverviewViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
     private val heartRepository: HeartRepository,
+    private val dispatchers: DispatcherProvider = DefaultDispatcherProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActivityOverviewUiState())
@@ -97,20 +103,17 @@ class ActivityOverviewViewModel @Inject constructor(
                 error = null,
             )
             runCatching {
-                ActivityOverviewLoadResult(
-                    steps = activityRepository.loadDailySteps(start, end),
-                    nutrition = activityRepository.loadDailyNutrition(start, end),
-                    workouts = activityRepository.loadWorkouts(start, end),
-                    heartRateSamples = heartRepository.loadHeartRateSamples(start, end),
-                    restingHeartRate = heartRepository.loadDailyRestingHR(start, end),
-                    hrv = heartRepository.loadDailyHRV(start, end),
-                )
+                loadActivityOverview(start, end)
             }.onSuccess { result ->
+                if (!isCurrent) return@load
+                val days = withContext(dispatchers.default) {
+                    result.toDays(start, end)
+                }
                 if (!isCurrent) return@load
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     selectedDate = today,
-                    days = result.toDays(start, end),
+                    days = days,
                     recentVisibleCount = RecentActivityInitialCount,
                 )
             }.onFailure { error ->
@@ -129,6 +132,26 @@ class ActivityOverviewViewModel @Inject constructor(
         _uiState.value = current.copy(
             recentVisibleCount = (current.recentVisibleCount + RecentActivityPageSize)
                 .coerceAtMost(current.recentActivities.size),
+        )
+    }
+
+    private suspend fun loadActivityOverview(
+        start: LocalDate,
+        end: LocalDate,
+    ): ActivityOverviewLoadResult = coroutineScope {
+        val steps = async { activityRepository.loadDailySteps(start, end) }
+        val nutrition = async { activityRepository.loadDailyNutrition(start, end) }
+        val workouts = async { activityRepository.loadWorkouts(start, end) }
+        val heartRateSamples = async { heartRepository.loadHeartRateSamples(start, end) }
+        val restingHeartRate = async { heartRepository.loadDailyRestingHR(start, end) }
+        val hrv = async { heartRepository.loadDailyHRV(start, end) }
+        ActivityOverviewLoadResult(
+            steps = steps.await(),
+            nutrition = nutrition.await(),
+            workouts = workouts.await(),
+            heartRateSamples = heartRateSamples.await(),
+            restingHeartRate = restingHeartRate.await(),
+            hrv = hrv.await(),
         )
     }
 

@@ -278,13 +278,106 @@ class DashboardViewModelTest {
 
         assertEquals(
             setOf(
-                DashboardMetric.SLEEP,
                 DashboardMetric.STEPS,
-                DashboardMetric.HYDRATION,
+                DashboardMetric.DISTANCE,
+                DashboardMetric.CALORIES_OUT,
                 DashboardMetric.WORKOUT,
             ),
             queries.first().visibleMetrics,
         )
+    }
+
+    @Test fun `deferred dashboard metrics merge after fast dashboard load`() = runTest {
+        val repo = mockk<HealthRepository>()
+        val queries = mutableListOf<DashboardQuery>()
+        coEvery { repo.loadDashboard(any<DashboardQuery>()) } coAnswers {
+            val query = firstArg<DashboardQuery>()
+            queries += query
+            when (query.visibleMetrics.singleOrNull()) {
+                DashboardMetric.HYDRATION -> DashboardData(
+                    date = today,
+                    hydrationLiters = 1.5,
+                    loadedMetrics = setOf(DashboardMetric.HYDRATION),
+                )
+                else -> DashboardData(
+                    date = today,
+                    steps = 100,
+                    loadedMetrics = setOf(
+                        DashboardMetric.STEPS,
+                        DashboardMetric.DISTANCE,
+                        DashboardMetric.CALORIES_OUT,
+                        DashboardMetric.WORKOUT,
+                    ),
+                )
+            }
+        }
+        val prefs = prefs()
+        every { prefs.dashboardWidgetOrder() } returns listOf(
+            DashboardWidgetId.STEPS.name,
+            DashboardWidgetId.HYDRATION.name,
+        )
+
+        val vm = DashboardViewModel(repo, prefs)
+
+        assertEquals(100L, vm.uiState.value.data?.steps)
+        assertEquals(1.5, vm.uiState.value.data?.hydrationLiters ?: 0.0, 0.001)
+        assertTrue(queries.first().visibleMetrics.contains(DashboardMetric.STEPS))
+        assertTrue(queries.any { it.visibleMetrics == setOf(DashboardMetric.HYDRATION) })
+        assertTrue(vm.uiState.value.pendingWidgets.isEmpty())
+    }
+
+    @Test fun `stale deferred dashboard load cannot overwrite newer data`() = runTest {
+        val repo = mockk<HealthRepository>()
+        coEvery { repo.loadDashboard(any<DashboardQuery>()) } coAnswers {
+            val query = firstArg<DashboardQuery>()
+            if (query.date == yesterday && query.visibleMetrics == setOf(DashboardMetric.HYDRATION)) {
+                delay(100)
+            }
+            when {
+                query.date == yesterday && DashboardMetric.HYDRATION in query.visibleMetrics -> DashboardData(
+                    date = yesterday,
+                    hydrationLiters = 9.0,
+                    loadedMetrics = setOf(DashboardMetric.HYDRATION),
+                )
+                query.date == yesterday -> DashboardData(
+                    date = yesterday,
+                    steps = 1,
+                    loadedMetrics = setOf(
+                        DashboardMetric.STEPS,
+                        DashboardMetric.DISTANCE,
+                        DashboardMetric.CALORIES_OUT,
+                        DashboardMetric.WORKOUT,
+                    ),
+                )
+                query.date == today && DashboardMetric.HYDRATION in query.visibleMetrics -> DashboardData(
+                    date = today,
+                    hydrationLiters = 2.0,
+                    loadedMetrics = setOf(DashboardMetric.HYDRATION),
+                )
+                else -> DashboardData(
+                    date = today,
+                    steps = 2,
+                    loadedMetrics = setOf(
+                        DashboardMetric.STEPS,
+                        DashboardMetric.DISTANCE,
+                        DashboardMetric.CALORIES_OUT,
+                        DashboardMetric.WORKOUT,
+                    ),
+                )
+            }
+        }
+        val prefs = prefs()
+        every { prefs.dashboardWidgetOrder() } returns listOf(
+            DashboardWidgetId.STEPS.name,
+            DashboardWidgetId.HYDRATION.name,
+        )
+
+        val vm = DashboardViewModel(repo, prefs)
+        vm.load(yesterday)
+        vm.load(today)
+
+        assertEquals(today, vm.uiState.value.data?.date)
+        assertEquals(2.0, vm.uiState.value.data?.hydrationLiters ?: 0.0, 0.001)
     }
 
     @Test fun `refresh passes force refresh mode`() = runTest {
