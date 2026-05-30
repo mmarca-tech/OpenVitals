@@ -1,6 +1,8 @@
 package tech.mmarca.openvitals.data.model
 
 import java.time.LocalDate
+import kotlin.math.roundToInt
+import tech.mmarca.openvitals.core.insights.CardioLoadConfidence
 
 data class DashboardData(
     val date: LocalDate,
@@ -32,6 +34,7 @@ data class DashboardData(
     val latestVo2Max: Double? = null,
     val avgRespiratoryRate: Double? = null,
     val latestBodyTemperatureCelsius: Double? = null,
+    val weeklyCardioLoad: DashboardWeeklyCardioLoad? = null,
     val floorsClimbed: Int? = null,
     val elevationGainedMeters: Double? = null,
     val mindfulnessMinutes: Int? = null,
@@ -100,6 +103,11 @@ fun DashboardData.mergeLoaded(other: DashboardData): DashboardData =
         } else {
             latestBodyTemperatureCelsius
         },
+        weeklyCardioLoad = if (DashboardMetric.WEEKLY_CARDIO_LOAD in other.loadedMetrics) {
+            other.weeklyCardioLoad
+        } else {
+            weeklyCardioLoad
+        },
         floorsClimbed = if (DashboardMetric.FLOORS in other.loadedMetrics) other.floorsClimbed else floorsClimbed,
         elevationGainedMeters = if (DashboardMetric.ELEVATION in other.loadedMetrics) {
             other.elevationGainedMeters
@@ -125,3 +133,33 @@ fun DashboardData.mergeLoaded(other: DashboardData): DashboardData =
         missingPermissions = missingPermissions + other.missingPermissions,
         loadedMetrics = loadedMetrics + other.loadedMetrics,
     )
+
+data class DashboardWeeklyCardioLoad(
+    val currentScore: Int,
+    val targetScore: Int,
+    val todayScore: Int,
+    val confidence: CardioLoadConfidence,
+    val targetSource: DashboardWeeklyCardioLoadTargetSource,
+) {
+    val progressFraction: Float
+        get() = if (targetScore > 0) {
+            (currentScore / targetScore.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+    val progressPercent: Int
+        get() = (progressFraction * 100f).roundToInt()
+
+    val todayProgressPercent: Int
+        get() = if (targetScore > 0) {
+            (todayScore * 100.0 / targetScore).roundToInt().coerceAtLeast(0)
+        } else {
+            0
+        }
+}
+
+enum class DashboardWeeklyCardioLoadTargetSource {
+    RECENT_HISTORY,
+    CURRENT_PACE,
+}

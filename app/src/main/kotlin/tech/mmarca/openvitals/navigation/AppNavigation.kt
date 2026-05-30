@@ -332,7 +332,13 @@ fun AppNavigation(
                     unitFormatter = unitFormatter,
                     dateTimeFormatterProvider = dateTimeFormatterProvider,
                     onGrantPermissions = { navController.navigate(Screen.Settings.route) },
-                    onOpenMetric = { metricId -> navController.navigate(Screen.Metric.createRoute(metricId.name)) },
+                    onOpenMetric = { metricId ->
+                        when (metricId) {
+                            DashboardWidgetId.WEEKLY_CARDIO_LOAD,
+                            DashboardWidgetId.CARDIO_LOAD -> navController.navigate(CardioLoadDetailRoute)
+                            else -> navController.navigate(Screen.Metric.createRoute(metricId.name))
+                        }
+                    },
                     onOpenActivity = { activityId ->
                         navController.navigate(Screen.ActivityDetail.createRoute(activityId))
                     },
@@ -876,6 +882,14 @@ private fun MetricRouteContent(
                 dateTimeFormatterProvider = dateTimeFormatterProvider,
             )
         }
+        DashboardWidgetId.WEEKLY_CARDIO_LOAD,
+        DashboardWidgetId.CARDIO_LOAD -> {
+            val activityOverviewViewModel = hiltViewModel<ActivityOverviewViewModel>()
+            CardioLoadDetailScreen(
+                viewModel = activityOverviewViewModel,
+                unitFormatter = unitFormatter,
+            )
+        }
         else -> {
             Text(
                 text = stringResource(R.string.unknown_error),
@@ -1055,6 +1069,8 @@ private fun metricTitleRes(metricId: DashboardWidgetId): Int =
         DashboardWidgetId.VO2_MAX -> R.string.metric_vo2_max
         DashboardWidgetId.RESPIRATORY_RATE -> R.string.metric_respiratory_rate
         DashboardWidgetId.BODY_TEMPERATURE -> R.string.metric_body_temp
+        DashboardWidgetId.WEEKLY_CARDIO_LOAD -> R.string.metric_weekly_cardio_load
+        DashboardWidgetId.CARDIO_LOAD -> R.string.metric_weekly_cardio_load
         DashboardWidgetId.MINDFULNESS -> R.string.metric_mindfulness
         DashboardWidgetId.CYCLE -> R.string.metric_cycle
     }

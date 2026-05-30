@@ -108,6 +108,7 @@ import tech.mmarca.openvitals.core.presentation.DateTimeFormatterProvider
 import tech.mmarca.openvitals.core.presentation.DisplayValue
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.data.model.DashboardData
+import tech.mmarca.openvitals.data.model.DashboardWeeklyCardioLoad
 import tech.mmarca.openvitals.data.model.ExerciseData
 import tech.mmarca.openvitals.features.activity.exerciseTypeLabel
 import tech.mmarca.openvitals.ui.components.DayNavigator
@@ -1049,6 +1050,24 @@ private fun dashboardWidgetSpecs(
         style = DashboardWidgetStyle.CIRCLE,
         onClick = openMetric(DashboardWidgetId.STEPS),
     )
+    addWeeklyCardioLoadMetric(
+        id = DashboardWidgetId.WEEKLY_CARDIO_LOAD,
+        title = stringResource(R.string.metric_weekly_cardio_load),
+        weeklyCardioLoad = data.weeklyCardioLoad,
+        icon = Icons.Outlined.Favorite,
+        accentColor = WorkoutColor,
+        style = DashboardWidgetStyle.CIRCLE,
+        onClick = openMetric(DashboardWidgetId.WEEKLY_CARDIO_LOAD),
+    )
+    addWeeklyCardioLoadMetric(
+        id = DashboardWidgetId.CARDIO_LOAD,
+        title = stringResource(R.string.metric_weekly_cardio_load),
+        weeklyCardioLoad = data.weeklyCardioLoad,
+        icon = Icons.Outlined.Favorite,
+        accentColor = WorkoutColor,
+        style = DashboardWidgetStyle.PILL,
+        onClick = openMetric(DashboardWidgetId.CARDIO_LOAD),
+    )
     addMetric(
         id = DashboardWidgetId.DISTANCE,
         title = stringResource(R.string.metric_distance),
@@ -1482,6 +1501,79 @@ private data class DashboardWidgetProgress(
     val label: String,
 )
 
+private fun MutableList<DashboardWidgetSpec>.addWeeklyCardioLoadMetric(
+    id: DashboardWidgetId,
+    title: String,
+    weeklyCardioLoad: DashboardWeeklyCardioLoad?,
+    icon: ImageVector,
+    accentColor: Color,
+    style: DashboardWidgetStyle,
+    onClick: (() -> Unit)?,
+) {
+    add(
+        DashboardWidgetSpec(id = id, title = title, style = style) { modifier ->
+            if (weeklyCardioLoad == null) {
+                DashboardPillWidget(
+                    title = title,
+                    value = DisplayValue("", ""),
+                    icon = icon,
+                    accentColor = accentColor,
+                    message = stringResource(R.string.no_data),
+                    modifier = modifier,
+                    onClick = onClick,
+                )
+            } else {
+                val progress = DashboardWidgetProgress(
+                    fraction = weeklyCardioLoad.progressFraction,
+                    label = stringResource(
+                        R.string.dashboard_weekly_cardio_load_progress,
+                        weeklyCardioLoad.currentScore,
+                        weeklyCardioLoad.targetScore,
+                    ),
+                )
+                if (style == DashboardWidgetStyle.CIRCLE) {
+                    DashboardCircleWidget(
+                        title = title,
+                        value = DisplayValue(
+                            value = stringResource(
+                                R.string.dashboard_cardio_load_percent_only,
+                                weeklyCardioLoad.progressPercent,
+                            ),
+                            unit = "",
+                        ),
+                        icon = icon,
+                        accentColor = accentColor,
+                        progress = progress,
+                        modifier = modifier,
+                        onClick = onClick,
+                    )
+                } else {
+                    DashboardPillWidget(
+                        title = title,
+                        value = DisplayValue(
+                            value = stringResource(
+                                R.string.dashboard_cardio_load_percent,
+                                weeklyCardioLoad.progressPercent,
+                            ),
+                            unit = "",
+                        ),
+                        icon = icon,
+                        accentColor = accentColor,
+                        progress = progress,
+                        subtitle = weeklyCardioLoad.todayProgressPercent
+                            .takeIf { it > 0 }
+                            ?.let { todayPercent ->
+                                stringResource(R.string.dashboard_cardio_load_today_delta, todayPercent)
+                            },
+                        modifier = modifier,
+                        onClick = onClick,
+                    )
+                }
+            }
+        }
+    )
+}
+
 @Composable
 private fun DashboardPillWidget(
     title: String,
@@ -1491,6 +1583,7 @@ private fun DashboardPillWidget(
     modifier: Modifier = Modifier,
     progress: DashboardWidgetProgress? = null,
     message: String? = null,
+    subtitle: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(28.dp)
@@ -1557,7 +1650,11 @@ private fun DashboardPillWidget(
                     )
                     Text(
                         text = message ?: dashboardDisplayValue(value),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = if (subtitle == null) {
+                            MaterialTheme.typography.titleLarge
+                        } else {
+                            MaterialTheme.typography.titleMedium
+                        },
                         fontWeight = FontWeight.SemiBold,
                         color = if (message == null) {
                             MaterialTheme.colorScheme.onSurface
@@ -1567,6 +1664,16 @@ private fun DashboardPillWidget(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (message == null && subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = accentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

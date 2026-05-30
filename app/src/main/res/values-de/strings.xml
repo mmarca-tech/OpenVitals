@@ -249,6 +249,7 @@
     <string name="metric_resting_heart_rate">Ruheherzfrequenz</string>
     <string name="metric_hrv">Herzfrequenzvariabilität (HRV)</string>
     <string name="metric_cardio_load">Cardio-Belastung</string>
+    <string name="metric_weekly_cardio_load">Wöchentliches Cardio</string>
     <string name="metric_energy_burned">Verbrannte Energie</string>
     <string name="metric_blood_pressure">Blutdruck</string>
     <string name="metric_spo2">SpO2</string>
@@ -591,6 +592,10 @@
     <string name="dashboard_action_log">Protokollieren</string>
     <string name="dashboard_activities_today">Aktivitäten heute</string>
     <string name="dashboard_goal_of">von %1$s</string>
+    <string name="dashboard_weekly_cardio_load_progress">%1$d von %2$d</string>
+    <string name="dashboard_cardio_load_percent_only">%1$d%%</string>
+    <string name="dashboard_cardio_load_percent">%1$d%% Belastung</string>
+    <string name="dashboard_cardio_load_today_delta">+%1$d%% heute</string>
     <string name="message_no_activities_period">Keine Aktivitäten im ausgewählten Zeitraum.</string>
     <string name="message_no_recent_activity">Noch keine aktuelle Aktivität.</string>
     <string name="message_no_step_updates">Es wurden keine Schrittaktualisierungen aufgezeichnet</string>

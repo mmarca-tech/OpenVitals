@@ -1,5 +1,7 @@
 package tech.mmarca.openvitals.features.activity
 
+import tech.mmarca.openvitals.core.insights.CardioLoadConfidence
+import tech.mmarca.openvitals.core.insights.CardioLoadMethod
 import tech.mmarca.openvitals.data.model.DailyHrv
 import tech.mmarca.openvitals.data.model.DailyNutrition
 import tech.mmarca.openvitals.data.model.DailyRestingHR
@@ -153,6 +155,26 @@ class ActivityOverviewViewModelTest {
 
         assertEquals(0, vm.uiState.value.today.cardioLoad)
         assertEquals(CardioLoadConfidence.NO_DATA, vm.uiState.value.today.cardioLoadConfidence)
+    }
+
+    @Test
+    fun `cardio load uses low confidence fallback for meaningful movement without heart rate`() = runTest {
+        val vm = ActivityOverviewViewModel(
+            activityRepository = activityRepo(
+                steps = listOf(
+                    DailySteps(
+                        date = today,
+                        steps = 1_224L,
+                        distanceMeters = 482.0,
+                    )
+                ),
+            ),
+            heartRepository = heartRepo(),
+        )
+
+        assertEquals(1, vm.uiState.value.today.cardioLoad)
+        assertEquals(CardioLoadConfidence.LOW, vm.uiState.value.today.cardioLoadConfidence)
+        assertEquals(CardioLoadMethod.MOVEMENT_FALLBACK, vm.uiState.value.today.cardioLoadScore.method)
     }
 
     @Test

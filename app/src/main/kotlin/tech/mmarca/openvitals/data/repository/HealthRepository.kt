@@ -33,11 +33,21 @@ import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.WeightRecord
 import tech.mmarca.openvitals.core.performance.DefaultDispatcherProvider
 import tech.mmarca.openvitals.core.performance.DispatcherProvider
+import tech.mmarca.openvitals.core.insights.CardioLoadConfidence
+import tech.mmarca.openvitals.core.insights.CardioLoadEstimate
+import tech.mmarca.openvitals.core.insights.CardioLoadTimeWindow
+import tech.mmarca.openvitals.core.insights.calculateCardioLoad
 import tech.mmarca.openvitals.data.model.DashboardData
 import tech.mmarca.openvitals.data.model.DashboardMetric
 import tech.mmarca.openvitals.data.model.DashboardQuery
+import tech.mmarca.openvitals.data.model.DashboardWeeklyCardioLoad
+import tech.mmarca.openvitals.data.model.DashboardWeeklyCardioLoadTargetSource
+import tech.mmarca.openvitals.data.model.DailySteps
+import tech.mmarca.openvitals.data.model.ExerciseData
 import tech.mmarca.openvitals.data.model.HealthConnectAvailability
 import tech.mmarca.openvitals.core.preferences.SleepRangeMode
+import tech.mmarca.openvitals.core.period.TimeRange
+import tech.mmarca.openvitals.core.period.periodFor
 import tech.mmarca.openvitals.data.model.dailySleepSummary
 import tech.mmarca.openvitals.data.model.sleepRangeWindowFor
 import tech.mmarca.openvitals.healthconnect.HealthConnectManager
@@ -51,8 +61,10 @@ import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMindfulnessSessionApi::class)
 @Singleton
@@ -320,6 +332,15 @@ class HealthRepository @Inject constructor(
                 .maxByOrNull { it.time }
                 ?.temperatureCelsius
         }
+        val weeklyCardioLoad = if (wants(DashboardMetric.WEEKLY_CARDIO_LOAD)) {
+            async {
+                dashboardMetric("weekly cardio load") {
+                    readDashboardWeeklyCardioLoad(date, granted)
+                }
+            }
+        } else {
+            null
+        }
         val floors = readIfNeeded(wants(DashboardMetric.FLOORS), readFloorsPermission, "floors") {
             hc.readFloorsClimbed(date)
         }
@@ -394,6 +415,7 @@ class HealthRepository @Inject constructor(
             latestVo2Max = vo2Max?.await()?.vo2MaxMlPerKgPerMin,
             avgRespiratoryRate = respiratoryRate?.await(),
             latestBodyTemperatureCelsius = bodyTemperature?.await(),
+            weeklyCardioLoad = weeklyCardioLoad?.await(),
             floorsClimbed = floors?.await(),
             elevationGainedMeters = elevation?.await(),
             mindfulnessMinutes = mindfulnessMinutes?.await(),
@@ -422,6 +444,107 @@ class HealthRepository @Inject constructor(
         )
     }
 
+    private suspend fun readDashboardWeeklyCardioLoad(
+        date: LocalDate,
+        granted: Set<String>,
+    ): DashboardWeeklyCardioLoad? {
+        val currentWeek = periodFor(TimeRange.WEEK, date, today = date)
+        val rangeStart = currentWeek.start.minusWeeks(4)
+        val rangeEnd = currentWeek.end
+        val zone = ZoneId.systemDefault()
+        val rangeStartInstant = rangeStart.atStartOfDay(zone).toInstant()
+        val rangeEndInstant = rangeEnd.plusDays(1).atStartOfDay(zone).toInstant()
+
+        val dailySteps = readDashboardCardioLoadSteps(rangeStart, rangeEnd, granted)
+        val heartRateSamples = if (readHeartRatePermission in granted) {
+            hc.readHeartRateSamples(rangeStartInstant, rangeEndInstant)
+        } else {
+            emptyList()
+        }
+        val restingHeartRates = if (readRestingHRPermission in granted) {
+            hc.readDailyRestingHR(rangeStart, rangeEnd)
+        } else {
+            emptyList()
+        }
+        val workouts = if (readExercisePermission in granted) {
+            hc.readExerciseSessions(rangeStartInstant, rangeEndInstant)
+        } else {
+            emptyList()
+        }
+
+        val stepsByDate = dailySteps.associateBy { it.date }
+        val restingHeartRateByDate = restingHeartRates.associateBy { it.date }
+        val baselineRestingHeartRate = restingHeartRates.map { it.bpm }.medianLongOrNull()
+        val observedMaxHeartRate = heartRateSamples.maxOfOrNull { it.beatsPerMinute }
+        val heartRateSamplesByDate = heartRateSamples
+            .sortedBy { it.time }
+            .groupBy { it.time.atZone(zone).toLocalDate() }
+
+        val estimatesByDate = datesInRange(rangeStart, rangeEnd).associateWith { day ->
+            calculateCardioLoad(
+                steps = stepsByDate[day],
+                samples = heartRateSamplesByDate[day].orEmpty(),
+                restingHeartRate = restingHeartRateByDate[day]?.bpm,
+                baselineRestingHeartRate = baselineRestingHeartRate,
+                observedMaxHeartRate = observedMaxHeartRate,
+                activityWindows = workouts.cardioLoadWindows(day, zone),
+            )
+        }
+        val currentWeekEstimates = datesInRange(currentWeek.start, currentWeek.end)
+            .map { day -> estimatesByDate[day] ?: CardioLoadEstimate.NoData }
+            .toList()
+        val currentScore = currentWeekEstimates.sumOf { it.score }
+        val todayScore = estimatesByDate[date]?.score ?: 0
+        val previousWeekScores = (1L..4L).map { weeksAgo ->
+            val weekStart = currentWeek.start.minusWeeks(weeksAgo)
+            val weekEnd = weekStart.plusDays(6)
+            datesInRange(weekStart, weekEnd).sumOf { day -> estimatesByDate[day]?.score ?: 0 }
+        }
+        val daysElapsed = ChronoUnit.DAYS.between(currentWeek.start, currentWeek.end).toInt() + 1
+        val target = dashboardWeeklyCardioTarget(
+            currentScore = currentScore,
+            daysElapsed = daysElapsed,
+            previousWeekScores = previousWeekScores,
+        ) ?: return null
+
+        return DashboardWeeklyCardioLoad(
+            currentScore = currentScore,
+            targetScore = target.score,
+            todayScore = todayScore,
+            confidence = currentWeekEstimates.weeklyCardioConfidence(),
+            targetSource = target.source,
+        )
+    }
+
+    private suspend fun readDashboardCardioLoadSteps(
+        start: LocalDate,
+        end: LocalDate,
+        granted: Set<String>,
+    ): List<DailySteps> =
+        when {
+            readStepsPermission in granted && readDistancePermission in granted -> {
+                hc.readDailySteps(
+                    startDate = start,
+                    endDate = end,
+                    includeActiveCalories = readActiveCaloriesPermission in granted,
+                )
+            }
+            readStepsPermission in granted -> {
+                buildList {
+                    datesInRange(start, end).forEach { date ->
+                        add(
+                            DailySteps(
+                                date = date,
+                                steps = hc.readSteps(date),
+                                distanceMeters = 0.0,
+                            )
+                        )
+                    }
+                }
+            }
+            else -> emptyList()
+        }
+
     private suspend fun <T> dashboardMetric(name: String, block: suspend () -> T): T? =
         runCatching { block() }
             .onFailure { Log.w(TAG, "Skipping dashboard metric $name after Health Connect failure", it) }
@@ -434,3 +557,81 @@ class HealthRepository @Inject constructor(
             this - DashboardMetric.CYCLE
         }
 }
+
+private data class DashboardWeeklyCardioTarget(
+    val score: Int,
+    val source: DashboardWeeklyCardioLoadTargetSource,
+)
+
+private fun dashboardWeeklyCardioTarget(
+    currentScore: Int,
+    daysElapsed: Int,
+    previousWeekScores: List<Int>,
+): DashboardWeeklyCardioTarget? {
+    val previousBaseline = previousWeekScores
+        .filter { it > 0 }
+        .medianDoubleOrNull()
+    if (previousBaseline != null) {
+        return DashboardWeeklyCardioTarget(
+            score = previousBaseline.roundCardioTarget(),
+            source = DashboardWeeklyCardioLoadTargetSource.RECENT_HISTORY,
+        )
+    }
+
+    if (currentScore <= 0 || daysElapsed <= 0) return null
+    return DashboardWeeklyCardioTarget(
+        score = (currentScore * 7.0 / daysElapsed).roundCardioTarget(),
+        source = DashboardWeeklyCardioLoadTargetSource.CURRENT_PACE,
+    )
+}
+
+private fun List<CardioLoadEstimate>.weeklyCardioConfidence(): CardioLoadConfidence {
+    val tracked = filter { it.score > 0 && it.confidence != CardioLoadConfidence.NO_DATA }
+    return when {
+        tracked.isEmpty() -> CardioLoadConfidence.NO_DATA
+        tracked.any { it.confidence == CardioLoadConfidence.HIGH } -> CardioLoadConfidence.HIGH
+        tracked.any { it.confidence == CardioLoadConfidence.MEDIUM } -> CardioLoadConfidence.MEDIUM
+        else -> CardioLoadConfidence.LOW
+    }
+}
+
+private fun List<ExerciseData>.cardioLoadWindows(date: LocalDate, zone: ZoneId): List<CardioLoadTimeWindow> {
+    val dayStart = date.atStartOfDay(zone).toInstant()
+    val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant()
+    return mapNotNull { workout ->
+        if (!workout.endTime.isAfter(dayStart) || !workout.startTime.isBefore(dayEnd)) return@mapNotNull null
+        CardioLoadTimeWindow(
+            start = maxOf(workout.startTime, dayStart),
+            end = minOf(workout.endTime, dayEnd),
+        ).takeIf { it.durationMinutes > 0.0 }
+    }
+}
+
+private fun datesInRange(start: LocalDate, end: LocalDate): Sequence<LocalDate> =
+    if (start.isAfter(end)) {
+        emptySequence()
+    } else {
+        generateSequence(start) { date ->
+            date.plusDays(1).takeUnless { it.isAfter(end) }
+        }
+    }
+
+private fun List<Long>.medianLongOrNull(): Long? {
+    if (isEmpty()) return null
+    val sorted = sorted()
+    return sorted[sorted.lastIndex / 2]
+}
+
+private fun List<Int>.medianDoubleOrNull(): Double? {
+    if (isEmpty()) return null
+    val sorted = sorted()
+    val middle = sorted.size / 2
+    return if (sorted.size % 2 == 0) {
+        (sorted[middle - 1] + sorted[middle]) / 2.0
+    } else {
+        sorted[middle].toDouble()
+    }
+}
+
+private fun Double.roundCardioTarget(): Int =
+    ((this / 5.0).roundToInt() * 5).coerceAtLeast(5)

@@ -31,6 +31,8 @@ enum class DashboardWidgetId {
     VO2_MAX,
     RESPIRATORY_RATE,
     BODY_TEMPERATURE,
+    WEEKLY_CARDIO_LOAD,
+    CARDIO_LOAD,
     MINDFULNESS,
     CYCLE,
 }
@@ -42,6 +44,7 @@ const val DashboardFixedWidgetCount = DashboardWidgetGridColumns * DashboardFixe
 
 val DefaultDashboardWidgetIds: List<DashboardWidgetId> = listOf(
     DashboardWidgetId.STEPS,
+    DashboardWidgetId.WEEKLY_CARDIO_LOAD,
     DashboardWidgetId.DISTANCE,
     DashboardWidgetId.CALORIES_OUT,
     DashboardWidgetId.ACTIVE_CALORIES,
@@ -91,6 +94,7 @@ fun dashboardWidgetIdsFromStored(storedIds: List<String>?): List<DashboardWidget
 
 fun DashboardWidgetId.dashboardWidgetRowSpan(): Int = when (this) {
     DashboardWidgetId.STEPS -> 2
+    DashboardWidgetId.WEEKLY_CARDIO_LOAD -> 2
     else -> 1
 }
 
@@ -161,6 +165,8 @@ fun DashboardWidgetId.toDashboardMetricOrNull(): DashboardMetric? = when (this) 
     DashboardWidgetId.VO2_MAX -> DashboardMetric.VO2_MAX
     DashboardWidgetId.RESPIRATORY_RATE -> DashboardMetric.RESPIRATORY_RATE
     DashboardWidgetId.BODY_TEMPERATURE -> DashboardMetric.BODY_TEMPERATURE
+    DashboardWidgetId.WEEKLY_CARDIO_LOAD -> DashboardMetric.WEEKLY_CARDIO_LOAD
+    DashboardWidgetId.CARDIO_LOAD -> DashboardMetric.WEEKLY_CARDIO_LOAD
     DashboardWidgetId.MINDFULNESS -> DashboardMetric.MINDFULNESS
     DashboardWidgetId.CYCLE -> DashboardMetric.CYCLE
 }
