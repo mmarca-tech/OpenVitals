@@ -66,7 +66,6 @@
     <string name="bottom_nav_dashboard">Panel</string>
     <string name="bottom_nav_activities">Actividades</string>
     <string name="bottom_nav_recovery">Recuperación</string>
-    <string name="bottom_nav_vitals">Vitales</string>
     <string name="bottom_nav_add_entry">Añadir</string>
     <string name="manual_entry_hydration_title">Hidratación</string>
     <string name="manual_entry_activity_title">Actividad</string>
@@ -816,6 +815,15 @@
     <string name="vitals_permissions_needed_body">Concede permisos de presión arterial, saturación de oxígeno, frecuencia respiratoria, temperatura y VO2 máx. para completar esta pantalla.</string>
     <string name="vitals_respiratory_rate_readings">Lecturas de frecuencia respiratoria</string>
     <string name="vitals_body_temperature_readings">Lecturas de temperatura corporal</string>
+    <string name="heart_rate_health_checks_title">Comprobaciones de frecuencia cardiaca</string>
+    <string name="heart_rate_high_title">Frecuencia cardiaca alta</string>
+    <string name="heart_rate_low_title">Frecuencia cardiaca baja</string>
+    <string name="heart_rate_samples_at_or_above">Muestras de %1$d lpm o más</string>
+    <string name="heart_rate_samples_at_or_below">Muestras de %1$d lpm o menos</string>
+    <string name="heart_rate_days_at_or_above">Días con %1$d lpm o más</string>
+    <string name="heart_rate_days_at_or_below">Días con %1$d lpm o menos</string>
+    <string name="cd_decrease_hr_threshold">Reducir umbral de frecuencia cardiaca</string>
+    <string name="cd_increase_hr_threshold">Aumentar umbral de frecuencia cardiaca</string>
 
     <string name="meal_breakfast">Desayuno</string>
     <string name="meal_lunch">Almuerzo</string>

@@ -8,7 +8,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bed
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -116,7 +115,6 @@ private const val CardioLoadDetailRoute = "activity/cardio_load"
 private const val RecoveryTabRoute = "tab_recovery"
 private const val SleepEfficiencyDetailRoute = "recovery/sleep_efficiency"
 private const val SleepScoreDetailRoute = "recovery/sleep_score"
-private const val VitalsTabRoute = "tab_vitals"
 
 @Composable
 fun AppNavigation(
@@ -168,11 +166,6 @@ fun AppNavigation(
                 route = RecoveryTabRoute,
                 labelRes = R.string.bottom_nav_recovery,
                 icon = Icons.Outlined.Bed,
-            ),
-            OpenVitalsNavigationDestination(
-                route = VitalsTabRoute,
-                labelRes = R.string.bottom_nav_vitals,
-                icon = Icons.Outlined.Favorite,
             ),
         )
     }

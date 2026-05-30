@@ -66,7 +66,6 @@
     <string name="bottom_nav_dashboard">Dashboard</string>
     <string name="bottom_nav_activities">Aktivitäten</string>
     <string name="bottom_nav_recovery">Erholung</string>
-    <string name="bottom_nav_vitals">Vitalwerte</string>
     <string name="bottom_nav_add_entry">Eintrag hinzufügen</string>
     <string name="manual_entry_hydration_title">Hydrierung</string>
     <string name="manual_entry_activity_title">Aktivität</string>
@@ -816,6 +815,15 @@
     <string name="vitals_permissions_needed_body">Erteile Berechtigungen für Blutdruck, Sauerstoffsättigung, Atemfrequenz, Temperatur und VO2 max, um diese Ansicht zu füllen.</string>
     <string name="vitals_respiratory_rate_readings">Atemfrequenz-Messwerte</string>
     <string name="vitals_body_temperature_readings">Körpertemperatur-Messwerte</string>
+    <string name="heart_rate_health_checks_title">Herzfrequenzchecks</string>
+    <string name="heart_rate_high_title">Hohe Herzfrequenz</string>
+    <string name="heart_rate_low_title">Niedrige Herzfrequenz</string>
+    <string name="heart_rate_samples_at_or_above">Messpunkte bei/über %1$d bpm</string>
+    <string name="heart_rate_samples_at_or_below">Messpunkte bei/unter %1$d bpm</string>
+    <string name="heart_rate_days_at_or_above">Tage bei/über %1$d bpm</string>
+    <string name="heart_rate_days_at_or_below">Tage bei/unter %1$d bpm</string>
+    <string name="cd_decrease_hr_threshold">Herzfrequenzschwelle senken</string>
+    <string name="cd_increase_hr_threshold">Herzfrequenzschwelle erhöhen</string>
 
     <string name="meal_breakfast">Frühstück</string>
     <string name="meal_lunch">Mittagessen</string>

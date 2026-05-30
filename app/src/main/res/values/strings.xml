@@ -66,7 +66,6 @@
     <string name="bottom_nav_dashboard">Dashboard</string>
     <string name="bottom_nav_activities">Activities</string>
     <string name="bottom_nav_recovery">Recovery</string>
-    <string name="bottom_nav_vitals">Vitals</string>
     <string name="bottom_nav_add_entry">Add entry</string>
     <string name="manual_entry_hydration_title">Hydration</string>
     <string name="manual_entry_activity_title">Activity</string>
@@ -816,6 +815,15 @@
     <string name="vitals_permissions_needed_body">Grant blood pressure, oxygen saturation, respiratory rate, temperature, and VO2 max permissions to fill this screen.</string>
     <string name="vitals_respiratory_rate_readings">Respiratory rate readings</string>
     <string name="vitals_body_temperature_readings">Body temperature readings</string>
+    <string name="heart_rate_health_checks_title">Heart rate checks</string>
+    <string name="heart_rate_high_title">High heart rate</string>
+    <string name="heart_rate_low_title">Low heart rate</string>
+    <string name="heart_rate_samples_at_or_above">Samples at/above %1$d bpm</string>
+    <string name="heart_rate_samples_at_or_below">Samples at/below %1$d bpm</string>
+    <string name="heart_rate_days_at_or_above">Days at/above %1$d bpm</string>
+    <string name="heart_rate_days_at_or_below">Days at/below %1$d bpm</string>
+    <string name="cd_decrease_hr_threshold">Decrease heart rate threshold</string>
+    <string name="cd_increase_hr_threshold">Increase heart rate threshold</string>
 
     <string name="meal_breakfast">Breakfast</string>
     <string name="meal_lunch">Lunch</string>
