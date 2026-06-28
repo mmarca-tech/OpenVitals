@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,23 +20,22 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import kotlin.math.roundToInt
-import kotlin.math.roundToLong
 import tech.mmarca.openvitals.R
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
-import tech.mmarca.openvitals.domain.model.BleHeartRateSample
-import tech.mmarca.openvitals.domain.model.BleRecordingSampleBuffer
-import tech.mmarca.openvitals.domain.model.HeartRateSample
-import tech.mmarca.openvitals.features.manualentry.activity.recording.formatRecordingElapsed
+import tech.mmarca.openvitals.domain.model.ActivityCadenceKind
+import tech.mmarca.openvitals.domain.model.ActivityCadenceSample
+import tech.mmarca.openvitals.domain.model.SpeedSample
 import tech.mmarca.openvitals.ui.components.ChartXAxisWithYAxis
 import tech.mmarca.openvitals.ui.components.MetricLinePlot
 import tech.mmarca.openvitals.ui.components.MetricLinePlotPoint
 import tech.mmarca.openvitals.ui.components.OpenVitalsCard
-import tech.mmarca.openvitals.ui.theme.HeartColor
+import tech.mmarca.openvitals.ui.theme.CycleColor
+import tech.mmarca.openvitals.ui.theme.DistanceColor
+import tech.mmarca.openvitals.ui.theme.StepsColor
 
 @Composable
-internal fun ActivityHeartRateChartCard(
-    samples: List<HeartRateSample>,
+internal fun ActivitySpeedChartCard(
+    samples: List<SpeedSample>,
     sessionStart: Instant,
     sessionEnd: Instant,
     unitFormatter: UnitFormatter,
@@ -43,18 +43,77 @@ internal fun ActivityHeartRateChartCard(
 ) {
     if (samples.isEmpty()) return
 
-    val sorted = samples.sortedBy { it.time }
-    val minBpm = sorted.minOf { it.beatsPerMinute }
-    val maxBpm = sorted.maxOf { it.beatsPerMinute }
-    val avgBpm = sorted.map { it.beatsPerMinute }.average().roundToInt()
-    val paddedMin = (minBpm - 5L).coerceAtLeast(30L)
-    val paddedMax = maxBpm + 5L
+    ActivitySessionMetricChartCard(
+        title = stringResource(R.string.activity_recording_live_speed),
+        sortedValues = samples.sortedBy { it.time }.map { it.time to it.metersPerSecond },
+        sessionStart = sessionStart,
+        sessionEnd = sessionEnd,
+        unitFormatter = unitFormatter,
+        accentColor = DistanceColor,
+        valueFormatter = { unitFormatter.speed(it).text },
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun ActivityCadenceChartCard(
+    samples: List<ActivityCadenceSample>,
+    kind: ActivityCadenceKind,
+    sessionStart: Instant,
+    sessionEnd: Instant,
+    unitFormatter: UnitFormatter,
+    modifier: Modifier = Modifier,
+) {
+    val filtered = samples.filter { it.kind == kind }
+    if (filtered.isEmpty()) return
+
+    val title = when (kind) {
+        ActivityCadenceKind.CYCLING -> stringResource(R.string.metric_cycling_cadence)
+        ActivityCadenceKind.STEPS -> stringResource(R.string.metric_steps_cadence)
+    }
+    val accentColor = when (kind) {
+        ActivityCadenceKind.CYCLING -> CycleColor
+        ActivityCadenceKind.STEPS -> StepsColor
+    }
+
+    ActivitySessionMetricChartCard(
+        title = title,
+        sortedValues = filtered.sortedBy { it.time }.map { it.time to it.rate },
+        sessionStart = sessionStart,
+        sessionEnd = sessionEnd,
+        unitFormatter = unitFormatter,
+        accentColor = accentColor,
+        valueFormatter = { unitFormatter.cadence(it).text },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun ActivitySessionMetricChartCard(
+    title: String,
+    sortedValues: List<Pair<Instant, Double>>,
+    sessionStart: Instant,
+    sessionEnd: Instant,
+    unitFormatter: UnitFormatter,
+    accentColor: Color,
+    valueFormatter: (Double) -> String,
+    modifier: Modifier = Modifier,
+) {
+    if (sortedValues.isEmpty()) return
+
+    val minValue = sortedValues.minOf { it.second }
+    val maxValue = sortedValues.maxOf { it.second }
+    val avgValue = sortedValues.map { it.second }.average()
+    val valueRange = (maxValue - minValue).coerceAtLeast(0.001)
+    val paddedMin = (minValue - valueRange * 0.1).coerceAtLeast(0.0)
+    val paddedMax = maxValue + valueRange * 0.1
     val sessionDurationMillis = Duration.between(sessionStart, sessionEnd)
         .toMillis()
         .coerceAtLeast(1L)
     val chartHeight = 180.dp
     val zone = ZoneId.systemDefault()
     val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+    val drawPoints = sortedValues.size <= 120
 
     OpenVitalsCard(modifier = modifier) {
         Column(
@@ -62,7 +121,7 @@ internal fun ActivityHeartRateChartCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(R.string.activity_recording_live_heart_rate),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -70,40 +129,43 @@ internal fun ActivityHeartRateChartCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                ActivityHeartRateStat(
+                ActivitySessionMetricStat(
                     label = stringResource(R.string.summary_average),
-                    value = unitFormatter.heartRate(avgBpm.toLong()).text,
+                    value = valueFormatter(avgValue),
+                    accentColor = accentColor,
                     modifier = Modifier.weight(1f),
                 )
-                ActivityHeartRateStat(
+                ActivitySessionMetricStat(
                     label = stringResource(R.string.summary_range),
-                    value = "${unitFormatter.heartRate(minBpm).text}-${unitFormatter.heartRate(maxBpm).text}",
+                    value = "${valueFormatter(minValue)}-${valueFormatter(maxValue)}",
+                    accentColor = accentColor,
                     modifier = Modifier.weight(1f),
                 )
-                ActivityHeartRateStat(
+                ActivitySessionMetricStat(
                     label = stringResource(R.string.summary_samples),
-                    value = unitFormatter.count(sorted.size),
+                    value = unitFormatter.count(sortedValues.size),
+                    accentColor = accentColor,
                     modifier = Modifier.weight(1f),
                 )
             }
             MetricLinePlot(
-                points = sorted.map { sample ->
-                    val elapsed = Duration.between(sessionStart, sample.time)
+                points = sortedValues.map { (time, value) ->
+                    val elapsed = Duration.between(sessionStart, time)
                         .toMillis()
                         .coerceIn(0L, sessionDurationMillis)
                     MetricLinePlotPoint(
                         xFraction = elapsed.toFloat() / sessionDurationMillis.toFloat(),
-                        value = sample.beatsPerMinute.toDouble(),
+                        value = value,
                     )
                 },
-                minValue = paddedMin.toDouble(),
-                maxValue = paddedMax.toDouble(),
-                accentColor = HeartColor,
+                minValue = paddedMin,
+                maxValue = paddedMax,
+                accentColor = accentColor,
                 chartHeight = chartHeight,
-                valueFormatter = { unitFormatter.heartRate(it.roundToLong()).text },
-                pointRadius = if (sorted.size <= 120) 2.dp else 0.dp,
+                valueFormatter = valueFormatter,
+                pointRadius = if (drawPoints) 2.dp else 0.dp,
                 lineStrokeWidth = 2.dp,
-                drawPoints = sorted.size <= 120,
+                drawPoints = drawPoints,
             )
             Spacer(Modifier.height(4.dp))
             ChartXAxisWithYAxis {
@@ -123,8 +185,8 @@ internal fun ActivityHeartRateChartCard(
             Text(
                 text = stringResource(
                     R.string.summary_recorded,
-                    timeFormatter.format(sorted.first().time.atZone(zone)),
-                    timeFormatter.format(sorted.last().time.atZone(zone)),
+                    timeFormatter.format(sortedValues.first().first.atZone(zone)),
+                    timeFormatter.format(sortedValues.last().first.atZone(zone)),
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -134,16 +196,17 @@ internal fun ActivityHeartRateChartCard(
 }
 
 @Composable
-private fun ActivityHeartRateStat(
+private fun ActivitySessionMetricStat(
     label: String,
     value: String,
+    accentColor: Color,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
-            color = HeartColor,
+            color = accentColor,
         )
         Text(
             text = label,
@@ -151,33 +214,4 @@ private fun ActivityHeartRateStat(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-}
-
-internal fun BleRecordingSampleBuffer.toHeartRateSamples(): List<HeartRateSample> =
-    heartRateSamples.map { sample ->
-        HeartRateSample(
-            time = sample.time,
-            beatsPerMinute = sample.beatsPerMinute,
-            source = "sensor",
-        )
-    }
-
-internal fun List<BleHeartRateSample>.toHeartRateSamples(): List<HeartRateSample> =
-    map { sample ->
-        HeartRateSample(
-            time = sample.time,
-            beatsPerMinute = sample.beatsPerMinute,
-            source = "sensor",
-        )
-    }
-
-internal fun sessionElapsedLabels(durationMillis: Long): List<String> {
-    val duration = Duration.ofMillis(durationMillis)
-    return listOf(
-        formatRecordingElapsed(Duration.ZERO),
-        formatRecordingElapsed(duration.dividedBy(4)),
-        formatRecordingElapsed(duration.dividedBy(2)),
-        formatRecordingElapsed(duration.multipliedBy(3).dividedBy(4)),
-        formatRecordingElapsed(duration),
-    )
 }
