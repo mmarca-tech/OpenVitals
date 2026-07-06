@@ -1,30 +1,69 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// App-shell smoke test: the root [OpenVitalsApp] pumps and renders the start
+// screen without throwing. Platform-backed providers are overridden so the test
+// runs headless — SharedPreferences via mock initial values, drift via an
+// in-memory database, and the health data source via the safe-default base
+// class (no Health Connect / HealthKit access).
 
-import 'package:flutter/material.dart';
+import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:openvitals/main.dart';
+import 'package:openvitals/app.dart';
+import 'package:openvitals/data/local/open_vitals_database.dart';
+import 'package:openvitals/di/providers.dart';
+import 'package:openvitals/features/dashboard/dashboard_screen.dart';
+import 'package:openvitals/features/onboarding/onboarding_screen.dart';
+import 'package:openvitals/health/health_data_source.dart';
+
+/// Builds the app wrapped in a `ProviderScope` with platform providers
+/// overridden. Returns the widget (rather than the override list) because
+/// Riverpod 3's `Override` type is not exported from the public barrel and so
+/// cannot be named in a signature.
+Future<Widget> _bootstrapApp({required bool onboardingComplete}) async {
+  SharedPreferences.setMockInitialValues(
+    onboardingComplete ? {'onboarding_done': true} : {},
+  );
+  final prefs = await SharedPreferences.getInstance();
+  return ProviderScope(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      openVitalsDatabaseProvider.overrideWith((ref) {
+        final db = OpenVitalsDatabase(NativeDatabase.memory());
+        ref.onDispose(db.close);
+        return db;
+      }),
+      // Base class returns safe, side-effect-free defaults — no platform access.
+      healthDataSourceProvider.overrideWithValue(HealthDataSource()),
+    ],
+    child: const OpenVitalsApp(),
+  );
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('renders onboarding start screen when onboarding incomplete',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      await _bootstrapApp(onboardingComplete: false),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text('Get started'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('renders dashboard start screen when onboarding complete',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      await _bootstrapApp(onboardingComplete: true),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    // The dashboard renders inside the adaptive scaffold's nav suite.
+    expect(find.text('OpenVitals'), findsWidgets);
   });
 }
