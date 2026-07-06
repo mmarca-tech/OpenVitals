@@ -219,7 +219,7 @@ return $default(_that.profileCompleted,_that.halfLifeMinutes,_that.absorptionMin
 
 
 class _CaffeinePreferences extends CaffeinePreferences {
-  const _CaffeinePreferences({this.profileCompleted = false, this.halfLifeMinutes = defaultHalfLifeMinutes, this.absorptionMinutes = defaultAbsorptionMinutes, this.sleepThresholdMg = defaultSleepThresholdMg, this.bedtime = const LocalTime(22, 30), this.sleepSensitivity = CaffeineSleepSensitivity.normal, this.smoker = false, this.alcoholUse = CaffeineAlcoholUse.none, this.caffeineHabituation = CaffeineHabituation.moderate, this.liverImpairment = false, this.medicationInteraction = false, this.cyp1a2Genotype = CaffeineGenotype.unknown, this.ahrGenotype = CaffeineGenotype.unknown, this.hormonalStatus = CaffeineHormonalStatus.none}): super._();
+  const _CaffeinePreferences({this.profileCompleted = false, this.halfLifeMinutes = CaffeinePreferences.defaultHalfLifeMinutes, this.absorptionMinutes = CaffeinePreferences.defaultAbsorptionMinutes, this.sleepThresholdMg = CaffeinePreferences.defaultSleepThresholdMg, this.bedtime = const LocalTime(22, 30), this.sleepSensitivity = CaffeineSleepSensitivity.normal, this.smoker = false, this.alcoholUse = CaffeineAlcoholUse.none, this.caffeineHabituation = CaffeineHabituation.moderate, this.liverImpairment = false, this.medicationInteraction = false, this.cyp1a2Genotype = CaffeineGenotype.unknown, this.ahrGenotype = CaffeineGenotype.unknown, this.hormonalStatus = CaffeineHormonalStatus.none}): super._();
   
 
 @override@JsonKey() final  bool profileCompleted;

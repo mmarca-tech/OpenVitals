@@ -58,9 +58,10 @@ abstract class CaffeinePreferences with _$CaffeinePreferences {
 
   const factory CaffeinePreferences({
     @Default(false) bool profileCompleted,
-    @Default(defaultHalfLifeMinutes) int halfLifeMinutes,
-    @Default(defaultAbsorptionMinutes) int absorptionMinutes,
-    @Default(defaultSleepThresholdMg) int sleepThresholdMg,
+    @Default(CaffeinePreferences.defaultHalfLifeMinutes) int halfLifeMinutes,
+    @Default(CaffeinePreferences.defaultAbsorptionMinutes)
+    int absorptionMinutes,
+    @Default(CaffeinePreferences.defaultSleepThresholdMg) int sleepThresholdMg,
     @Default(LocalTime(22, 30)) LocalTime bedtime,
     @Default(CaffeineSleepSensitivity.normal)
     CaffeineSleepSensitivity sleepSensitivity,
