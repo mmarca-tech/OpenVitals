@@ -209,7 +209,7 @@ return $default(_that.enabled,_that.intervalMinutes,_that.activeStartTime,_that.
 
 
 class _HydrationReminderConfig extends HydrationReminderConfig {
-  const _HydrationReminderConfig({this.enabled = false, this.intervalMinutes = defaultIntervalMinutes, this.activeStartTime = const LocalTime(7, 0), this.activeEndTime = const LocalTime(23, 0)}): super._();
+  const _HydrationReminderConfig({this.enabled = false, this.intervalMinutes = HydrationReminderConfig.defaultIntervalMinutes, this.activeStartTime = const LocalTime(7, 0), this.activeEndTime = const LocalTime(23, 0)}): super._();
   
 
 @override@JsonKey() final  bool enabled;

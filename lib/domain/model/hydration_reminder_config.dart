@@ -10,7 +10,7 @@ abstract class HydrationReminderConfig with _$HydrationReminderConfig {
 
   const factory HydrationReminderConfig({
     @Default(false) bool enabled,
-    @Default(defaultIntervalMinutes) int intervalMinutes,
+    @Default(HydrationReminderConfig.defaultIntervalMinutes) int intervalMinutes,
     @Default(LocalTime(7, 0)) LocalTime activeStartTime,
     @Default(LocalTime(23, 0)) LocalTime activeEndTime,
   }) = _HydrationReminderConfig;

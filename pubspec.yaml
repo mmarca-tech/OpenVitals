@@ -41,6 +41,12 @@ dependencies:
   flutter_riverpod: ^3.3.2
   riverpod_annotation: ^4.0.3
   intl: ^0.20.3
+  shared_preferences: ^2.5.5
+  drift: ^2.34.1
+  sqlite3_flutter_libs: ^0.6.0+eol
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  health: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +62,13 @@ dev_dependencies:
   freezed: ^3.2.6-dev.1
   json_serializable: ^6.14.0
   riverpod_generator: ^4.0.4
+  drift_dev: ^2.34.0
+
+# sqlparser 0.44.6 made DartPlaceholder a sealed class and removed the `.when`
+# helper that drift_dev 2.34.0 still calls, which breaks build_runner. Pin the
+# transitive sqlparser below 0.44.6 until drift_dev catches up.
+dependency_overrides:
+  sqlparser: '>=0.44.0 <0.44.6'
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
