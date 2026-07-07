@@ -70,6 +70,11 @@ dependencies:
   home_widget: ^0.9.3
   android_alarm_manager_plus: ^5.1.0
   timezone: ^0.11.1
+  # App-local plugin bridging Flutter to the native AndroidX Health Connect
+  # Kotlin client via Pigeon (Stage 1: resolved dependency + compiling skeleton;
+  # not yet used in lib/ — Stage 3 rewires the data source onto it).
+  health_connect_native:
+    path: packages/health_connect_native
 
 dev_dependencies:
   flutter_test:

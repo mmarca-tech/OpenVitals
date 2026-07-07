@@ -637,6 +637,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "13.3.1"
+  health_connect_native:
+    dependency: "direct main"
+    description:
+      path: "packages/health_connect_native"
+      relative: true
+    source: path
+    version: "0.0.1"
   home_widget:
     dependency: "direct main"
     description:

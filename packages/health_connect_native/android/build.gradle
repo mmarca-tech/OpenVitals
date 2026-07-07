@@ -1,0 +1,59 @@
+// Gradle build for the `health_connect_native` Flutter plugin (Android only).
+//
+// Uses the Groovy DSL to match Flutter's plugin template conventions. The plugin
+// compiles against the AndroidX Health Connect Kotlin client. Version notes are
+// in the `dependencies` block below.
+group = "tech.mmarca.openvitals.health_connect_native"
+version = "1.0"
+
+buildscript {
+    ext.kotlin_version = "2.1.20"
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.7.3"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "tech.mmarca.openvitals.health_connect_native"
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        // minSdk 26 is required by Health Connect (androidx.health) and matches
+        // the host app.
+        minSdk = 26
+    }
+}
+
+dependencies {
+    // AndroidX Health Connect Kotlin client. The host app's `health` plugin
+    // already pulls connect-client 1.2.0-alpha02, so Gradle unifies to the
+    // highest requested version across modules (a cached alpha here); declaring
+    // the 1.1.0 stable line keeps this module's own contract on a released
+    // version while remaining compatible with the app-wide resolution.
+    implementation "androidx.health.connect:connect-client:1.1.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
+}
