@@ -13,7 +13,10 @@ library;
 
 import 'src/messages.g.dart';
 
-export 'src/messages.g.dart' show HealthConnectHostApi;
+// Export the whole generated surface: [HealthConnectHostApi] plus the typed
+// domain message classes/enums (the `*Msg` types) the data source maps to the
+// app's freezed models. (Pigeon's codec is private and not re-exported.)
+export 'src/messages.g.dart';
 
 /// Thin, app-facing client over the generated Pigeon host API.
 ///

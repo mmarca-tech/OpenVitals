@@ -103,6 +103,25 @@ class FakeHostApi extends HealthConnectHostApi {
     filterQueries.add((type: recordType, ids: clientRecordIds));
     return existingClientIds;
   }
+
+  // ── Body (Phase 1) typed fakes ────────────────────────────────────────────
+  List<WeightEntryMsg> weightEntries = const [];
+  BodyMeasurementWriteRequestMsg? bodyWriteRequest;
+
+  @override
+  Future<List<WeightEntryMsg>> readWeightEntries(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      weightEntries;
+
+  @override
+  Future<String> writeBodyMeasurementEntry(
+    BodyMeasurementWriteRequestMsg request,
+  ) async {
+    bodyWriteRequest = request;
+    return 'openvitals_body_${request.type.name}_written';
+  }
 }
 
 HealthConnectNativeDataSource _source(FakeHostApi api) =>
@@ -346,32 +365,34 @@ void main() {
       expect(session.stages.last.stageType, 5);
     });
 
-    test('Weight entries convert to kg and tag ownership', () async {
-      final api = FakeHostApi();
-      api.records['Weight'] = [
-        jsonEncode({
-          'recordType': 'Weight',
-          'id': 'w-1',
-          'dataOriginPackage': _appPackage,
-          'timeEpochMs': _ms(2026, 1, 2, 8),
-          'weightKg': 80.5,
-        }),
-        jsonEncode({
-          'recordType': 'Weight',
-          'id': 'w-2',
-          'dataOriginPackage': 'com.other',
-          'timeEpochMs': _ms(2026, 1, 1, 8),
-          'weightKg': 79.0,
-        }),
-      ];
+    test('Weight entries map from typed msgs and preserve ownership', () async {
+      // Unit conversion + ownership tagging now happen in the native
+      // BodyHealthReader; the data source maps WeightEntryMsg -> WeightEntry.
+      final api = FakeHostApi()
+        ..weightEntries = [
+          WeightEntryMsg(
+            timeEpochMs: _ms(2026, 1, 1, 8),
+            weightKg: 79.0,
+            source: 'com.other',
+            id: 'w-2',
+            isOpenVitalsEntry: false,
+          ),
+          WeightEntryMsg(
+            timeEpochMs: _ms(2026, 1, 2, 8),
+            weightKg: 80.5,
+            source: _appPackage,
+            id: 'w-1',
+            isOpenVitalsEntry: true,
+          ),
+        ];
       final entries = await _source(api).readWeightEntries(
         LocalDate(2026, 1, 1),
         LocalDate(2026, 1, 2),
       );
-      // Sorted ascending by time.
       expect(entries.map((e) => e.weightKg), [79.0, 80.5]);
       expect(entries.last.isOpenVitalsEntry, isTrue);
       expect(entries.first.isOpenVitalsEntry, isFalse);
+      expect(entries.first.source, 'com.other');
     });
 
     test('Height record reports centimetres from metres', () async {
@@ -405,7 +426,9 @@ void main() {
       expect(record['startEpochMs'], _ms(2026, 1, 2, 10));
     });
 
-    test('writeBodyMeasurementEntry writes height in metres', () async {
+    test('writeBodyMeasurementEntry forwards a typed request', () async {
+      // The cm->m conversion + record build now live in the native
+      // BodyHealthReader; the data source forwards the typed request.
       final api = FakeHostApi();
       final id = await _source(api).writeBodyMeasurementEntry(
         BodyMeasurementWriteRequest(
@@ -415,10 +438,10 @@ void main() {
         ),
       );
       expect(id, startsWith('openvitals_body_height_'));
-      final record = api.inserted.single;
-      expect(record['recordType'], 'Height');
-      expect(record['heightMeters'], closeTo(1.83, 1e-9));
-      expect(record['timeEpochMs'], _ms(2026, 1, 2, 8));
+      final req = api.bodyWriteRequest!;
+      expect(req.type, BodyMeasurementTypeMsg.height);
+      expect(req.value, 183.0);
+      expect(req.timeEpochMs, _ms(2026, 1, 2, 8));
     });
 
     test('writeVitalsMeasurementEntry builds a BloodPressure record', () async {

@@ -64,6 +64,12 @@ class HealthConnectNativePlugin :
   private var availabilityService: HealthConnectAvailabilityService? = null
   private var readerSupport: HealthConnectReaderSupport? = null
 
+  /** Typed domain readers (populated in [onAttachedToEngine]). */
+  private var bodyReader: BodyHealthReader? = null
+
+  private fun requireBodyReader(): BodyHealthReader =
+    bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
   private var pendingPermissions: List<String> = emptyList()
@@ -91,11 +97,13 @@ class HealthConnectNativePlugin :
     val diag = HealthConnectDiagnostics(context)
     diagnostics = diag
     availabilityService = HealthConnectAvailabilityService(context, diag)
-    readerSupport = HealthConnectReaderSupport(
+    val support = HealthConnectReaderSupport(
       clientProvider = { client() },
       diagnostics = diag,
       syncEnabled = { syncGate.isEnabled },
     )
+    readerSupport = support
+    bodyReader = BodyHealthReader(support, context.packageName)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -105,6 +113,7 @@ class HealthConnectNativePlugin :
     diagnostics = null
     availabilityService = null
     readerSupport = null
+    bodyReader = null
     scope.cancel()
   }
 
@@ -188,6 +197,131 @@ class HealthConnectNativePlugin :
   }
 
   override fun getSyncEnabled(): Boolean = syncGate.isEnabled
+
+  // ---------------------------------------------------------------------------
+  // Body (Phase 1) — delegate to BodyHealthReader, returning typed *Msg classes.
+  // ---------------------------------------------------------------------------
+
+  override fun readWeightEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<WeightEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readWeightEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestWeight(callback: (Result<WeightEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestWeight() }
+
+  override fun readHeightEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<HeightEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readHeightEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestHeightEntry(callback: (Result<HeightEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestHeightEntry() }
+
+  override fun readBodyFatEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BodyFatEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readBodyFatEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestBodyFat(callback: (Result<BodyFatEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestBodyFat() }
+
+  override fun readLeanBodyMassEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BodyMassEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readLeanBodyMassEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestLeanBodyMass(callback: (Result<BodyMassEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestLeanBodyMass() }
+
+  override fun readBmrEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BmrEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readBmrEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestBmr(callback: (Result<BmrEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestBmr() }
+
+  override fun readBoneMassEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BodyMassEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readBoneMassEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestBoneMass(callback: (Result<BodyMassEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestBoneMass() }
+
+  override fun readBodyWaterMassEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BodyMassEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireBodyReader().readBodyWaterMassEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readLatestBodyWaterMass(callback: (Result<BodyMassEntryMsg?>) -> Unit) =
+    launchCatching(callback) { requireBodyReader().readLatestBodyWaterMass() }
+
+  override fun writeBodyMeasurementEntry(
+    request: BodyMeasurementWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireBodyReader().writeBodyMeasurementEntry(request) }
+
+  override fun readBodyMeasurementEntry(
+    type: BodyMeasurementTypeMsg,
+    id: String,
+    callback: (Result<BodyMeasurementEntryMsg?>) -> Unit,
+  ) = launchCatching(callback) { requireBodyReader().readBodyMeasurementEntry(type, id) }
+
+  override fun updateBodyMeasurementEntry(
+    id: String,
+    request: BodyMeasurementWriteRequestMsg,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireBodyReader().updateBodyMeasurementEntry(id, request) }
+
+  override fun deleteBodyMeasurementEntry(
+    type: BodyMeasurementTypeMsg,
+    id: String,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireBodyReader().deleteBodyMeasurementEntry(type, id) }
 
   override fun getGrantedPermissions(
     permissions: List<String>,

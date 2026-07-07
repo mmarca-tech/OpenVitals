@@ -47,6 +47,9 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   DateTime _dayStart(LocalDate date) => DateTime(date.year, date.month, date.day);
   DateTime _dayEnd(LocalDate date) => _dayStart(date.plusDays(1));
 
+  /// Maps a Pigeon epoch-millis field back to a local [DateTime].
+  DateTime _fromMs(int epochMs) => DateTime.fromMillisecondsSinceEpoch(epochMs);
+
   Future<T> _catch<T>(Future<T> Function() block, T fallback) async {
     try {
       return await block();
@@ -369,24 +372,63 @@ class HealthConnectNativeDataSource extends HealthDataSource {
         : HealthRecordJson.hydrationEntry(map, appPackageName);
   }
 
-  // ── Body ──────────────────────────────────────────────────────────────────
+  // ── Body (Phase 1) — typed via native BodyHealthReader ──────────────────────
+
+  BodyMeasurementTypeMsg _bodyTypeMsg(BodyMeasurementType type) => switch (type) {
+        BodyMeasurementType.weight => BodyMeasurementTypeMsg.weight,
+        BodyMeasurementType.height => BodyMeasurementTypeMsg.height,
+        BodyMeasurementType.bodyFat => BodyMeasurementTypeMsg.bodyFat,
+      };
+
+  BodyMeasurementType _bodyType(BodyMeasurementTypeMsg type) => switch (type) {
+        BodyMeasurementTypeMsg.weight => BodyMeasurementType.weight,
+        BodyMeasurementTypeMsg.height => BodyMeasurementType.height,
+        BodyMeasurementTypeMsg.bodyFat => BodyMeasurementType.bodyFat,
+      };
+
+  WeightEntry _weightEntry(WeightEntryMsg m) => WeightEntry(
+        time: _fromMs(m.timeEpochMs),
+        weightKg: m.weightKg,
+        source: m.source,
+        id: m.id,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  HeightEntry _heightEntry(HeightEntryMsg m) => HeightEntry(
+        time: _fromMs(m.timeEpochMs),
+        heightCm: m.heightCm,
+        source: m.source,
+        id: m.id,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  BodyFatEntry _bodyFatEntry(BodyFatEntryMsg m) => BodyFatEntry(
+        time: _fromMs(m.timeEpochMs),
+        percent: m.percent,
+        source: m.source,
+        id: m.id,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
 
   @override
   Future<List<WeightEntry>> readWeightEntries(
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('Weight', _dayStart(start), _dayEnd(end));
-    return [
-      for (final m in maps) HealthRecordJson.weightEntry(m, appPackageName),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readWeightEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <WeightEntryMsg>[],
+    );
+    return [for (final m in msgs) _weightEntry(m)];
   }
 
   @override
   Future<WeightEntry?> readLatestWeight() async {
-    final end = LocalDate.now();
-    final entries = await readWeightEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last;
+    final m = await _catch(() => _api.readLatestWeight(), null);
+    return m == null ? null : _weightEntry(m);
   }
 
   @override
@@ -394,17 +436,20 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('Height', _dayStart(start), _dayEnd(end));
-    return [
-      for (final m in maps) HealthRecordJson.heightEntry(m, appPackageName),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readHeightEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <HeightEntryMsg>[],
+    );
+    return [for (final m in msgs) _heightEntry(m)];
   }
 
   @override
   Future<HeightEntry?> readLatestHeightEntry() async {
-    final end = LocalDate.now();
-    final entries = await readHeightEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last;
+    final m = await _catch(() => _api.readLatestHeightEntry(), null);
+    return m == null ? null : _heightEntry(m);
   }
 
   @override
@@ -416,17 +461,20 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('BodyFat', _dayStart(start), _dayEnd(end));
-    return [
-      for (final m in maps) HealthRecordJson.bodyFatEntry(m, appPackageName),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readBodyFatEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <BodyFatEntryMsg>[],
+    );
+    return [for (final m in msgs) _bodyFatEntry(m)];
   }
 
   @override
   Future<double?> readLatestBodyFat() async {
-    final end = LocalDate.now();
-    final entries = await readBodyFatEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last.percent;
+    final m = await _catch(() => _api.readLatestBodyFat(), null);
+    return m?.percent;
   }
 
   @override
@@ -434,32 +482,48 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('LeanBodyMass', _dayStart(start), _dayEnd(end));
+    final msgs = await _catch(
+      () => _api.readLeanBodyMassEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <BodyMassEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.leanBodyMassEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        LeanBodyMassEntry(
+            time: _fromMs(m.timeEpochMs), massKg: m.massKg, source: m.source),
+    ];
   }
 
   @override
   Future<double?> readLatestLeanBodyMass() async {
-    final end = LocalDate.now();
-    final entries = await readLeanBodyMassEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last.massKg;
+    final m = await _catch(() => _api.readLatestLeanBodyMass(), null);
+    return m?.massKg;
   }
 
   @override
   Future<List<BmrEntry>> readBmrEntries(LocalDate start, LocalDate end) async {
-    final maps = await _read('BasalMetabolicRate', _dayStart(start), _dayEnd(end));
+    final msgs = await _catch(
+      () => _api.readBmrEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <BmrEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.bmrEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        BmrEntry(
+            time: _fromMs(m.timeEpochMs),
+            kcalPerDay: m.kcalPerDay,
+            source: m.source),
+    ];
   }
 
   @override
   Future<double?> readLatestBMR() async {
-    final end = LocalDate.now();
-    final entries = await readBmrEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last.kcalPerDay;
+    final m = await _catch(() => _api.readLatestBmr(), null);
+    return m?.kcalPerDay;
   }
 
   @override
@@ -467,17 +531,24 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('BoneMass', _dayStart(start), _dayEnd(end));
+    final msgs = await _catch(
+      () => _api.readBoneMassEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <BodyMassEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.boneMassEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        BoneMassEntry(
+            time: _fromMs(m.timeEpochMs), massKg: m.massKg, source: m.source),
+    ];
   }
 
   @override
   Future<double?> readLatestBoneMass() async {
-    final end = LocalDate.now();
-    final entries = await readBoneMassEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last.massKg;
+    final m = await _catch(() => _api.readLatestBoneMass(), null);
+    return m?.massKg;
   }
 
   @override
@@ -485,17 +556,45 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate start,
     LocalDate end,
   ) async {
-    final maps = await _read('BodyWaterMass', _dayStart(start), _dayEnd(end));
+    final msgs = await _catch(
+      () => _api.readBodyWaterMassEntries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <BodyMassEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.bodyWaterMassEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        BodyWaterMassEntry(
+            time: _fromMs(m.timeEpochMs), massKg: m.massKg, source: m.source),
+    ];
   }
 
   @override
   Future<double?> readLatestBodyWaterMass() async {
-    final end = LocalDate.now();
-    final entries = await readBodyWaterMassEntries(end.minusDays(3650), end);
-    return entries.isEmpty ? null : entries.last.massKg;
+    final m = await _catch(() => _api.readLatestBodyWaterMass(), null);
+    return m?.massKg;
+  }
+
+  @override
+  Future<BodyMeasurementEntry?> readBodyMeasurementEntry(
+    BodyMeasurementType type,
+    String id,
+  ) async {
+    final m = await _catch(
+      () => _api.readBodyMeasurementEntry(_bodyTypeMsg(type), id),
+      null,
+    );
+    return m == null
+        ? null
+        : BodyMeasurementEntry(
+            id: m.id,
+            type: _bodyType(m.type),
+            time: _fromMs(m.timeEpochMs),
+            value: m.value,
+            source: m.source,
+            isOpenVitalsEntry: m.isOpenVitalsEntry,
+          );
   }
 
   // ── Heart ─────────────────────────────────────────────────────────────────
@@ -777,28 +876,35 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   @override
   Future<String> writeBodyMeasurementEntry(
     BodyMeasurementWriteRequest request,
-  ) async {
-    final clientRecordId =
-        'openvitals_body_${request.type.storageName.toLowerCase()}_${request.time.millisecondsSinceEpoch}_${_newId()}';
-    final (recordType, fields) = switch (request.type) {
-      BodyMeasurementType.weight => ('Weight', {'weightKg': request.value}),
-      // The domain stores centimetres; HEIGHT is written in metres.
-      BodyMeasurementType.height => (
-          'Height',
-          {'heightMeters': request.value / 100.0},
+  ) =>
+      _api.writeBodyMeasurementEntry(
+        BodyMeasurementWriteRequestMsg(
+          type: _bodyTypeMsg(request.type),
+          timeEpochMs: request.time.millisecondsSinceEpoch,
+          value: request.value,
         ),
-      BodyMeasurementType.bodyFat => ('BodyFat', {'percentage': request.value}),
-    };
-    await _insert(
-      HealthRecordJson.instantRecord(
-        recordType,
-        request.time,
-        clientRecordId,
-        fields: fields,
-      ),
-    );
-    return clientRecordId;
-  }
+      );
+
+  @override
+  Future<void> updateBodyMeasurementEntry(
+    String id,
+    BodyMeasurementWriteRequest request,
+  ) =>
+      _api.updateBodyMeasurementEntry(
+        id,
+        BodyMeasurementWriteRequestMsg(
+          type: _bodyTypeMsg(request.type),
+          timeEpochMs: request.time.millisecondsSinceEpoch,
+          value: request.value,
+        ),
+      );
+
+  @override
+  Future<void> deleteBodyMeasurementEntry(
+    BodyMeasurementType type,
+    String id,
+  ) =>
+      _api.deleteBodyMeasurementEntry(_bodyTypeMsg(type), id);
 
   @override
   Future<String> writeVitalsMeasurementEntry(

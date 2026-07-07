@@ -44,6 +44,104 @@ class HealthConnectAvailabilityDetail {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPED DOMAIN MODELS
+//
+// These mirror the app's freezed domain models (`lib/domain/model/*`). Times
+// cross the bridge as epoch-millis ints (Pigeon has no DateTime); the Dart
+// boundary (`HealthConnectNativeDataSource`) maps `*Msg` classes <-> the freezed
+// models. Suffix `Msg` avoids colliding with the identically-named domain
+// classes imported in the data source.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Body (Phase 1) ──────────────────────────────────────────────────────────
+
+enum BodyMeasurementTypeMsg { weight, height, bodyFat }
+
+class WeightEntryMsg {
+  final int timeEpochMs;
+  final double weightKg;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  WeightEntryMsg(
+    this.timeEpochMs,
+    this.weightKg,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class HeightEntryMsg {
+  final int timeEpochMs;
+  final double heightCm;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  HeightEntryMsg(
+    this.timeEpochMs,
+    this.heightCm,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class BodyFatEntryMsg {
+  final int timeEpochMs;
+  final double percent;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  BodyFatEntryMsg(
+    this.timeEpochMs,
+    this.percent,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+/// Shared shape for LeanBodyMass / BoneMass / BodyWaterMass entries.
+class BodyMassEntryMsg {
+  final int timeEpochMs;
+  final double massKg;
+  final String source;
+  BodyMassEntryMsg(this.timeEpochMs, this.massKg, this.source);
+}
+
+class BmrEntryMsg {
+  final int timeEpochMs;
+  final double kcalPerDay;
+  final String source;
+  BmrEntryMsg(this.timeEpochMs, this.kcalPerDay, this.source);
+}
+
+class BodyMeasurementEntryMsg {
+  final String id;
+  final BodyMeasurementTypeMsg type;
+  final int timeEpochMs;
+  final double value;
+  final String source;
+  final bool isOpenVitalsEntry;
+  BodyMeasurementEntryMsg(
+    this.id,
+    this.type,
+    this.timeEpochMs,
+    this.value,
+    this.source,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class BodyMeasurementWriteRequestMsg {
+  final BodyMeasurementTypeMsg type;
+  final int timeEpochMs;
+  final double value;
+  BodyMeasurementWriteRequestMsg(this.type, this.timeEpochMs, this.value);
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -161,4 +259,46 @@ abstract class HealthConnectHostApi {
     String recordType,
     List<String> clientRecordIds,
   );
+
+  // ── Body (Phase 1) — typed reads/writes via BodyHealthReader ──────────────
+
+  @async
+  List<WeightEntryMsg> readWeightEntries(int startEpochMs, int endEpochMs);
+  @async
+  WeightEntryMsg? readLatestWeight();
+  @async
+  List<HeightEntryMsg> readHeightEntries(int startEpochMs, int endEpochMs);
+  @async
+  HeightEntryMsg? readLatestHeightEntry();
+  @async
+  List<BodyFatEntryMsg> readBodyFatEntries(int startEpochMs, int endEpochMs);
+  @async
+  BodyFatEntryMsg? readLatestBodyFat();
+  @async
+  List<BodyMassEntryMsg> readLeanBodyMassEntries(int startEpochMs, int endEpochMs);
+  @async
+  BodyMassEntryMsg? readLatestLeanBodyMass();
+  @async
+  List<BmrEntryMsg> readBmrEntries(int startEpochMs, int endEpochMs);
+  @async
+  BmrEntryMsg? readLatestBmr();
+  @async
+  List<BodyMassEntryMsg> readBoneMassEntries(int startEpochMs, int endEpochMs);
+  @async
+  BodyMassEntryMsg? readLatestBoneMass();
+  @async
+  List<BodyMassEntryMsg> readBodyWaterMassEntries(int startEpochMs, int endEpochMs);
+  @async
+  BodyMassEntryMsg? readLatestBodyWaterMass();
+  @async
+  String writeBodyMeasurementEntry(BodyMeasurementWriteRequestMsg request);
+  @async
+  BodyMeasurementEntryMsg? readBodyMeasurementEntry(
+    BodyMeasurementTypeMsg type,
+    String id,
+  );
+  @async
+  void updateBodyMeasurementEntry(String id, BodyMeasurementWriteRequestMsg request);
+  @async
+  void deleteBodyMeasurementEntry(BodyMeasurementTypeMsg type, String id);
 }

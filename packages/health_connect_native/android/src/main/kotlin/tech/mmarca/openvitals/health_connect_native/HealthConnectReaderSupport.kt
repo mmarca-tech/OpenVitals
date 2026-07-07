@@ -34,6 +34,11 @@ internal class HealthConnectReaderSupport(
 
   fun diagnosticsSummary(): String = diagnostics.summary()
 
+  /** Gate for writes: throws [HealthConnectSyncDisabledException] while paused. */
+  fun requireSyncEnabled() {
+    if (!syncEnabled()) throw HealthConnectSyncDisabledException()
+  }
+
   suspend fun <T> withLogging(
     operation: String,
     fallback: T,
