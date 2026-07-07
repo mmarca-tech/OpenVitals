@@ -52,7 +52,6 @@ dependencies:
   sqlite3_flutter_libs: ^0.6.0+eol
   path: ^1.9.1
   path_provider: ^2.1.6
-  health: ^13.3.1
   go_router: ^17.3.0
   dynamic_color: ^1.8.1
   flutter_blue_plus: ^2.3.10
@@ -71,8 +70,9 @@ dependencies:
   android_alarm_manager_plus: ^5.1.0
   timezone: ^0.11.1
   # App-local plugin bridging Flutter to the native AndroidX Health Connect
-  # Kotlin client via Pigeon (Stage 1: resolved dependency + compiling skeleton;
-  # not yet used in lib/ — Stage 3 rewires the data source onto it).
+  # Kotlin client via Pigeon. The Android HealthDataSource
+  # (HealthConnectNativeDataSource) is wired onto this plugin; it fully replaces
+  # the former `health` package.
   health_connect_native:
     path: packages/health_connect_native
 

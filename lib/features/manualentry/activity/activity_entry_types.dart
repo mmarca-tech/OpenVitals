@@ -1,44 +1,37 @@
-import 'package:health/health.dart';
-
 /// Port of the Kotlin `ActivityEntryTypes.kt` (activity type catalogue) plus the
 /// Health Connect `ExerciseSessionRecord` / `ExerciseSegment` /
 /// `PlannedExerciseStep` constants the manual-entry + recording feature depends
 /// on.
 ///
-/// Fidelity note: the Kotlin app keyed activity types on the Health Connect
-/// `ExerciseSessionRecord.EXERCISE_TYPE_*` integers. The Dart app stores the
-/// `health` package `HealthWorkoutActivityType` enum index for `exerciseType`
-/// (see `HealthConnectMappers.exerciseData` and `exercise_labels.dart`), so the
-/// [ExerciseSessionType] ids below are the matching enum indices. That keeps the
-/// value consistent everywhere it flows (labels, icons, edit-mode inference).
-/// Exercise-segment types and planned-step phases have no `health` enum, so they
-/// use the verbatim Health Connect integer constants.
+/// `exerciseType` is the verbatim Health Connect
+/// `ExerciseSessionRecord.EXERCISE_TYPE_*` integer constant — the same value the
+/// native bridge round-trips through the record JSON (see
+/// `health_record_json.dart` and `exercise_labels.dart`), matching the Kotlin
+/// source. Exercise-segment types and planned-step phases likewise use verbatim
+/// Health Connect integer constants.
 class ExerciseSessionType {
   const ExerciseSessionType._();
 
-  static final int running = HealthWorkoutActivityType.RUNNING.index;
-  static final int biking = HealthWorkoutActivityType.BIKING.index;
-  static final int walking = HealthWorkoutActivityType.WALKING.index;
-  static final int hiking = HealthWorkoutActivityType.HIKING.index;
-  static final int wheelchair = HealthWorkoutActivityType.WHEELCHAIR.index;
-  static final int rowing = HealthWorkoutActivityType.ROWING.index;
-  static final int paddling = HealthWorkoutActivityType.PADDLE_SPORTS.index;
-  static final int skiing = HealthWorkoutActivityType.SKIING.index;
-  static final int snowboarding = HealthWorkoutActivityType.SNOWBOARDING.index;
-  static final int snowshoeing = HealthWorkoutActivityType.SNOWSHOEING.index;
-  static final int skating = HealthWorkoutActivityType.SKATING.index;
-  static final int sailing = HealthWorkoutActivityType.SAILING.index;
-  static final int surfing = HealthWorkoutActivityType.SURFING.index;
-  static final int swimmingOpenWater =
-      HealthWorkoutActivityType.SWIMMING_OPEN_WATER.index;
-  static final int golf = HealthWorkoutActivityType.GOLF.index;
-  static final int strengthTraining =
-      HealthWorkoutActivityType.STRENGTH_TRAINING.index;
-  static final int runningTreadmill =
-      HealthWorkoutActivityType.RUNNING_TREADMILL.index;
-  static final int calisthenics = HealthWorkoutActivityType.CALISTHENICS.index;
-  static final int gymnastics = HealthWorkoutActivityType.GYMNASTICS.index;
-  static final int otherWorkout = HealthWorkoutActivityType.OTHER.index;
+  static const int running = 56;
+  static const int biking = 8;
+  static const int walking = 79;
+  static const int hiking = 37;
+  static const int wheelchair = 82;
+  static const int rowing = 53;
+  static const int paddling = 46;
+  static const int skiing = 61;
+  static const int snowboarding = 62;
+  static const int snowshoeing = 63;
+  static const int skating = 60;
+  static const int sailing = 58;
+  static const int surfing = 72;
+  static const int swimmingOpenWater = 73;
+  static const int golf = 32;
+  static const int strengthTraining = 70;
+  static const int runningTreadmill = 57;
+  static const int calisthenics = 13;
+  static const int gymnastics = 34;
+  static const int otherWorkout = 0;
 }
 
 /// Verbatim Health Connect `ExerciseSegment.EXERCISE_SEGMENT_TYPE_*` constants.

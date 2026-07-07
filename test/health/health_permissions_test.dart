@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:health/health.dart';
 import 'package:openvitals/domain/model/permission_grant_mode.dart';
 import 'package:openvitals/health/health_permissions.dart';
 
@@ -93,53 +92,6 @@ void main() {
         withSkin.vitalsPermissions.contains(HcPermissions.readSkinTemperature),
         isTrue,
       );
-    });
-  });
-
-  group('health package mapping', () {
-    test('read/write records map to the right type + access', () {
-      final steps = HealthPermissionService.mappingFor(HcPermissions.readSteps);
-      expect(steps!.types, [HealthDataType.STEPS]);
-      expect(steps.access, HealthDataAccess.READ);
-
-      final water = HealthPermissionService.mappingFor(HcPermissions.writeHydration);
-      expect(water!.types, [HealthDataType.WATER]);
-      expect(water.access, HealthDataAccess.WRITE);
-    });
-
-    test('blood pressure expands to systolic + diastolic', () {
-      final mapping =
-          HealthPermissionService.mappingFor(HcPermissions.readBloodPressure);
-      expect(mapping!.types, [
-        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
-        HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
-      ]);
-    });
-
-    test('unmappable records (documented gaps) resolve to null', () {
-      expect(HealthPermissionService.mappingFor(HcPermissions.readBoneMass), isNull);
-      expect(HealthPermissionService.mappingFor(HcPermissions.readVo2Max), isNull);
-      expect(
-        HealthPermissionService.mappingFor(HcPermissions.readMenstruationPeriod),
-        isNull,
-      );
-      expect(HealthPermissionService.isMappable(HcPermissions.readElevation), isFalse);
-    });
-
-    test('resolve() de-duplicates and skips unmappable permissions', () {
-      final resolved = HealthPermissionService.resolve({
-        HcPermissions.readSteps,
-        HcPermissions.readSteps, // duplicate
-        HcPermissions.readBoneMass, // gap, skipped
-        HcPermissions.readBloodPressure, // two types
-      });
-      expect(resolved.types, [
-        HealthDataType.STEPS,
-        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
-        HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
-      ]);
-      expect(resolved.accesses.length, resolved.types.length);
-      expect(resolved.accesses.every((a) => a == HealthDataAccess.READ), isTrue);
     });
   });
 }

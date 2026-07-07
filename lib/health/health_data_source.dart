@@ -12,16 +12,18 @@ import '../domain/preferences/sleep_range_mode.dart';
 import '../features/imports/applehealth/apple_health_import_records.dart';
 import 'health_permissions.dart';
 
-/// The `HealthConnectManager` analogue: a single facade over the `health`
-/// package that the repositories and [DashboardDataLoader] depend on.
+/// The `HealthConnectManager` analogue: a single facade over the platform
+/// health store that the repositories and [DashboardDataLoader] depend on.
 ///
 /// This BASE class defines the full read/write surface with safe, side-effect
-/// free defaults (empty lists / `null` / `0`). [HealthDataSourceImpl] overrides
-/// every method with real `Health()` calls. Keeping the surface on a plain base
-/// class (rather than an `abstract interface class`) lets unit tests subclass
-/// it and override just the handful of methods a given test drives, without a
-/// device — every other method degrades to the documented empty result, which
-/// matches the Kotlin readers' "missing permission ⇒ emptyList()" behaviour.
+/// free defaults (empty lists / `null` / `0`). On Android,
+/// `HealthConnectNativeDataSource` overrides these with real calls through the
+/// native Health Connect plugin; on other platforms `UnsupportedHealthDataSource`
+/// keeps the base defaults. Keeping the surface on a plain base class (rather
+/// than an `abstract interface class`) lets unit tests subclass it and override
+/// just the handful of methods a given test drives, without a device — every
+/// other method degrades to the documented empty result, which matches the
+/// Kotlin readers' "missing permission ⇒ emptyList()" behaviour.
 class HealthDataSource {
   HealthDataSource({this.appPackageName});
 
@@ -86,10 +88,10 @@ class HealthDataSource {
 
   Future<int> readFloorsClimbed(LocalDate date) async => 0;
 
-  // TODO(health-pkg): ElevationGainedRecord has no HealthDataType.
+  // TODO(native): ElevationGained aggregation not yet wired through the bridge.
   Future<double?> readElevationGained(LocalDate date) async => null;
 
-  // TODO(health-pkg): WheelchairPushesRecord has no HealthDataType.
+  // TODO(native): WheelchairPushes aggregation not yet wired through the bridge.
   Future<int?> readWheelchairPushes(LocalDate date) async => null;
 
   Future<List<ExerciseData>> readExerciseSessions(
@@ -100,7 +102,7 @@ class HealthDataSource {
 
   Future<ExerciseData?> readExerciseSession(String id) async => null;
 
-  // TODO(health-pkg): no per-hour cumulative aggregate API; best-effort empty.
+  // TODO(native): no per-hour cumulative aggregate wired yet; best-effort empty.
   Future<List<ActivityProgressPoint>> readRawActivityProgress(
     LocalDate date,
   ) async =>
@@ -109,14 +111,14 @@ class HealthDataSource {
   Future<List<SpeedSample>> readSpeedSamples(DateTime start, DateTime end) async =>
       const <SpeedSample>[];
 
-  // TODO(health-pkg): StepsCadence/CyclingPedalingCadence have no HealthDataType.
+  // TODO(native): StepsCadence/CyclingPedalingCadence reads not yet wired.
   Future<List<ActivityCadenceSample>> readActivityCadenceSamples(
     DateTime start,
     DateTime end,
   ) async =>
       const <ActivityCadenceSample>[];
 
-  // TODO(health-pkg): PlannedExerciseSessionRecord has no HealthDataType.
+  // TODO(native): PlannedExerciseSession reads not yet wired through the bridge.
   Future<List<PlannedExerciseData>> readPlannedExerciseSessions(
     DateTime start,
     DateTime end,
@@ -136,7 +138,7 @@ class HealthDataSource {
 
   Future<void> deleteActivityEntry(String id) async {}
 
-  // TODO(health-pkg): PlannedExerciseSession writes unsupported.
+  // TODO(native): PlannedExerciseSession writes not yet wired through the bridge.
   Future<String> writePlannedExerciseSession(
     PlannedExerciseWriteRequest request,
   ) async =>
@@ -247,7 +249,7 @@ class HealthDataSource {
   Future<List<BmrEntry>> readBmrEntries(LocalDate start, LocalDate end) async =>
       const <BmrEntry>[];
 
-  // TODO(health-pkg): BoneMassRecord has no HealthDataType.
+  // Overridden by HealthConnectNativeDataSource on Android; base stays empty.
   Future<double?> readLatestBoneMass() async => null;
 
   Future<List<BoneMassEntry>> readBoneMassEntries(
@@ -357,7 +359,7 @@ class HealthDataSource {
   ) async =>
       const <BodyTempEntry>[];
 
-  // TODO(health-pkg): Vo2MaxRecord has no HealthDataType.
+  // Overridden by HealthConnectNativeDataSource on Android; base stays empty.
   Future<List<Vo2MaxEntry>> readVo2MaxEntries(
     DateTime start,
     DateTime end,
@@ -415,7 +417,7 @@ class HealthDataSource {
 
   // ── Mindfulness ─────────────────────────────────────────────────────────
 
-  // TODO(health-pkg): MindfulnessSession is iOS-only in the health package.
+  // TODO(native): MindfulnessSession reads not yet wired through the bridge.
   Future<List<MindfulnessSession>> readMindfulnessSessions(
     DateTime start,
     DateTime end,
@@ -446,7 +448,7 @@ class HealthDataSource {
   ) async =>
       const <MenstruationFlowEntry>[];
 
-  // TODO(health-pkg): the following cycle records have no HealthDataType.
+  // TODO(native): the following cycle reads are not yet wired through the bridge.
   Future<List<MenstruationPeriodEntry>> readMenstruationPeriods(
     DateTime start,
     DateTime end,
@@ -488,15 +490,14 @@ class HealthDataSource {
   /// Bulk-inserts records converted from an Apple Health export, tagged with a
   /// deterministic `apple_health_`-prefixed clientRecordId (Kotlin
   /// `HealthConnectManager.insertImportedRecords`). The base is a no-op so unit
-  /// tests can drive a fake repository; [HealthDataSourceImpl] writes them
-  /// best-effort over the `health` package.
+  /// tests can drive a fake repository; `HealthConnectNativeDataSource` writes
+  /// every record type through the native Health Connect plugin.
   Future<void> insertImportedRecords(List<ImportRecord> records) async {}
 
   /// The subset of [wantedIds] already present for [recordType] (an
-  /// [ImportRecord.targetType]) within [start]..[end]. Base returns empty.
-  // TODO(health-pkg): clientRecordId is not queryable via the `health` package,
-  //   so imported-record de-duplication against existing data cannot be
-  //   resolved. Always returns empty.
+  /// [ImportRecord.targetType]) within [start]..[end]. Base returns empty;
+  /// `HealthConnectNativeDataSource` resolves it via the plugin's
+  /// clientRecordId lookup (`filterExistingClientIds`).
   Future<Set<String>> findMatchingImportedClientRecordIds(
     String recordType,
     DateTime start,

@@ -5,14 +5,9 @@
 // string identifiers so the phased sets, `PERMISSION_SET_VERSION`, and any
 // persisted permission state remain byte-for-byte faithful to the original.
 //
-// The mapping from each permission string to the Dart `health` package's
-// HealthDataType + HealthDataAccess lives here in HealthPermissionMapping.
-// Where a Health Connect record has no `health` package equivalent the mapping
-// is null — those permissions are still carried in the taxonomy (so the sets
-// match Kotlin) but are skipped when a concrete authorization request is built.
-// Every such gap is documented with a `// TODO(health-pkg):` comment.
-import 'package:health/health.dart';
-
+// The native Health Connect plugin ([HealthConnectHostApi]) requests and
+// queries these permission strings directly, so no per-record data-type mapping
+// is needed here — this file is now a pure, platform-independent taxonomy.
 import '../domain/model/permission_grant_mode.dart';
 
 /// AndroidX permission-string prefix, mirrored verbatim from Health Connect.
@@ -83,18 +78,6 @@ abstract final class HcPermissions {
   static final String writeMindfulness = _write('MINDFULNESS');
 }
 
-/// A resolved mapping of a Health Connect permission onto the `health`
-/// package's authorization primitives.
-///
-/// [types] can hold more than one [HealthDataType] (e.g. blood pressure maps to
-/// both systolic and diastolic types); [access] is shared by all of them.
-class HealthPermissionMapping {
-  const HealthPermissionMapping(this.types, this.access);
-
-  final List<HealthDataType> types;
-  final HealthDataAccess access;
-}
-
 /// Feature-availability inputs that gate parts of the taxonomy, mirroring the
 /// Kotlin `isMindfulnessSessionAvailable()` / `isSkinTemperatureAvailable()` /
 /// `isPlannedExerciseAvailable()` / history / background feature checks.
@@ -110,14 +93,13 @@ class HealthConnectFeatureFlags {
     this.backgroundReadAvailable = false,
   });
 
-  /// Health Connect on Android is not exposed as a mindfulness data type by the
-  /// `health` package (v13.3.1 only lists `MINDFULNESS` for iOS/HealthKit), so
-  /// this is effectively false on Android.
+  /// Resolved from the native plugin's `isFeatureAvailable("MINDFULNESS_SESSION")`.
   final bool mindfulnessAvailable;
+
+  /// Resolved from `isFeatureAvailable("SKIN_TEMPERATURE")`.
   final bool skinTemperatureAvailable;
 
-  /// No `health` package equivalent for planned exercise sessions — always
-  /// false. Kept for parity with the Kotlin gating.
+  /// Resolved from `isFeatureAvailable("PLANNED_EXERCISE")`.
   final bool plannedExerciseAvailable;
   final bool healthDataHistoryAvailable;
   final bool backgroundReadAvailable;
@@ -385,105 +367,4 @@ class HealthPermissionService {
           : PermissionGrantMode.requestable;
 
   bool isMindfulnessAvailable() => flags.mindfulnessAvailable;
-
-  // ── Mapping onto the `health` package ─────────────────────────────────────
-
-  /// Resolves a single permission string onto its `health` package
-  /// [HealthDataType]s + [HealthDataAccess], or `null` when the underlying
-  /// Health Connect record has no `health` package equivalent (see the gap
-  /// list below).
-  static HealthPermissionMapping? mappingFor(String permission) {
-    final isWrite = permission.startsWith('${_hcPrefix}WRITE_');
-    final access = isWrite ? HealthDataAccess.WRITE : HealthDataAccess.READ;
-    final record = permission
-        .replaceFirst('${_hcPrefix}READ_', '')
-        .replaceFirst('${_hcPrefix}WRITE_', '');
-    final types = _recordToTypes[record];
-    if (types == null || types.isEmpty) return null;
-    return HealthPermissionMapping(types, access);
-  }
-
-  /// Whether [permission] can be expressed with the `health` package.
-  static bool isMappable(String permission) => mappingFor(permission) != null;
-
-  /// Builds the parallel `types` / `permissions` lists the `health` package's
-  /// `requestAuthorization` / `hasPermissions` expect, skipping unmappable
-  /// permissions. A single record permission that maps to multiple types
-  /// (blood pressure) expands into multiple entries.
-  static ({List<HealthDataType> types, List<HealthDataAccess> accesses})
-      resolve(Iterable<String> permissions) {
-    final types = <HealthDataType>[];
-    final accesses = <HealthDataAccess>[];
-    final seen = <String>{};
-    for (final permission in permissions) {
-      final mapping = mappingFor(permission);
-      if (mapping == null) continue;
-      for (final type in mapping.types) {
-        // De-duplicate on (type, access) so overlapping permission sets don't
-        // request the same authorization twice.
-        final key = '${type.name}:${mapping.access.name}';
-        if (!seen.add(key)) continue;
-        types.add(type);
-        accesses.add(mapping.access);
-      }
-    }
-    return (types: types, accesses: accesses);
-  }
-
-  /// Health Connect record token (the part after `READ_`/`WRITE_`) → the
-  /// `health` package [HealthDataType]s it maps to.
-  ///
-  /// Records intentionally ABSENT from this map are the documented gaps — the
-  /// `health` package (v13.3.1) exposes no Android data type for them, so their
-  /// permissions are carried in the taxonomy but cannot be requested/queried:
-  ///   // TODO(health-pkg): BONE_MASS — no HealthDataType for BoneMassRecord.
-  ///   // TODO(health-pkg): ELEVATION_GAINED — no HealthDataType.
-  ///   // TODO(health-pkg): WHEELCHAIR_PUSHES — no HealthDataType.
-  ///   // TODO(health-pkg): POWER — no HealthDataType.
-  ///   // TODO(health-pkg): STEPS_CADENCE — no HealthDataType.
-  ///   // TODO(health-pkg): CYCLING_PEDALING_CADENCE — no HealthDataType.
-  ///   // TODO(health-pkg): VO2_MAX — no HealthDataType for Vo2MaxRecord.
-  ///   // TODO(health-pkg): PLANNED_EXERCISE — no HealthDataType.
-  ///   // TODO(health-pkg): MINDFULNESS — Android unsupported (iOS-only in pkg).
-  ///   // TODO(health-pkg): MENSTRUATION_PERIOD — only MENSTRUATION_FLOW exists.
-  ///   // TODO(health-pkg): OVULATION_TEST / CERVICAL_MUCUS /
-  ///   //   BASAL_BODY_TEMPERATURE / INTERMENSTRUAL_BLEEDING / SEXUAL_ACTIVITY.
-  ///   // TODO(health-pkg): EXERCISE_ROUTES / EXERCISE_ROUTE / HEALTH_DATA_*
-  ///   //   are special (non record) permissions handled via dedicated
-  ///   //   `health` package APIs (WORKOUT_ROUTE type, isHealthDataHistory*,
-  ///   //   isHealthDataInBackground*), not this record map.
-  static final Map<String, List<HealthDataType>> _recordToTypes = {
-    'STEPS': [HealthDataType.STEPS],
-    'DISTANCE': [HealthDataType.DISTANCE_DELTA],
-    'EXERCISE': [HealthDataType.WORKOUT],
-    'SLEEP': [HealthDataType.SLEEP_SESSION],
-    'HEART_RATE': [HealthDataType.HEART_RATE],
-    'RESTING_HEART_RATE': [HealthDataType.RESTING_HEART_RATE],
-    'HEART_RATE_VARIABILITY': [HealthDataType.HEART_RATE_VARIABILITY_RMSSD],
-    'WEIGHT': [HealthDataType.WEIGHT],
-    'HEIGHT': [HealthDataType.HEIGHT],
-    'BODY_FAT': [HealthDataType.BODY_FAT_PERCENTAGE],
-    'LEAN_BODY_MASS': [HealthDataType.LEAN_BODY_MASS],
-    // BasalMetabolicRateRecord is surfaced by the health package as
-    // BASAL_ENERGY_BURNED (value = kcal/day).
-    'BASAL_METABOLIC_RATE': [HealthDataType.BASAL_ENERGY_BURNED],
-    'BODY_WATER_MASS': [HealthDataType.BODY_WATER_MASS],
-    'ACTIVE_CALORIES_BURNED': [HealthDataType.ACTIVE_ENERGY_BURNED],
-    'TOTAL_CALORIES_BURNED': [HealthDataType.TOTAL_CALORIES_BURNED],
-    // FloorsClimbedRecord is surfaced by the health package as FLIGHTS_CLIMBED.
-    'FLOORS_CLIMBED': [HealthDataType.FLIGHTS_CLIMBED],
-    'SPEED': [HealthDataType.SPEED],
-    'HYDRATION': [HealthDataType.WATER],
-    'NUTRITION': [HealthDataType.NUTRITION],
-    'BLOOD_PRESSURE': [
-      HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
-      HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
-    ],
-    'OXYGEN_SATURATION': [HealthDataType.BLOOD_OXYGEN],
-    'RESPIRATORY_RATE': [HealthDataType.RESPIRATORY_RATE],
-    'BODY_TEMPERATURE': [HealthDataType.BODY_TEMPERATURE],
-    'BLOOD_GLUCOSE': [HealthDataType.BLOOD_GLUCOSE],
-    'SKIN_TEMPERATURE': [HealthDataType.SKIN_TEMPERATURE],
-    'MENSTRUATION': [HealthDataType.MENSTRUATION_FLOW],
-  };
 }

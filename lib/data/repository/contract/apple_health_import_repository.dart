@@ -7,11 +7,10 @@ import '../../../features/imports/applehealth/apple_health_import_records.dart';
 /// class by its [ImportRecord.targetType] string (e.g. `HeartRateRecord`), so
 /// the signatures are adapted accordingly.
 ///
-// TODO(health-pkg): the `health` package has no bulk `insertRecords(records)`
-//   equivalent nor a clientRecordId query API; imports are written one
-//   HealthDataType at a time via `writeHealthData(clientRecordId: ...)` and
-//   duplicate matching by clientRecordId cannot be resolved on read. The impl
-//   over [HealthDataSource.insertImportedRecords] is therefore best-effort.
+/// On Android these delegate to `HealthConnectNativeDataSource`, which bulk-inserts
+/// every record type through the native plugin and resolves clientRecordId-based
+/// duplicate matching via `filterExistingClientIds` (the former `health`-package
+/// impl could do neither).
 abstract interface class AppleHealthImportRepository {
   bool isMindfulnessAvailable();
 

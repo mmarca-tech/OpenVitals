@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,7 +56,8 @@ import '../features/hydration/reminders/hydration_reminder_device.dart';
 import '../features/mindfulness/reminders/mindfulness_reminder_controller.dart';
 import '../features/mindfulness/reminders/mindfulness_reminder_device.dart';
 import '../health/health_data_source.dart';
-import '../health/health_data_source_impl.dart';
+import '../health/native/health_connect_native_data_source.dart';
+import '../health/unsupported_health_data_source.dart';
 
 /// Riverpod DI graph, replacing the Hilt `AppModule` / `RepositoryModule`.
 ///
@@ -112,9 +114,13 @@ final bodyEnergyTimelineCacheStoreProvider =
   (ref) => BodyEnergyTimelineCacheStore(ref.watch(sharedPreferencesProvider)),
 );
 
-final healthDataSourceProvider = Provider<HealthDataSource>(
-  (ref) => HealthDataSourceImpl(appPackageName: openVitalsPackageName),
-);
+final healthDataSourceProvider = Provider<HealthDataSource>((ref) {
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    return HealthConnectNativeDataSource(appPackageName: openVitalsPackageName);
+  }
+  // iOS / other platforms have no native health bridge yet.
+  return UnsupportedHealthDataSource(appPackageName: openVitalsPackageName);
+});
 
 // ── Repositories (contract → impl) ────────────────────────────────────────
 
