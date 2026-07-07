@@ -8,6 +8,7 @@ import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/features/onboarding/onboarding_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 
 class _FakeHealthDataSource extends HealthDataSource {
   _FakeHealthDataSource({
@@ -45,6 +46,8 @@ Future<(Widget, SharedPreferences)> _bootstrap({
       ),
     ],
     child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: OnboardingScreen(onOnboardingComplete: onComplete),
     ),
   );
@@ -65,7 +68,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('OpenVitals'), findsOneWidget);
-    expect(find.text('Grant all'), findsOneWidget);
+    expect(find.text('Grant required Health Connect permissions'), findsOneWidget);
   });
 
   testWidgets('completing onboarding sets the onboarding-done pref',
@@ -99,6 +102,6 @@ void main() {
       find.text('Health Connect is not supported on this device.'),
       findsOneWidget,
     );
-    expect(find.text('Grant all'), findsNothing);
+    expect(find.text('Grant required Health Connect permissions'), findsNothing);
   });
 }

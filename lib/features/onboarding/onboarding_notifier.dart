@@ -25,21 +25,18 @@ abstract class OnboardingState with _$OnboardingState {
 }
 
 /// A grantable permission group shown as a row in onboarding. Port of the Kotlin
-/// `OnboardingPermissionCategory` (l10n string-resource ids replaced by literal
-/// English copy, since the port has no l10n layer yet).
+/// `OnboardingPermissionCategory`. Title/description are resolved from [id] in
+/// the screen via `AppLocalizations` (the Kotlin `titleRes`/`descriptionRes`),
+/// so this class carries no user-facing strings.
 class OnboardingPermissionCategory {
   const OnboardingPermissionCategory({
     required this.id,
-    required this.title,
-    required this.description,
     required this.permissions,
     this.isRequired = false,
     this.available = true,
   });
 
   final String id;
-  final String title;
-  final String description;
   final Set<String> permissions;
   final bool isRequired;
   final bool available;
@@ -76,54 +73,38 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     return <OnboardingPermissionCategory>[
       OnboardingPermissionCategory(
         id: 'activity_sleep',
-        title: 'Activity & sleep',
-        description: 'Steps, distance, calories, workouts and sleep.',
         permissions: repo.corePermissions,
         isRequired: true,
       ),
       OnboardingPermissionCategory(
         id: 'heart_recovery',
-        title: 'Heart & recovery',
-        description: 'Heart rate, resting heart rate and HRV.',
         permissions: repo.heartPermissions,
         isRequired: true,
       ),
       OnboardingPermissionCategory(
         id: 'vitals',
-        title: 'Vitals',
-        description: 'Blood pressure, oxygen, respiratory rate and more.',
         permissions: repo.vitalsPermissions,
         isRequired: true,
       ),
       OnboardingPermissionCategory(
         id: 'body',
-        title: 'Body measurements',
-        description: 'Weight, height, body fat and composition.',
         permissions: repo.bodyPermissions,
       ),
       OnboardingPermissionCategory(
         id: 'activity_extras',
-        title: 'Activity extras',
-        description: 'Floors, elevation and wheelchair pushes.',
         permissions: repo.activityExtrasPermissions,
       ),
       OnboardingPermissionCategory(
         id: 'nutrition_hydration',
-        title: 'Nutrition & hydration',
-        description: 'Calories in, macros, caffeine and hydration.',
         permissions: repo.nutritionHydrationPermissions,
       ),
       OnboardingPermissionCategory(
         id: 'mindfulness',
-        title: 'Mindfulness',
-        description: 'Mindfulness and meditation sessions.',
         permissions: repo.mindfulnessPermissions,
         available: state.mindfulnessAvailable,
       ),
       OnboardingPermissionCategory(
         id: 'cycle_tracking',
-        title: 'Cycle tracking',
-        description: 'Menstruation, ovulation and related signals.',
         permissions: repo.cyclePermissions,
       ),
     ].where((category) => category.permissions.isNotEmpty).toList();

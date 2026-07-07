@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/health_connect_availability.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/loading_state.dart';
 import '../../ui/components/ov_card.dart';
 import 'onboarding_notifier.dart';
@@ -14,6 +15,9 @@ import 'onboarding_notifier.dart';
 /// grant rows, and a Continue action that persists the onboarding-complete pref
 /// (via [OnboardingNotifier.completeOnboarding]) before invoking
 /// [onOnboardingComplete] so the app routes on to the dashboard.
+///
+/// All copy is localized one-to-one from the Kotlin `strings.xml` onboarding_*
+/// resources via [AppLocalizations].
 class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key, this.onOnboardingComplete});
 
@@ -60,12 +64,13 @@ class _OnboardingContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'OpenVitals',
+          l10n.appName,
           style: theme.textTheme.headlineMedium
               ?.copyWith(fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
@@ -73,7 +78,7 @@ class _OnboardingContent extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            'Your health data, on your device.',
+            l10n.onboardingTagline,
             style: theme.textTheme.bodyLarge
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
@@ -106,45 +111,57 @@ class _OnboardingContent extends StatelessWidget {
       children: [
         header,
         const SizedBox(height: 24),
-        const _FeatureCard(
+        _FeatureCard(
           icon: Icons.lock_outline,
-          title: 'Private by design',
-          body: 'OpenVitals reads your data through Health Connect and keeps '
-              'it on your device.',
+          title: l10n.onboardingPrivacyTitle,
+          body: l10n.onboardingPrivacyBody,
         ),
         const SizedBox(height: 12),
-        const _FeatureCard(
+        _FeatureCard(
+          icon: Icons.health_and_safety_outlined,
+          title: l10n.onboardingHealthConnectTitle,
+          body: l10n.onboardingHealthConnectBody,
+        ),
+        const SizedBox(height: 12),
+        _FeatureCard(
           icon: Icons.info_outline,
-          title: 'Not medical advice',
-          body: 'OpenVitals is for general wellbeing and is not a medical '
-              'device.',
+          title: l10n.healthDisclaimerTitle,
+          body: l10n.healthDisclaimerBody,
         ),
         const SizedBox(height: 24),
         FilledButton(
           onPressed: minimumGranted
               ? onComplete
               : () => notifier.requestPermissions(missingMinimum),
-          child: Text(minimumGranted ? 'Continue' : 'Grant all'),
+          child: Text(minimumGranted ? l10n.actionContinue : l10n.onboardingGrantAll),
         ),
         if (minimumGranted && missingOptional.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: FilledButton.tonal(
               onPressed: () => notifier.requestPermissions(missingOptional),
-              child: const Text('Grant remaining'),
+              child: Text(l10n.onboardingGrantRemaining),
             ),
           ),
         if (!minimumGranted)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'The required categories are needed to show your dashboard.',
+              l10n.onboardingCoreRequired,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ),
         const SizedBox(height: 24),
+        Text(
+          l10n.onboardingPermissionsHeader,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 8),
         for (final category in notifier.permissionCategories)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -222,19 +239,20 @@ class _PermissionCategoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final total = category.permissions.length;
     final grantedCount = category.permissions.where(granted.contains).length;
     final fullyGranted = category.available && grantedCount == total;
     final partial = category.available && grantedCount > 0 && !fullyGranted;
     final status = !category.available
-        ? 'Not supported'
+        ? l10n.onboardingStatusNotSupported
         : fullyGranted
-            ? 'Granted'
+            ? l10n.onboardingStatusGranted
             : partial
-                ? 'Granted $grantedCount of $total'
+                ? l10n.onboardingStatusPartiallyGranted(grantedCount, total)
                 : category.isRequired
-                    ? 'Required'
-                    : 'Optional';
+                    ? l10n.onboardingStatusRequired
+                    : l10n.onboardingStatusOptional;
 
     return OpenVitalsCard(
       color: fullyGranted
@@ -252,7 +270,10 @@ class _PermissionCategoryRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(category.title, style: theme.textTheme.bodyMedium),
+                      Text(
+                        _categoryTitle(l10n, category.id),
+                        style: theme.textTheme.bodyMedium,
+                      ),
                       Text(
                         status,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -273,7 +294,11 @@ class _PermissionCategoryRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                category.description,
+                _categoryDescription(
+                  l10n,
+                  category.id,
+                  available: category.available,
+                ),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -285,7 +310,7 @@ class _PermissionCategoryRow extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: FilledButton.tonal(
                     onPressed: onGrant,
-                    child: Text(partial ? 'Review' : 'Grant'),
+                    child: Text(partial ? l10n.actionReview : l10n.actionGrant),
                   ),
                 ),
               ),
@@ -305,13 +330,14 @@ class _UnavailableCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final message = switch (availability) {
       HealthConnectAvailability.needsPlayStore =>
-        'Install Health Connect from the Play Store to continue.',
+        l10n.onboardingHealthConnectNeedsPlayStore,
       HealthConnectAvailability.needsProviderUpdate =>
-        'Update Health Connect to continue.',
+        l10n.onboardingHealthConnectUpdate,
       HealthConnectAvailability.notSupported =>
-        'Health Connect is not supported on this device.',
+        l10n.onboardingHealthConnectNotSupported,
       HealthConnectAvailability.available => '',
     };
     return OpenVitalsCard(
@@ -325,5 +351,63 @@ class _UnavailableCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Category title, localized one-to-one from the Kotlin
+/// `onboarding_category_*` strings, keyed by [OnboardingPermissionCategory.id].
+String _categoryTitle(AppLocalizations l10n, String id) {
+  switch (id) {
+    case 'activity_sleep':
+      return l10n.onboardingCategoryActivitySleep;
+    case 'heart_recovery':
+      return l10n.onboardingCategoryHeartRecovery;
+    case 'vitals':
+      return l10n.onboardingCategoryVitals;
+    case 'body':
+      return l10n.onboardingCategoryBody;
+    case 'activity_extras':
+      return l10n.onboardingCategoryActivityExtras;
+    case 'nutrition_hydration':
+      return l10n.onboardingCategoryNutritionHydration;
+    case 'mindfulness':
+      return l10n.onboardingCategoryMindfulness;
+    case 'cycle_tracking':
+      return l10n.onboardingCategoryCycleTracking;
+    default:
+      return id;
+  }
+}
+
+/// Category description (the `onboarding_category_*_desc` strings). Mindfulness
+/// falls back to its "requires a newer Health Connect version" copy when the
+/// feature is unavailable.
+String _categoryDescription(
+  AppLocalizations l10n,
+  String id, {
+  required bool available,
+}) {
+  if (id == 'mindfulness' && !available) {
+    return l10n.onboardingCategoryMindfulnessUnavailable;
+  }
+  switch (id) {
+    case 'activity_sleep':
+      return l10n.onboardingCategoryActivitySleepDesc;
+    case 'heart_recovery':
+      return l10n.onboardingCategoryHeartRecoveryDesc;
+    case 'vitals':
+      return l10n.onboardingCategoryVitalsDesc;
+    case 'body':
+      return l10n.onboardingCategoryBodyDesc;
+    case 'activity_extras':
+      return l10n.onboardingCategoryActivityExtrasDesc;
+    case 'nutrition_hydration':
+      return l10n.onboardingCategoryNutritionHydrationDesc;
+    case 'mindfulness':
+      return l10n.onboardingCategoryMindfulnessDesc;
+    case 'cycle_tracking':
+      return l10n.onboardingCategoryCycleTrackingDesc;
+    default:
+      return '';
   }
 }
