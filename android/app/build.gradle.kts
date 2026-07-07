@@ -6,21 +6,30 @@ plugins {
 
 android {
     namespace = "tech.mmarca.openvitals"
+    // Kotlin source used compileSdk 37 (an Android preview SDK). The Flutter port
+    // pins the stable compileSdk that this Flutter release ships with (36), which
+    // satisfies every plugin (health, flutter_local_notifications 22, etc.) and
+    // builds against a standard installed SDK. Bump if a plugin needs newer.
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // flutter_local_notifications' AAR metadata mandates Java 8+ core-library
+        // desugaring (it relies on desugared java.time APIs), so enable it here.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "tech.mmarca.openvitals"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // minSdk 26: required by Health Connect (androidx.health) and matches the
+        // Kotlin source. This is above the Flutter default (24).
+        minSdk = 26
+        // targetSdk 36 matches the Kotlin source (and the current Flutter default).
+        targetSdk = 36
+        // versionName / versionCode are driven by pubspec (`version: 1.8.0+107030340`),
+        // mirroring the Kotlin source's baseVersionName 1.8.0 / baseVersionCode.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -38,6 +47,11 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    // Required by flutter_local_notifications (see coreLibraryDesugaring above).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

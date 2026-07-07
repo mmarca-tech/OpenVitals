@@ -61,6 +61,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+      'default (offline) render draws no tile layer and fetches no network tiles',
+      (tester) async {
+    final points = [
+      point(52.5200, 13.4050, 0),
+      point(52.5210, 13.4075, 20),
+    ];
+
+    // No tileProvider and no urlTemplate: the shipped offline-only default.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: RouteMapView(points: points),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    // The route still renders, but there is no base-map TileLayer (so nothing
+    // attempts a network fetch without the INTERNET permission).
+    expect(find.byType(TileLayer), findsNothing);
+    expect(find.byType(PolylineLayer), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('handles an empty route gracefully', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

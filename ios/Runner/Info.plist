@@ -7,7 +7,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Openvitals</string>
+	<string>OpenVitals</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>de</string>
+		<string>es</string>
+		<string>it</string>
+		<string>et</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -65,6 +73,33 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- HealthKit (health plugin): read from and write to Apple Health. -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>OpenVitals reads your health and activity data from Apple Health to show your dashboard, trends, and insights on-device.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>OpenVitals writes manual entries and recorded workouts back to Apple Health so your records stay in sync.</string>
+	<!-- Location (geolocator) for live GPS activity recording. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OpenVitals uses your location to record your route, distance, pace, and elevation during a workout.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>OpenVitals uses your location in the background to keep recording your workout route when the screen is off.</string>
+	<!-- Motion / step + cadence sensors (sensors_plus, motion coprocessor). -->
+	<key>NSMotionUsageDescription</key>
+	<string>OpenVitals uses motion data to measure steps, cadence, and activity during workouts.</string>
+	<!-- Bluetooth for connecting external heart-rate / sensor peripherals (flutter_blue_plus). -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>OpenVitals connects to Bluetooth heart-rate monitors and sensors to record live metrics during a workout.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>OpenVitals connects to Bluetooth heart-rate monitors and sensors to record live metrics during a workout.</string>
+	<!-- Background execution: keep GPS recording and BLE sensors alive with the
+	     app backgrounded, and allow scheduled reminder processing/fetch. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>bluetooth-central</string>
+		<string>processing</string>
+		<string>fetch</string>
 	</array>
 </dict>
 </plist>

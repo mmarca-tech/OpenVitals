@@ -12,12 +12,18 @@ import 'route_geometry.dart';
 /// with start / end / current-location markers, and the camera auto-fits the
 /// route bounds.
 ///
-/// Base map: an online OpenStreetMap raster tile layer is used as the default.
+/// Base map: OpenVitals is offline-only (the shipped app declares no INTERNET
+/// permission), so by default NO base-map tiles are drawn — the route renders on
+/// a plain [_offlineBackground] canvas. A tile source is only used when the
+/// caller explicitly supplies one via [tileProvider] or [urlTemplate].
+///
 /// // TODO(offline-maps): plug the imported offline vector pack in here — a
 /// PMTiles/MBTiles raster `TileProvider` (or a Mapsforge renderer) sourced from
-/// `OfflineMapImportController`'s active pack would replace the network
-/// [TileLayer]. Full offline vector parity with the Kotlin MapLibre/Mapsforge
-/// path is deferred to on-device.
+/// `OfflineMapImportController`'s active pack would supply [tileProvider]. Full
+/// offline vector parity with the Kotlin MapLibre/Mapsforge path is deferred to
+/// on-device. An online raster URL can be passed via [urlTemplate] for debugging
+/// but MUST NOT be the default (it would require the INTERNET permission and
+/// diverge from the source app's no-network stance).
 class RouteMapView extends StatefulWidget {
   const RouteMapView({
     super.key,
@@ -26,7 +32,7 @@ class RouteMapView extends StatefulWidget {
     this.currentPoint,
     this.height = 240,
     this.tileProvider,
-    this.urlTemplate = _openStreetMapTiles,
+    this.urlTemplate,
   });
 
   final List<ExerciseRoutePoint> points;
@@ -34,15 +40,18 @@ class RouteMapView extends StatefulWidget {
   final ExerciseRoutePoint? currentPoint;
   final double height;
 
-  /// Overrides the tile source. Tests pass a network-free provider so no tiles
-  /// are fetched; production leaves this null to use [urlTemplate].
+  /// Offline tile source (e.g. an imported MBTiles/PMTiles pack). When null (and
+  /// [urlTemplate] is null) no base-map tiles are drawn. Tests pass a
+  /// network-free provider to render tiles without touching the network.
   final TileProvider? tileProvider;
 
-  /// Raster tile URL template used when [tileProvider] is null.
-  final String urlTemplate;
+  /// Optional raster tile URL template. Null by default so the shipped,
+  /// offline-only build never performs a network fetch. Only set for debugging
+  /// with an explicit online source.
+  final String? urlTemplate;
 
-  static const String _openStreetMapTiles =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  /// Canvas colour shown behind the route when no base-map tiles are present.
+  static const Color _offlineBackground = Color(0xFFE7E3DC);
 
   static const Color _routeColor = Color(0xFFD9462F);
   static const Color _startColor = Color(0xFF1F9D55);
@@ -67,6 +76,12 @@ class _RouteMapViewState extends State<RouteMapView> {
     ];
     final bounds = RouteBounds.fromPoints(cameraPoints);
 
+    // Only draw a base-map tile layer when a source is explicitly provided.
+    // With none (the shipped, offline-only default) the route sits on a plain
+    // canvas and no network fetch is attempted.
+    final hasTileSource =
+        widget.tileProvider != null || widget.urlTemplate != null;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
@@ -74,11 +89,12 @@ class _RouteMapViewState extends State<RouteMapView> {
         child: FlutterMap(
           options: _mapOptions(bounds),
           children: [
-            TileLayer(
-              urlTemplate: widget.urlTemplate,
-              userAgentPackageName: 'tech.mmarca.openvitals',
-              tileProvider: widget.tileProvider,
-            ),
+            if (hasTileSource)
+              TileLayer(
+                urlTemplate: widget.urlTemplate,
+                userAgentPackageName: 'tech.mmarca.openvitals',
+                tileProvider: widget.tileProvider,
+              ),
             if (segments.isNotEmpty)
               PolylineLayer(
                 polylines: [
@@ -102,6 +118,7 @@ class _RouteMapViewState extends State<RouteMapView> {
       return const MapOptions(
         initialCenter: LatLng(0, 0),
         initialZoom: 1,
+        backgroundColor: RouteMapView._offlineBackground,
         interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
       );
     }
@@ -109,9 +126,11 @@ class _RouteMapViewState extends State<RouteMapView> {
       return MapOptions(
         initialCenter: LatLng(bounds.centerLatitude, bounds.centerLongitude),
         initialZoom: 15.5,
+        backgroundColor: RouteMapView._offlineBackground,
       );
     }
     return MapOptions(
+      backgroundColor: RouteMapView._offlineBackground,
       initialCameraFit: CameraFit.bounds(
         bounds: LatLngBounds(
           LatLng(bounds.minLatitude, bounds.minLongitude),

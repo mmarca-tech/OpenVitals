@@ -16,7 +16,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+# Mirrors the Kotlin source's baseVersionName (1.8.0) and baseVersionCode
+# (107030340). On Android this drives versionName/versionCode; on iOS it drives
+# CFBundleShortVersionString/CFBundleVersion.
+version: 1.8.0+107030340
 
 environment:
   sdk: ^3.12.2
@@ -83,6 +86,27 @@ dev_dependencies:
   json_serializable: ^6.14.0
   riverpod_generator: ^4.0.4
   drift_dev: ^2.34.0
+  # Generates the Android mipmap / adaptive-icon set and iOS AppIcon.appiconset
+  # from assets/icon/openvitals_icon.png. Pure-Dart generator (no platform SDK
+  # needed): run `dart run flutter_launcher_icons` to (re)generate.
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher-icon generation config (consumed by `dart run flutter_launcher_icons`).
+# Source icon is the 512x512 Play Store icon copied from the Kotlin app's
+# fastlane assets. adaptive_icon_background matches the source adaptive icon's
+# @drawable/ic_launcher_background (#FBD6AC).
+# TODO(phase8-icon): the Kotlin source's adaptive foreground is a vector glyph
+# (ic_launcher_foreground_prod.xml) with a transparent background; here we reuse
+# the composited PNG as the adaptive foreground. Swap in a transparent-background
+# foreground glyph PNG for a pixel-perfect adaptive icon.
+flutter_launcher_icons:
+  image_path: "assets/icon/openvitals_icon.png"
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  min_sdk_android: 26
+  adaptive_icon_background: "#FBD6AC"
+  adaptive_icon_foreground: "assets/icon/openvitals_icon.png"
 
 # sqlparser 0.44.6 made DartPlaceholder a sealed class and removed the `.when`
 # helper that drift_dev 2.34.0 still calls, which breaks build_runner. Pin the
