@@ -34,6 +34,132 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
+bool _deepEquals(Object? a, Object? b) {
+  if (identical(a, b)) {
+    return true;
+  }
+  if (a is double && b is double) {
+    if (a.isNaN && b.isNaN) {
+      return true;
+    }
+    return a == b;
+  }
+  if (a is List && b is List) {
+    return a.length == b.length &&
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+  }
+  if (a is Map && b is Map) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (final MapEntry<Object?, Object?> entryA in a.entries) {
+      bool found = false;
+      for (final MapEntry<Object?, Object?> entryB in b.entries) {
+        if (_deepEquals(entryA.key, entryB.key)) {
+          if (_deepEquals(entryA.value, entryB.value)) {
+            found = true;
+            break;
+          } else {
+            return false;
+          }
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return a == b;
+}
+
+int _deepHash(Object? value) {
+  if (value is List) {
+    return Object.hashAll(value.map(_deepHash));
+  }
+  if (value is Map) {
+    int result = 0;
+    for (final MapEntry<Object?, Object?> entry in value.entries) {
+      result += (_deepHash(entry.key) * 31) ^ _deepHash(entry.value);
+    }
+    return result;
+  }
+  if (value is double && value.isNaN) {
+    // Normalize NaN to a consistent hash.
+    return 0x7FF8000000000000.hashCode;
+  }
+  if (value is double && value == 0.0) {
+    // Normalize -0.0 to 0.0 so they have the same hash code.
+    return 0.0.hashCode;
+  }
+  return value.hashCode;
+}
+
+
+/// Raw Health Connect availability signals, mapped to the Dart
+/// `HealthConnectAvailability` enum on the Flutter side. Kept as separate
+/// signals (rather than a native enum) so the enum stays a single source of
+/// truth in Dart.
+class HealthConnectAvailabilityDetail {
+  HealthConnectAvailabilityDetail({
+    required this.sdkStatus,
+    required this.unsupportedProfile,
+    required this.standaloneNeedsPlayStore,
+  });
+
+  /// Raw `HealthConnectClient.getSdkStatus` int.
+  int sdkStatus;
+
+  /// True when running in a work/managed profile where Health Connect is
+  /// unsupported (Android 13+).
+  bool unsupportedProfile;
+
+  /// True when the standalone Health Connect APK is installed on Android 13-
+  /// but the Play Store is not (so it can never be updated).
+  bool standaloneNeedsPlayStore;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      sdkStatus,
+      unsupportedProfile,
+      standaloneNeedsPlayStore,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HealthConnectAvailabilityDetail decode(Object result) {
+    result as List<Object?>;
+    return HealthConnectAvailabilityDetail(
+      sdkStatus: result[0]! as int,
+      unsupportedProfile: result[1]! as bool,
+      standaloneNeedsPlayStore: result[2]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HealthConnectAvailabilityDetail || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(sdkStatus, other.sdkStatus) && _deepEquals(unsupportedProfile, other.unsupportedProfile) && _deepEquals(standaloneNeedsPlayStore, other.standaloneNeedsPlayStore);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HealthConnectAvailabilityDetail(sdkStatus: $sdkStatus, unsupportedProfile: $unsupportedProfile, standaloneNeedsPlayStore: $standaloneNeedsPlayStore)';
+  }
+}
 
 
 class _PigeonCodec extends StandardMessageCodec {
@@ -43,6 +169,9 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
+    }    else if (value is HealthConnectAvailabilityDetail) {
+      buffer.putUint8(129);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -51,6 +180,8 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
+      case 129:
+        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -96,6 +227,68 @@ class HealthConnectHostApi {
     )
     ;
     return pigeonVar_replyValue! as int;
+  }
+
+  /// Fuller availability picture than [getSdkStatus]: SDK status plus the
+  /// work-profile and standalone-needs-Play-Store overrides, so Dart can resolve
+  /// NOT_SUPPORTED / NEEDS_PLAY_STORE / NEEDS_PROVIDER_UPDATE / AVAILABLE.
+  Future<HealthConnectAvailabilityDetail> availabilityDetail() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.availabilityDetail$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as HealthConnectAvailabilityDetail;
+  }
+
+  /// Mirrors the user's "pause Health Connect sync" toggle into the native
+  /// sync-gate. While disabled, reads short-circuit to empty and writes throw.
+  Future<void> setSyncEnabled(bool enabled) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.setSyncEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Returns the native sync-gate's current state.
+  Future<bool> getSyncEnabled() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.getSyncEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
   }
 
   /// Returns the subset of [permissions] currently granted.

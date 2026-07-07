@@ -53,6 +53,17 @@ class HealthConnectNativePlugin :
 
   private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+  /**
+   * Ported Health Connect infrastructure (see the `HealthConnect*` files in this
+   * package). Instantiated once the application context is available in
+   * [onAttachedToEngine]. [syncGate] is created eagerly because it holds no
+   * context and Dart may call `setSyncEnabled` before any read.
+   */
+  private val syncGate = HealthConnectSyncGate()
+  private var diagnostics: HealthConnectDiagnostics? = null
+  private var availabilityService: HealthConnectAvailabilityService? = null
+  private var readerSupport: HealthConnectReaderSupport? = null
+
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
   private var pendingPermissions: List<String> = emptyList()
@@ -75,13 +86,25 @@ class HealthConnectNativePlugin :
   // ---------------------------------------------------------------------------
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    applicationContext = binding.applicationContext
+    val context = binding.applicationContext
+    applicationContext = context
+    val diag = HealthConnectDiagnostics(context)
+    diagnostics = diag
+    availabilityService = HealthConnectAvailabilityService(context, diag)
+    readerSupport = HealthConnectReaderSupport(
+      clientProvider = { client() },
+      diagnostics = diag,
+      syncEnabled = { syncGate.isEnabled },
+    )
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     HealthConnectHostApi.setUp(binding.binaryMessenger, null)
     applicationContext = null
+    diagnostics = null
+    availabilityService = null
+    readerSupport = null
     scope.cancel()
   }
 
@@ -149,6 +172,22 @@ class HealthConnectNativePlugin :
       ?: throw IllegalStateException("Plugin not attached to an engine")
     return HealthConnectClient.getSdkStatus(context).toLong()
   }
+
+  override fun availabilityDetail(): HealthConnectAvailabilityDetail {
+    val service = availabilityService
+      ?: throw IllegalStateException("Plugin not attached to an engine")
+    return HealthConnectAvailabilityDetail(
+      sdkStatus = service.sdkStatus().toLong(),
+      unsupportedProfile = service.isUnsupportedProfile(),
+      standaloneNeedsPlayStore = service.standaloneNeedsPlayStore(),
+    )
+  }
+
+  override fun setSyncEnabled(enabled: Boolean) {
+    syncGate.setEnabled(enabled)
+  }
+
+  override fun getSyncEnabled(): Boolean = syncGate.isEnabled
 
   override fun getGrantedPermissions(
     permissions: List<String>,

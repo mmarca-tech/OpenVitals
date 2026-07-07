@@ -21,6 +21,29 @@
 // sides agree without a wide Pigeon data-class surface.
 import 'package:pigeon/pigeon.dart';
 
+/// Raw Health Connect availability signals, mapped to the Dart
+/// `HealthConnectAvailability` enum on the Flutter side. Kept as separate
+/// signals (rather than a native enum) so the enum stays a single source of
+/// truth in Dart.
+class HealthConnectAvailabilityDetail {
+  /// Raw `HealthConnectClient.getSdkStatus` int.
+  final int sdkStatus;
+
+  /// True when running in a work/managed profile where Health Connect is
+  /// unsupported (Android 13+).
+  final bool unsupportedProfile;
+
+  /// True when the standalone Health Connect APK is installed on Android 13-
+  /// but the Play Store is not (so it can never be updated).
+  final bool standaloneNeedsPlayStore;
+
+  HealthConnectAvailabilityDetail(
+    this.sdkStatus,
+    this.unsupportedProfile,
+    this.standaloneNeedsPlayStore,
+  );
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -45,6 +68,18 @@ abstract class HealthConnectHostApi {
   /// Returns the raw SDK status int (e.g. `SDK_AVAILABLE`,
   /// `SDK_UNAVAILABLE`, `SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED`).
   int getSdkStatus();
+
+  /// Fuller availability picture than [getSdkStatus]: SDK status plus the
+  /// work-profile and standalone-needs-Play-Store overrides, so Dart can resolve
+  /// NOT_SUPPORTED / NEEDS_PLAY_STORE / NEEDS_PROVIDER_UPDATE / AVAILABLE.
+  HealthConnectAvailabilityDetail availabilityDetail();
+
+  /// Mirrors the user's "pause Health Connect sync" toggle into the native
+  /// sync-gate. While disabled, reads short-circuit to empty and writes throw.
+  void setSyncEnabled(bool enabled);
+
+  /// Returns the native sync-gate's current state.
+  bool getSyncEnabled();
 
   /// Returns the subset of [permissions] currently granted.
   @async
