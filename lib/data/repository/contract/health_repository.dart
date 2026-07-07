@@ -12,7 +12,17 @@ import '../../../domain/model/permission_grant_mode.dart';
 /// authorization imperatively, so that method is replaced by
 /// [requestPermissions].
 abstract interface class HealthRepository {
+  /// The last-resolved availability (synchronous, cached). Call
+  /// [refreshAvailability] once at startup / before onboarding reads this.
   HealthConnectAvailability availability();
+
+  /// Asynchronously resolves Health Connect availability from the platform
+  /// (populating the cache read by [availability]) and, when available, the
+  /// optional-feature flags (mindfulness / skin temperature / planned exercise).
+  /// The Kotlin `HealthConnectManager.availability()` was synchronous; the
+  /// platform SDK-status check crosses an async plugin boundary here, so callers
+  /// that need a fresh value must await this.
+  Future<HealthConnectAvailability> refreshAvailability();
 
   /// Requests OS authorization for [permissions]; returns whether the request
   /// completed successfully. Replaces the Kotlin `permissionContract()`.

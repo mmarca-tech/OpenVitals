@@ -14,6 +14,15 @@ class HealthRepositoryImpl implements HealthRepository {
   HealthConnectAvailability availability() => _dataSource.cachedAvailability;
 
   @override
+  Future<HealthConnectAvailability> refreshAvailability() async {
+    final availability = await _dataSource.availability();
+    if (availability == HealthConnectAvailability.available) {
+      await _dataSource.resolveFeatureFlags();
+    }
+    return availability;
+  }
+
+  @override
   Future<bool> requestPermissions(Set<String> permissions) =>
       _dataSource.requestPermissions(permissions);
 

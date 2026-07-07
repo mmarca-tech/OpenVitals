@@ -130,7 +130,10 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   }
 
   Future<void> checkState() async {
-    final availability = _repo.availability();
+    // Resolve availability from the platform (async plugin boundary) rather than
+    // reading the still-default cached value.
+    final availability = await _repo.refreshAvailability();
+    if (!ref.mounted) return;
     if (availability != HealthConnectAvailability.available) {
       if (!ref.mounted) return;
       state = OnboardingState(
