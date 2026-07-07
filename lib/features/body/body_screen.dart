@@ -1,13 +1,5 @@
-import 'package:flutter/material.dart';
-
-import '../../ui/components/placeholder_screen.dart';
-
-/// Body measurements section pushed over the shell (`/body`).
-// TODO(phase5): replace with the real body overview.
-class BodyScreen extends StatelessWidget {
-  const BodyScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) =>
-      const PlaceholderScreen(title: 'Body');
-}
+// Body measurements section (`/body`) and per-metric detail screens.
+//
+// The real implementations live in body_metric_screen.dart; this file
+// re-exports them so existing imports of `body_screen.dart` keep resolving.
+export 'body_metric_screen.dart';

@@ -10,6 +10,7 @@ import '../features/activity/activity_metric.dart';
 import '../features/activity/activity_metric_screen.dart';
 import '../features/activity/calories_screen.dart';
 import '../features/activity/cardio_load_detail_screen.dart';
+import '../features/body/body_metric.dart';
 import '../features/body/body_screen.dart';
 import '../features/bodyenergy/body_energy_details_screen.dart';
 import '../features/caffeine/caffeine_screen.dart';
@@ -357,6 +358,11 @@ Widget _metricScreen(String? raw) {
   // parametric heart/vitals detail screen (Kotlin `MetricRouteContent`).
   final heartMetric = HeartMetric.fromRouteName(raw);
   if (heartMetric != null) return HeartMetricScreen(metric: heartMetric);
+  // The nine body-composition metrics (weight/height/BMI/FFMI/body-fat/lean
+  // mass/BMR/bone mass/body-water mass) share the parametric body detail screen
+  // (Kotlin `toBodyMetricOrNull`); this also claims BMR from `_caloriesMetrics`.
+  final bodyMetric = BodyMetric.fromRouteName(raw);
+  if (bodyMetric != null) return BodyMetricScreen(metric: bodyMetric);
   if (_nutritionMetrics.contains(id)) return const NutritionScreen();
   if (_bodyMetrics.contains(id)) return const BodyScreen();
   if (_caloriesMetrics.contains(id)) return const CaloriesScreen();
