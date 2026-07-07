@@ -141,6 +141,10 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   }
 
   @override
+  Future<bool> openHealthConnectSettings() =>
+      _catch(() => _api.openHealthConnectSettings(), false);
+
+  @override
   Future<Set<String>> grantedPermissions() async {
     final managed = permissionService.managedPermissions.toList();
     if (managed.isEmpty) return const <String>{};

@@ -139,6 +139,30 @@ class HealthConnectHostApi {
     return pigeonVar_replyValue! as bool;
   }
 
+  /// Opens the Health Connect page for this app (app-specific permission
+  /// management on Android 14+, falling back to Health Connect settings) so the
+  /// user can manually grant permissions the runtime dialog reports as
+  /// non-requestable (e.g. planned exercise, exercise routes, background/history
+  /// access). Returns whether a page was launched.
+  Future<bool> openHealthConnectSettings() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.openHealthConnectSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
   /// Whether an optional Health Connect feature is available on this device,
   /// e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
   Future<bool> isFeatureAvailable(String feature) async {

@@ -73,6 +73,11 @@ class HealthDataSource {
   Future<bool> hasPermission(String permission) async =>
       (await grantedPermissions()).contains(permission);
 
+  /// Opens the Health Connect page for this app so the user can manually grant
+  /// permissions the runtime dialog reports as non-requestable. Returns whether
+  /// a page was launched.
+  Future<bool> openHealthConnectSettings() async => false;
+
   // ── Activity ──────────────────────────────────────────────────────────────
 
   Future<int> readSteps(LocalDate date) async => 0;

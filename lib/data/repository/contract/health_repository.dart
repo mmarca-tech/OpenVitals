@@ -28,6 +28,12 @@ abstract interface class HealthRepository {
   /// completed successfully. Replaces the Kotlin `permissionContract()`.
   Future<bool> requestPermissions(Set<String> permissions);
 
+  /// Opens the Health Connect page for this app so the user can manually grant
+  /// permissions the runtime dialog reports as non-requestable (planned
+  /// exercise, exercise routes, background/history access). Returns whether a
+  /// page was launched.
+  Future<bool> openHealthConnectSettings();
+
   Set<String> get phase1Permissions;
   Set<String> get minimumOnboardingPermissions;
   Set<String> get phase2Permissions;

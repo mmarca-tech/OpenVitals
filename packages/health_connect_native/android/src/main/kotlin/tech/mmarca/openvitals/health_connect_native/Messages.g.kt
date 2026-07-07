@@ -82,6 +82,14 @@ interface HealthConnectHostApi {
    */
   fun requestPermissions(permissions: List<String>, callback: (Result<Boolean>) -> Unit)
   /**
+   * Opens the Health Connect page for this app (app-specific permission
+   * management on Android 14+, falling back to Health Connect settings) so the
+   * user can manually grant permissions the runtime dialog reports as
+   * non-requestable (e.g. planned exercise, exercise routes, background/history
+   * access). Returns whether a page was launched.
+   */
+  fun openHealthConnectSettings(callback: (Result<Boolean>) -> Unit)
+  /**
    * Whether an optional Health Connect feature is available on this device,
    * e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
    */
@@ -176,6 +184,24 @@ interface HealthConnectHostApi {
             val args = message as List<Any?>
             val permissionsArg = args[0] as List<String>
             api.requestPermissions(permissionsArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.openHealthConnectSettings$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.openHealthConnectSettings{ result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

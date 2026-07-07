@@ -27,6 +27,10 @@ class HealthRepositoryImpl implements HealthRepository {
       _dataSource.requestPermissions(permissions);
 
   @override
+  Future<bool> openHealthConnectSettings() =>
+      _dataSource.openHealthConnectSettings();
+
+  @override
   Set<String> get phase1Permissions =>
       _dataSource.permissionService.phase1Permissions;
 

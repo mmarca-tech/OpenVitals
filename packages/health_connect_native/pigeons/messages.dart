@@ -55,6 +55,14 @@ abstract class HealthConnectHostApi {
   @async
   bool requestPermissions(List<String> permissions);
 
+  /// Opens the Health Connect page for this app (app-specific permission
+  /// management on Android 14+, falling back to Health Connect settings) so the
+  /// user can manually grant permissions the runtime dialog reports as
+  /// non-requestable (e.g. planned exercise, exercise routes, background/history
+  /// access). Returns whether a page was launched.
+  @async
+  bool openHealthConnectSettings();
+
   /// Whether an optional Health Connect feature is available on this device,
   /// e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
   @async

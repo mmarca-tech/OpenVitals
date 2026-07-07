@@ -4,6 +4,7 @@ package tech.mmarca.openvitals.health_connect_native
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
@@ -185,6 +186,35 @@ class HealthConnectNativePlugin :
       pendingPermissions = emptyList()
       callback(Result.failure(e))
     }
+  }
+
+  override fun openHealthConnectSettings(callback: (Result<Boolean>) -> Unit) {
+    val launchContext: Context? = activity ?: applicationContext
+    if (launchContext == null) {
+      callback(Result.success(false))
+      return
+    }
+    val packageName = launchContext.packageName
+    // Prefer the app-specific Health Connect permission page (Android 14+), then
+    // the standalone Health Connect settings action (Android 13-), then a plain
+    // Health Connect settings launch.
+    val candidates = listOf(
+      Intent(ACTION_MANAGE_HEALTH_PERMISSIONS)
+        .putExtra(Intent.EXTRA_PACKAGE_NAME, packageName),
+      Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS),
+    )
+    for (intent in candidates) {
+      if (activity == null) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      try {
+        launchContext.startActivity(intent)
+        Log.i(TAG, "openHealthConnectSettings: launched ${intent.action}")
+        callback(Result.success(true))
+        return
+      } catch (e: Throwable) {
+        Log.w(TAG, "openHealthConnectSettings: ${intent.action} not resolvable", e)
+      }
+    }
+    callback(Result.success(false))
   }
 
   override fun isFeatureAvailable(
@@ -486,5 +516,13 @@ class HealthConnectNativePlugin :
   private companion object {
     private const val TAG = "HealthConnectNative"
     private const val READ_PAGE_SIZE = 1000
+
+    /**
+     * System action to open a specific app's Health Connect permission page on
+     * Android 14+ (Health Connect as an OS module). Passed the target app's
+     * package via [Intent.EXTRA_PACKAGE_NAME].
+     */
+    private const val ACTION_MANAGE_HEALTH_PERMISSIONS =
+      "android.health.connect.action.MANAGE_HEALTH_PERMISSIONS"
   }
 }

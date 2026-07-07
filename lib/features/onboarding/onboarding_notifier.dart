@@ -136,14 +136,29 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   /// Requests [permissions] then re-reads the granted set (Kotlin
   /// `onPermissionsResult`). No-op for an empty request.
+  ///
+  /// If the runtime dialog could not grant ANY of the requested permissions —
+  /// which happens when Health Connect reports them as non-requestable (planned
+  /// exercise, exercise routes, background/history access) — this falls back to
+  /// opening the Health Connect page so the user can toggle them manually
+  /// (mirrors the Kotlin "Open required Health Connect permissions" action).
   Future<void> requestPermissions(Set<String> permissions) async {
     if (permissions.isEmpty) return;
+    final before = _repo.availability() == HealthConnectAvailability.available
+        ? await _repo.grantedPermissions()
+        : const <String>{};
     await _repo.requestPermissions(permissions);
     final granted = await _repo.grantedPermissions();
     if (!ref.mounted) return;
     state = state.copyWith(grantedPermissions: granted);
     // Keep the shared gate providers fresh for screens shown after onboarding.
     ref.invalidate(grantedHealthPermissionsProvider);
+
+    final gainedAny =
+        permissions.any((p) => granted.contains(p) && !before.contains(p));
+    if (!gainedAny && !permissions.every(granted.contains)) {
+      await _repo.openHealthConnectSettings();
+    }
   }
 
   /// Persists the privacy-policy acceptance + onboarding-complete prefs so the
