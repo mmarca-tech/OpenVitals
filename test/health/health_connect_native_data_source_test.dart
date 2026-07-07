@@ -176,6 +176,17 @@ class FakeHostApi extends HealthConnectHostApi {
     return 'openvitals_nutrition_written';
   }
 
+  // ── Apple Health import (Phase 9) typed fakes ─────────────────────────────
+  List<ImportRecordMsg> importedRecords = const [];
+
+  @override
+  Future<List<String>> insertImportedRecords(
+    List<ImportRecordMsg> records,
+  ) async {
+    importedRecords = records;
+    return [for (var i = 0; i < records.length; i++) 'imported_$i'];
+  }
+
   // ── Activity (Phase 8) typed fakes ────────────────────────────────────────
   ActivityWriteRequestMsg? activityWriteRequest;
   final List<String> deletedActivityIds = [];
@@ -638,15 +649,15 @@ void main() {
           ],
         ),
       ]);
-      expect(api.inserted, hasLength(2));
-      final weight = api.inserted[0];
-      expect(weight['recordType'], 'Weight');
-      expect(weight['weightKg'], 81.2);
-      expect(weight['clientRecordId'], 'apple_health_weight_1');
-      final sleep = api.inserted[1];
-      expect(sleep['recordType'], 'Sleep');
-      expect((sleep['stages'] as List).single['stage'], 5); // DEEP
-      expect(sleep['clientRecordId'], 'apple_health_sleep_1');
+      expect(api.importedRecords, hasLength(2));
+      final weight = api.importedRecords[0];
+      expect(weight.recordType, 'Weight');
+      expect(weight.doubleFields['weightKg'], 81.2);
+      expect(weight.clientRecordId, 'apple_health_weight_1');
+      final sleep = api.importedRecords[1];
+      expect(sleep.recordType, 'Sleep');
+      expect(sleep.sleepStages.single.stage, 5); // DEEP
+      expect(sleep.clientRecordId, 'apple_health_sleep_1');
     });
 
     test('findMatchingImportedClientRecordIds maps targetType and filters',

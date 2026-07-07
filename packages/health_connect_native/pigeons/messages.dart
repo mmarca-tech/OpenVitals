@@ -624,6 +624,55 @@ class SpeedSampleMsg {
   SpeedSampleMsg(this.timeEpochMs, this.metersPerSecond, this.source);
 }
 
+// ── Apple Health import (Phase 9) ────────────────────────────────────────────
+
+class ImportSampleMsg {
+  final int timeEpochMs;
+  final double value;
+  ImportSampleMsg(this.timeEpochMs, this.value);
+}
+
+class ImportSleepStageMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final int stage;
+  ImportSleepStageMsg(this.startEpochMs, this.endEpochMs, this.stage);
+}
+
+/// A typed, discriminated import record. [recordType] is the canonical schema
+/// name (e.g. "Steps", "Nutrition"); scalar fields ride in [doubleFields] /
+/// [intFields] keyed as the native builder expects, with the complex records
+/// (HR/Speed samples, sleep stages, exercise route) in the typed lists. Times
+/// are interval [startEpochMs]..[endEpochMs] (endEpochMs null = instant record).
+class ImportRecordMsg {
+  final String recordType;
+  final String clientRecordId;
+  final int startEpochMs;
+  final int? endEpochMs;
+  final int? startZoneOffsetSeconds;
+  final int? endZoneOffsetSeconds;
+  final Map<String, double> doubleFields;
+  final Map<String, int> intFields;
+  final String? name;
+  final List<ImportSampleMsg> samples;
+  final List<ImportSleepStageMsg> sleepStages;
+  final List<ExerciseRoutePointMsg> routePoints;
+  ImportRecordMsg(
+    this.recordType,
+    this.clientRecordId,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.startZoneOffsetSeconds,
+    this.endZoneOffsetSeconds,
+    this.doubleFields,
+    this.intFields,
+    this.name,
+    this.samples,
+    this.sleepStages,
+    this.routePoints,
+  );
+}
+
 class ActivityWriteRequestMsg {
   final int exerciseType;
   final int startEpochMs;
@@ -984,4 +1033,10 @@ abstract class HealthConnectHostApi {
   void updateActivityEntry(String id, ActivityWriteRequestMsg request);
   @async
   void deleteActivityEntry(String id);
+
+  // ── Apple Health import (Phase 9) ──────────────────────────────────────────
+
+  /// Typed bulk insert of imported records; returns the inserted HC ids.
+  @async
+  List<String> insertImportedRecords(List<ImportRecordMsg> records);
 }

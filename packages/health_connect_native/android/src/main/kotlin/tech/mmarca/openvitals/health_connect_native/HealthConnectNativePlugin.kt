@@ -848,6 +848,21 @@ class HealthConnectNativePlugin :
     callback: (Result<Unit>) -> Unit,
   ) = launchCatching(callback) { requireActivityReader().deleteActivityEntry(id) }
 
+  // ---------------------------------------------------------------------------
+  // Apple Health import (Phase 9)
+  // ---------------------------------------------------------------------------
+
+  override fun insertImportedRecords(
+    records: List<ImportRecordMsg>,
+    callback: (Result<List<String>>) -> Unit,
+  ) = launchCatching(callback) {
+    // Failures propagate so the Dart import service can classify duplicates /
+    // failures and retry individually (parity with the JSON path it replaces).
+    withContext(Dispatchers.IO) {
+      client().insertRecords(records.map { ImportRecordsBuilder.build(it) }).recordIdsList
+    }
+  }
+
   override fun getGrantedPermissions(
     permissions: List<String>,
     callback: (Result<List<String>>) -> Unit,

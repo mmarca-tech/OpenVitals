@@ -20,6 +20,7 @@ import '../../features/imports/applehealth/apple_health_import_records.dart';
 import '../health_data_source.dart';
 import '../health_permissions.dart';
 import 'health_record_json.dart';
+import 'import_record_mapper.dart';
 
 /// Real [HealthDataSource] over the native AndroidX Health Connect plugin
 /// ([HealthConnectHostApi]).
@@ -1669,13 +1670,11 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   @override
   Future<void> insertImportedRecords(List<ImportRecord> records) async {
     if (records.isEmpty) return;
-    final jsons = [
-      for (final record in records)
-        jsonEncode(HealthRecordJson.importRecord(record)),
-    ];
     // Let failures propagate so the import service can classify duplicates /
     // failures and retry individually (Kotlin parity).
-    await _api.insertRecordsJson(jsons);
+    await _api.insertImportedRecords([
+      for (final record in records) importRecordMsg(record),
+    ]);
   }
 
   @override

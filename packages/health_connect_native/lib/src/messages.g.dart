@@ -3130,6 +3130,216 @@ class SpeedSampleMsg {
   }
 }
 
+class ImportSampleMsg {
+  ImportSampleMsg({
+    required this.timeEpochMs,
+    required this.value,
+  });
+
+  int timeEpochMs;
+
+  double value;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      value,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ImportSampleMsg decode(Object result) {
+    result as List<Object?>;
+    return ImportSampleMsg(
+      timeEpochMs: result[0]! as int,
+      value: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ImportSampleMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(value, other.value);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ImportSampleMsg(timeEpochMs: $timeEpochMs, value: $value)';
+  }
+}
+
+class ImportSleepStageMsg {
+  ImportSleepStageMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.stage,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  int stage;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      stage,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ImportSleepStageMsg decode(Object result) {
+    result as List<Object?>;
+    return ImportSleepStageMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      stage: result[2]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ImportSleepStageMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(stage, other.stage);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ImportSleepStageMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, stage: $stage)';
+  }
+}
+
+/// A typed, discriminated import record. [recordType] is the canonical schema
+/// name (e.g. "Steps", "Nutrition"); scalar fields ride in [doubleFields] /
+/// [intFields] keyed as the native builder expects, with the complex records
+/// (HR/Speed samples, sleep stages, exercise route) in the typed lists. Times
+/// are interval [startEpochMs]..[endEpochMs] (endEpochMs null = instant record).
+class ImportRecordMsg {
+  ImportRecordMsg({
+    required this.recordType,
+    required this.clientRecordId,
+    required this.startEpochMs,
+    this.endEpochMs,
+    this.startZoneOffsetSeconds,
+    this.endZoneOffsetSeconds,
+    required this.doubleFields,
+    required this.intFields,
+    this.name,
+    required this.samples,
+    required this.sleepStages,
+    required this.routePoints,
+  });
+
+  String recordType;
+
+  String clientRecordId;
+
+  int startEpochMs;
+
+  int? endEpochMs;
+
+  int? startZoneOffsetSeconds;
+
+  int? endZoneOffsetSeconds;
+
+  Map<String, double> doubleFields;
+
+  Map<String, int> intFields;
+
+  String? name;
+
+  List<ImportSampleMsg> samples;
+
+  List<ImportSleepStageMsg> sleepStages;
+
+  List<ExerciseRoutePointMsg> routePoints;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      recordType,
+      clientRecordId,
+      startEpochMs,
+      endEpochMs,
+      startZoneOffsetSeconds,
+      endZoneOffsetSeconds,
+      doubleFields,
+      intFields,
+      name,
+      samples,
+      sleepStages,
+      routePoints,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ImportRecordMsg decode(Object result) {
+    result as List<Object?>;
+    return ImportRecordMsg(
+      recordType: result[0]! as String,
+      clientRecordId: result[1]! as String,
+      startEpochMs: result[2]! as int,
+      endEpochMs: result[3] as int?,
+      startZoneOffsetSeconds: result[4] as int?,
+      endZoneOffsetSeconds: result[5] as int?,
+      doubleFields: (result[6]! as Map<Object?, Object?>).cast<String, double>(),
+      intFields: (result[7]! as Map<Object?, Object?>).cast<String, int>(),
+      name: result[8] as String?,
+      samples: (result[9]! as List<Object?>).cast<ImportSampleMsg>(),
+      sleepStages: (result[10]! as List<Object?>).cast<ImportSleepStageMsg>(),
+      routePoints: (result[11]! as List<Object?>).cast<ExerciseRoutePointMsg>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ImportRecordMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(recordType, other.recordType) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(startZoneOffsetSeconds, other.startZoneOffsetSeconds) && _deepEquals(endZoneOffsetSeconds, other.endZoneOffsetSeconds) && _deepEquals(doubleFields, other.doubleFields) && _deepEquals(intFields, other.intFields) && _deepEquals(name, other.name) && _deepEquals(samples, other.samples) && _deepEquals(sleepStages, other.sleepStages) && _deepEquals(routePoints, other.routePoints);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ImportRecordMsg(recordType: $recordType, clientRecordId: $clientRecordId, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, startZoneOffsetSeconds: $startZoneOffsetSeconds, endZoneOffsetSeconds: $endZoneOffsetSeconds, doubleFields: $doubleFields, intFields: $intFields, name: $name, samples: $samples, sleepStages: $sleepStages, routePoints: $routePoints)';
+  }
+}
+
 class ActivityWriteRequestMsg {
   ActivityWriteRequestMsg({
     required this.exerciseType,
@@ -3469,11 +3679,20 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is SpeedSampleMsg) {
       buffer.putUint8(181);
       writeValue(buffer, value.encode());
-    }    else if (value is ActivityWriteRequestMsg) {
+    }    else if (value is ImportSampleMsg) {
       buffer.putUint8(182);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepDataMsg) {
+    }    else if (value is ImportSleepStageMsg) {
       buffer.putUint8(183);
+      writeValue(buffer, value.encode());
+    }    else if (value is ImportRecordMsg) {
+      buffer.putUint8(184);
+      writeValue(buffer, value.encode());
+    }    else if (value is ActivityWriteRequestMsg) {
+      buffer.putUint8(185);
+      writeValue(buffer, value.encode());
+    }    else if (value is SleepDataMsg) {
+      buffer.putUint8(186);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -3594,8 +3813,14 @@ class _PigeonCodec extends StandardMessageCodec {
       case 181:
         return SpeedSampleMsg.decode(readValue(buffer)!);
       case 182:
-        return ActivityWriteRequestMsg.decode(readValue(buffer)!);
+        return ImportSampleMsg.decode(readValue(buffer)!);
       case 183:
+        return ImportSleepStageMsg.decode(readValue(buffer)!);
+      case 184:
+        return ImportRecordMsg.decode(readValue(buffer)!);
+      case 185:
+        return ActivityWriteRequestMsg.decode(readValue(buffer)!);
+      case 186:
         return SleepDataMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -5392,5 +5617,25 @@ class HealthConnectHostApi {
         isNullValid: true,
     )
     ;
+  }
+
+  /// Typed bulk insert of imported records; returns the inserted HC ids.
+  Future<List<String>> insertImportedRecords(List<ImportRecordMsg> records) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.insertImportedRecords$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[records]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 }

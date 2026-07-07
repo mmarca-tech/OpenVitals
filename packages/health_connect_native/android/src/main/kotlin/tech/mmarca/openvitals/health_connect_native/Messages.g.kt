@@ -2723,6 +2723,181 @@ data class SpeedSampleMsg (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class ImportSampleMsg (
+  val timeEpochMs: Long,
+  val value: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ImportSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val value = pigeonVar_list[1] as Double
+      return ImportSampleMsg(timeEpochMs, value)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      value,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ImportSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.value, other.value)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.value)
+    return result
+  }
+  override fun toString(): String {
+    return "ImportSampleMsg(timeEpochMs=$timeEpochMs, value=$value)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class ImportSleepStageMsg (
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val stage: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ImportSleepStageMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val endEpochMs = pigeonVar_list[1] as Long
+      val stage = pigeonVar_list[2] as Long
+      return ImportSleepStageMsg(startEpochMs, endEpochMs, stage)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      endEpochMs,
+      stage,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ImportSleepStageMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.stage, other.stage)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stage)
+    return result
+  }
+  override fun toString(): String {
+    return "ImportSleepStageMsg(startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, stage=$stage)"
+  }
+}
+
+/**
+ * A typed, discriminated import record. [recordType] is the canonical schema
+ * name (e.g. "Steps", "Nutrition"); scalar fields ride in [doubleFields] /
+ * [intFields] keyed as the native builder expects, with the complex records
+ * (HR/Speed samples, sleep stages, exercise route) in the typed lists. Times
+ * are interval [startEpochMs]..[endEpochMs] (endEpochMs null = instant record).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ImportRecordMsg (
+  val recordType: String,
+  val clientRecordId: String,
+  val startEpochMs: Long,
+  val endEpochMs: Long? = null,
+  val startZoneOffsetSeconds: Long? = null,
+  val endZoneOffsetSeconds: Long? = null,
+  val doubleFields: Map<String, Double>,
+  val intFields: Map<String, Long>,
+  val name: String? = null,
+  val samples: List<ImportSampleMsg>,
+  val sleepStages: List<ImportSleepStageMsg>,
+  val routePoints: List<ExerciseRoutePointMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ImportRecordMsg {
+      val recordType = pigeonVar_list[0] as String
+      val clientRecordId = pigeonVar_list[1] as String
+      val startEpochMs = pigeonVar_list[2] as Long
+      val endEpochMs = pigeonVar_list[3] as Long?
+      val startZoneOffsetSeconds = pigeonVar_list[4] as Long?
+      val endZoneOffsetSeconds = pigeonVar_list[5] as Long?
+      val doubleFields = pigeonVar_list[6] as Map<String, Double>
+      val intFields = pigeonVar_list[7] as Map<String, Long>
+      val name = pigeonVar_list[8] as String?
+      val samples = pigeonVar_list[9] as List<ImportSampleMsg>
+      val sleepStages = pigeonVar_list[10] as List<ImportSleepStageMsg>
+      val routePoints = pigeonVar_list[11] as List<ExerciseRoutePointMsg>
+      return ImportRecordMsg(recordType, clientRecordId, startEpochMs, endEpochMs, startZoneOffsetSeconds, endZoneOffsetSeconds, doubleFields, intFields, name, samples, sleepStages, routePoints)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      recordType,
+      clientRecordId,
+      startEpochMs,
+      endEpochMs,
+      startZoneOffsetSeconds,
+      endZoneOffsetSeconds,
+      doubleFields,
+      intFields,
+      name,
+      samples,
+      sleepStages,
+      routePoints,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ImportRecordMsg
+    return MessagesPigeonUtils.deepEquals(this.recordType, other.recordType) && MessagesPigeonUtils.deepEquals(this.clientRecordId, other.clientRecordId) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.startZoneOffsetSeconds, other.startZoneOffsetSeconds) && MessagesPigeonUtils.deepEquals(this.endZoneOffsetSeconds, other.endZoneOffsetSeconds) && MessagesPigeonUtils.deepEquals(this.doubleFields, other.doubleFields) && MessagesPigeonUtils.deepEquals(this.intFields, other.intFields) && MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.samples, other.samples) && MessagesPigeonUtils.deepEquals(this.sleepStages, other.sleepStages) && MessagesPigeonUtils.deepEquals(this.routePoints, other.routePoints)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.recordType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.clientRecordId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startZoneOffsetSeconds)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endZoneOffsetSeconds)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.doubleFields)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.intFields)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.name)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.samples)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.sleepStages)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.routePoints)
+    return result
+  }
+  override fun toString(): String {
+    return "ImportRecordMsg(recordType=$recordType, clientRecordId=$clientRecordId, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, startZoneOffsetSeconds=$startZoneOffsetSeconds, endZoneOffsetSeconds=$endZoneOffsetSeconds, doubleFields=$doubleFields, intFields=$intFields, name=$name, samples=$samples, sleepStages=$sleepStages, routePoints=$routePoints)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class ActivityWriteRequestMsg (
   val exerciseType: Long,
   val startEpochMs: Long,
@@ -3134,10 +3309,25 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       182.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ActivityWriteRequestMsg.fromList(it)
+          ImportSampleMsg.fromList(it)
         }
       }
       183.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ImportSleepStageMsg.fromList(it)
+        }
+      }
+      184.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ImportRecordMsg.fromList(it)
+        }
+      }
+      185.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ActivityWriteRequestMsg.fromList(it)
+        }
+      }
+      186.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           SleepDataMsg.fromList(it)
         }
@@ -3359,12 +3549,24 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(181)
         writeValue(stream, value.toList())
       }
-      is ActivityWriteRequestMsg -> {
+      is ImportSampleMsg -> {
         stream.write(182)
         writeValue(stream, value.toList())
       }
-      is SleepDataMsg -> {
+      is ImportSleepStageMsg -> {
         stream.write(183)
+        writeValue(stream, value.toList())
+      }
+      is ImportRecordMsg -> {
+        stream.write(184)
+        writeValue(stream, value.toList())
+      }
+      is ActivityWriteRequestMsg -> {
+        stream.write(185)
+        writeValue(stream, value.toList())
+      }
+      is SleepDataMsg -> {
+        stream.write(186)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -3537,6 +3739,8 @@ interface HealthConnectHostApi {
   fun writeActivityEntry(request: ActivityWriteRequestMsg, callback: (Result<String>) -> Unit)
   fun updateActivityEntry(id: String, request: ActivityWriteRequestMsg, callback: (Result<Unit>) -> Unit)
   fun deleteActivityEntry(id: String, callback: (Result<Unit>) -> Unit)
+  /** Typed bulk insert of imported records; returns the inserted HC ids. */
+  fun insertImportedRecords(records: List<ImportRecordMsg>, callback: (Result<List<String>>) -> Unit)
 
   companion object {
     /** The codec used by HealthConnectHostApi. */
@@ -5405,6 +5609,26 @@ interface HealthConnectHostApi {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
               } else {
                 reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.insertImportedRecords$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val recordsArg = args[0] as List<ImportRecordMsg>
+            api.insertImportedRecords(recordsArg) { result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
               }
             }
           }
