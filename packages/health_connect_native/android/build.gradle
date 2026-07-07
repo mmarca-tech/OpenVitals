@@ -1,32 +1,17 @@
 // Gradle build for the `health_connect_native` Flutter plugin (Android only).
 //
-// Uses the Groovy DSL to match Flutter's plugin template conventions. The plugin
-// compiles against the AndroidX Health Connect Kotlin client. Version notes are
-// in the `dependencies` block below.
+// Built-in Kotlin (Flutter 3.44+ / AGP 9): the plugin does NOT apply the Kotlin
+// Gradle Plugin itself — AGP applies KGP automatically for modules with Kotlin
+// sources. So only `com.android.library` is declared here, and Kotlin options use
+// the top-level `kotlin { compilerOptions {} }` DSL (not the deprecated
+// `android.kotlinOptions`). This keeps the plugin off the "applies KGP" warning.
+// Repositories (google/mavenCentral) come from the app root's `allprojects` block.
+plugins {
+    id "com.android.library"
+}
+
 group = "tech.mmarca.openvitals.health_connect_native"
 version = "1.0"
-
-buildscript {
-    ext.kotlin_version = "2.1.20"
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.7.3"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-
-rootProject.allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
 
 android {
     namespace = "tech.mmarca.openvitals.health_connect_native"
@@ -37,14 +22,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-        // MindfulnessSessionRecord + its aggregate metric and feature flag are
-        // gated behind an experimental opt-in in connect-client; opt in here so
-        // the record converter/aggregate map can reference them.
-        freeCompilerArgs += ["-opt-in=androidx.health.connect.client.feature.ExperimentalMindfulnessSessionApi"]
-    }
-
     defaultConfig {
         // minSdk 26 is required by Health Connect (androidx.health) and matches
         // the host app.
@@ -52,12 +29,21 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        // MindfulnessSessionRecord + its aggregate metric and feature flag are
+        // gated behind an experimental opt-in in connect-client; opt in here so
+        // the record converter/aggregate map can reference them.
+        freeCompilerArgs.add("-opt-in=androidx.health.connect.client.feature.ExperimentalMindfulnessSessionApi")
+    }
+}
+
 dependencies {
-    // AndroidX Health Connect Kotlin client. The host app's `health` plugin
-    // already pulls connect-client 1.2.0-alpha02, so Gradle unifies to the
-    // highest requested version across modules (a cached alpha here); declaring
-    // the 1.1.0 stable line keeps this module's own contract on a released
-    // version while remaining compatible with the app-wide resolution.
+    // AndroidX Health Connect Kotlin client. The host app already pulls a newer
+    // connect-client (1.2.0-alpha02); Gradle unifies to the highest requested
+    // version across modules, so this module's own contract stays on the released
+    // 1.1.0 line while remaining compatible with the app-wide resolution.
     implementation "androidx.health.connect:connect-client:1.1.0"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 }
