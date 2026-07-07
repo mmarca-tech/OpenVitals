@@ -4,8 +4,9 @@ package tech.mmarca.openvitals.health_connect_native
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
@@ -17,7 +18,6 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.PluginRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -56,37 +56,17 @@ class HealthConnectNativePlugin :
   private var pendingPermissions: List<String> = emptyList()
 
   /**
-   * Result listener for the Health Connect permission contract. On our request
-   * code it re-checks the granted permissions and resolves the pending callback
-   * with whether every requested permission ended up granted.
+   * Launcher for the Health Connect permission contract, registered against the
+   * host [ComponentActivity]'s `ActivityResultRegistry` on attach.
+   *
+   * In modern connect-client (Android 14+), Health Connect permissions are
+   * runtime permissions and `createRequestPermissionResultContract()` returns
+   * the Activity-Result-API contract; its intent
+   * (`androidx.activity.result.contract.action.REQUEST_PERMISSIONS`) is a
+   * sentinel that MUST be dispatched through a registered launcher, not via
+   * `startActivityForResult` (which throws `ActivityNotFoundException`).
    */
-  private val activityResultListener =
-    PluginRegistry.ActivityResultListener { requestCode: Int, resultCode: Int, _: Intent? ->
-      if (requestCode != PERMISSION_REQUEST_CODE) {
-        false
-      } else {
-        Log.i(TAG, "onActivityResult: permission contract returned resultCode=$resultCode")
-        val callback = pendingPermissionCallback
-        val requested = pendingPermissions
-        pendingPermissionCallback = null
-        pendingPermissions = emptyList()
-        if (callback == null) {
-          true
-        } else {
-          scope.launch {
-            try {
-              val granted = withContext(Dispatchers.IO) {
-                client().permissionController.getGrantedPermissions()
-              }
-              callback(Result.success(requested.isNotEmpty() && requested.all { it in granted }))
-            } catch (e: Throwable) {
-              callback(Result.failure(e))
-            }
-          }
-          true
-        }
-      }
-    }
+  private var permissionLauncher: ActivityResultLauncher<Set<String>>? = null
 
   // ---------------------------------------------------------------------------
   // FlutterPlugin
@@ -110,8 +90,37 @@ class HealthConnectNativePlugin :
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     activityBinding = binding
     activity = binding.activity
-    binding.addActivityResultListener(activityResultListener)
+    registerPermissionLauncher(binding.activity)
     Log.i(TAG, "onAttachedToActivity: ${binding.activity}")
+  }
+
+  /**
+   * Registers (or re-registers) the Health Connect permission launcher against
+   * the host activity's `ActivityResultRegistry`. The no-lifecycle
+   * `register(key, contract, callback)` overload may be called at any time
+   * (after the activity is already RESUMED, which is our case as a plugin), and
+   * returns a launcher we can `launch(...)` immediately.
+   */
+  private fun registerPermissionLauncher(activity: Activity) {
+    val componentActivity = activity as? ComponentActivity
+    if (componentActivity == null) {
+      Log.w(TAG, "activity is not a ComponentActivity; permission requests unavailable")
+      return
+    }
+    permissionLauncher?.unregister()
+    permissionLauncher = componentActivity.activityResultRegistry.register(
+      "tech.mmarca.openvitals.health_connect_native.permissions",
+      PermissionController.createRequestPermissionResultContract(),
+    ) { granted: Set<String> ->
+      val callback = pendingPermissionCallback
+      val requested = pendingPermissions
+      pendingPermissionCallback = null
+      pendingPermissions = emptyList()
+      Log.i(TAG, "permission result: granted ${granted.size} of ${requested.size} requested")
+      callback?.invoke(
+        Result.success(requested.isNotEmpty() && granted.containsAll(requested)),
+      )
+    }
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
@@ -123,7 +132,8 @@ class HealthConnectNativePlugin :
   }
 
   override fun onDetachedFromActivity() {
-    activityBinding?.removeActivityResultListener(activityResultListener)
+    permissionLauncher?.unregister()
+    permissionLauncher = null
     activityBinding = null
     activity = null
   }
@@ -154,10 +164,10 @@ class HealthConnectNativePlugin :
     permissions: List<String>,
     callback: (Result<Boolean>) -> Unit,
   ) {
-    val currentActivity = activity
-    Log.i(TAG, "requestPermissions: ${permissions.size} perms, activity=$currentActivity")
-    if (currentActivity == null) {
-      Log.w(TAG, "requestPermissions: no activity attached; cannot launch contract")
+    val launcher = permissionLauncher
+    Log.i(TAG, "requestPermissions: ${permissions.size} perms, launcher=$launcher")
+    if (launcher == null) {
+      Log.w(TAG, "requestPermissions: no permission launcher (activity not attached)")
       callback(Result.success(false))
       return
     }
@@ -168,11 +178,7 @@ class HealthConnectNativePlugin :
     try {
       pendingPermissionCallback = callback
       pendingPermissions = permissions
-      val intent = PermissionController
-        .createRequestPermissionResultContract()
-        .createIntent(currentActivity, permissions.toSet())
-      Log.i(TAG, "requestPermissions: launching intent action=${intent.action} pkg=${intent.`package`}")
-      currentActivity.startActivityForResult(intent, PERMISSION_REQUEST_CODE)
+      launcher.launch(permissions.toSet())
     } catch (e: Throwable) {
       Log.e(TAG, "requestPermissions: failed to launch permission contract", e)
       pendingPermissionCallback = null
@@ -479,7 +485,6 @@ class HealthConnectNativePlugin :
 
   private companion object {
     private const val TAG = "HealthConnectNative"
-    private const val PERMISSION_REQUEST_CODE = 0xB1A2
     private const val READ_PAGE_SIZE = 1000
   }
 }
