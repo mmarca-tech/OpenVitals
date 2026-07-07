@@ -6,6 +6,8 @@ import '../di/providers.dart';
 import '../features/achievements/achievements_screen.dart';
 import '../features/activity/activities_screen.dart';
 import '../features/activity/activity_detail_screen.dart';
+import '../features/activity/activity_metric.dart';
+import '../features/activity/activity_metric_screen.dart';
 import '../features/activity/calories_screen.dart';
 import '../features/activity/cardio_load_detail_screen.dart';
 import '../features/body/body_screen.dart';
@@ -354,6 +356,12 @@ const Set<DashboardMetricId> _cardioMetrics = {
 Widget _metricScreen(String? raw) {
   final id = DashboardMetricId.fromStorage(raw);
   if (id == null) return MetricScreen(metricId: raw);
+  // The six movement metrics (steps/distance/calories-out/active-calories/
+  // floors/elevation/wheelchair) share the parametric activity detail screen.
+  final activityMetric = ActivityMetric.fromRouteName(raw);
+  if (activityMetric != null) {
+    return ActivityMetricScreen(metric: activityMetric);
+  }
   if (_heartMetrics.contains(id)) return HeartMetricScreen(metricId: raw!);
   if (_nutritionMetrics.contains(id)) return const NutritionScreen();
   if (_bodyMetrics.contains(id)) return const BodyScreen();
