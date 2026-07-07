@@ -51,7 +51,11 @@ abstract final class HcPermissions {
   static final String readWheelchairPushes = _read('WHEELCHAIR_PUSHES');
   static final String readMindfulness = _read('MINDFULNESS');
   static final String readMenstruationFlow = _read('MENSTRUATION');
-  static final String readMenstruationPeriod = _read('MENSTRUATION_PERIOD');
+  // Health Connect exposes a single READ_MENSTRUATION permission covering both
+  // MenstruationFlowRecord and MenstruationPeriodRecord — there is no separate
+  // READ_MENSTRUATION_PERIOD permission. Alias to the real (grantable) string so
+  // period reads gated on this constant work once menstruation access is granted.
+  static final String readMenstruationPeriod = _read('MENSTRUATION');
   static final String readOvulationTest = _read('OVULATION_TEST');
   static final String readCervicalMucus = _read('CERVICAL_MUCUS');
   static final String readBasalBodyTemperature = _read('BASAL_BODY_TEMPERATURE');
@@ -270,8 +274,9 @@ class HealthPermissionService {
       };
 
   Set<String> get cyclePermissions => {
+        // READ_MENSTRUATION covers both flow and period records (no separate
+        // READ_MENSTRUATION_PERIOD permission exists in Health Connect).
         _read('MENSTRUATION'),
-        _read('MENSTRUATION_PERIOD'),
         _read('OVULATION_TEST'),
         _read('CERVICAL_MUCUS'),
         _read('BASAL_BODY_TEMPERATURE'),
