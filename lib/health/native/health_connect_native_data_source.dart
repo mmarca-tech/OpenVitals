@@ -10,6 +10,7 @@ import '../../domain/model/body_models.dart';
 import '../../domain/model/cycle_models.dart';
 import '../../domain/model/health_connect_availability.dart';
 import '../../domain/model/heart_models.dart';
+import '../../domain/model/mindfulness_models.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../domain/model/sleep_models.dart';
 import '../../domain/model/sleep_session_merging.dart';
@@ -343,14 +344,52 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     ];
   }
 
+  // ── Hydration (Phase 2) — typed via native HydrationHealthReader ────────────
+
+  HydrationEntry _hydrationEntry(HydrationEntryMsg m) => HydrationEntry(
+        startTime: _fromMs(m.startEpochMs),
+        endTime: _fromMs(m.endEpochMs),
+        liters: m.liters,
+        source: m.source,
+        id: m.id,
+        clientRecordId: m.clientRecordId,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
   @override
-  Future<double?> readHydrationLiters(LocalDate date) async {
-    final agg = await _aggregate(
-      const ['Hydration.volume'],
-      _dayStart(date),
-      _dayEnd(date),
+  Future<double?> readHydrationLiters(LocalDate date) => _catch(
+        () => _api.readHydrationLiters(
+          _dayStart(date).millisecondsSinceEpoch,
+          _dayEnd(date).millisecondsSinceEpoch,
+        ),
+        null,
+      );
+
+  @override
+  Future<List<DailyHydration>> readDailyHydration(
+    LocalDate startDate,
+    LocalDate endDate,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readDailyHydration(
+        _dayStart(startDate).millisecondsSinceEpoch,
+        _dayEnd(endDate).millisecondsSinceEpoch,
+      ),
+      const <DailyHydrationMsg>[],
     );
-    return agg['Hydration.volume'];
+    // Native returns raw per-day aggregate buckets; fill the full range here so
+    // days without hydration data still appear as 0 L (matches the reference).
+    final byDay = <int, double>{
+      for (final m in msgs)
+        LocalDate.fromDateTime(_fromMs(m.dateEpochMs)).epochDay: m.liters,
+    };
+    final out = <DailyHydration>[];
+    for (var date = startDate;
+        date.compareTo(endDate) <= 0;
+        date = date.plusDays(1)) {
+      out.add(DailyHydration(date: date, liters: byDay[date.epochDay] ?? 0.0));
+    }
+    return out;
   }
 
   @override
@@ -358,18 +397,20 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('Hydration', start, end);
-    return [
-      for (final m in maps) HealthRecordJson.hydrationEntry(m, appPackageName),
-    ];
+    final msgs = await _catch(
+      () => _api.readHydrationEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <HydrationEntryMsg>[],
+    );
+    return [for (final m in msgs) _hydrationEntry(m)];
   }
 
   @override
   Future<HydrationEntry?> readHydrationEntry(String id) async {
-    final map = await _readOne('Hydration', id);
-    return map == null
-        ? null
-        : HealthRecordJson.hydrationEntry(map, appPackageName);
+    final m = await _catch(() => _api.readHydrationEntry(id), null);
+    return m == null ? null : _hydrationEntry(m);
   }
 
   // ── Body (Phase 1) — typed via native BodyHealthReader ──────────────────────
@@ -846,32 +887,112 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   }
 
   @override
-  Future<String> writeHydrationEntry(HydrationWriteRequest request) async {
-    final drinkSuffix =
-        request.drinkId == null ? '' : '_drink_${request.drinkId}';
-    final clientRecordId =
-        'openvitals_hydration_${request.time.millisecondsSinceEpoch}${drinkSuffix}_${_newId()}';
-    await _insert(
-      HealthRecordJson.intervalRecord(
-        'Hydration',
-        request.time,
-        request.time,
-        clientRecordId,
-        fields: {'volumeLiters': request.volumeLiters},
+  Future<String> writeHydrationEntry(HydrationWriteRequest request) =>
+      _api.writeHydrationEntry(
+        HydrationWriteRequestMsg(
+          timeEpochMs: request.time.millisecondsSinceEpoch,
+          volumeLiters: request.volumeLiters,
+          drinkId: request.drinkId,
+        ),
+      );
+
+  @override
+  Future<void> updateHydrationEntry(
+    String id,
+    HydrationWriteRequest request,
+  ) =>
+      _api.updateHydrationEntry(
+        id,
+        HydrationWriteRequestMsg(
+          timeEpochMs: request.time.millisecondsSinceEpoch,
+          volumeLiters: request.volumeLiters,
+          drinkId: request.drinkId,
+        ),
+      );
+
+  @override
+  Future<String?> deleteHydrationEntry(String id) =>
+      // Returns the deleted record's clientRecordId (for paired-nutrition
+      // cleanup, handled in the nutrition phase); ownership is enforced natively.
+      _catch(() => _api.deleteHydrationEntry(id), null);
+
+  // ── Mindfulness (Phase 2) — typed via native MindfulnessHealthReader ────────
+
+  MindfulnessSession _mindfulnessSession(MindfulnessSessionMsg m) =>
+      MindfulnessSession(
+        id: m.id,
+        title: m.title,
+        startTime: _fromMs(m.startEpochMs),
+        endTime: _fromMs(m.endEpochMs),
+        durationMs: m.durationMs,
+        source: m.source,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  @override
+  Future<List<MindfulnessSession>> readMindfulnessSessions(
+    DateTime start,
+    DateTime end,
+  ) async {
+    if (!isMindfulnessSessionAvailable()) return const <MindfulnessSession>[];
+    final msgs = await _catch(
+      () => _api.readMindfulnessSessions(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
       ),
+      const <MindfulnessSessionMsg>[],
     );
-    return clientRecordId;
+    return [for (final m in msgs) _mindfulnessSession(m)];
   }
 
   @override
-  Future<String?> deleteHydrationEntry(String id) async {
-    await _catch(
-      () => _api.deleteRecordsByIds('Hydration', [id]),
-      null,
-    );
-    // Paired-nutrition cleanup by clientRecordId is a no-op on the base source.
-    return null;
+  Future<MindfulnessSession?> readMindfulnessSession(String id) async {
+    if (!isMindfulnessSessionAvailable()) return null;
+    final m = await _catch(() => _api.readMindfulnessSession(id), null);
+    return m == null ? null : _mindfulnessSession(m);
   }
+
+  @override
+  Future<int> readMindfulnessMinutes(LocalDate date) async {
+    if (!isMindfulnessSessionAvailable()) return 0;
+    return _catch(
+      () => _api.readMindfulnessMinutes(
+        _dayStart(date).millisecondsSinceEpoch,
+        _dayEnd(date).millisecondsSinceEpoch,
+      ),
+      0,
+    );
+  }
+
+  @override
+  Future<String> writeMindfulnessSessionEntry(
+    MindfulnessSessionWriteRequest request,
+  ) =>
+      _api.writeMindfulnessSessionEntry(
+        MindfulnessSessionWriteRequestMsg(
+          title: request.title,
+          startEpochMs: request.startTime.millisecondsSinceEpoch,
+          endEpochMs: request.endTime.millisecondsSinceEpoch,
+        ),
+      );
+
+  @override
+  Future<void> updateMindfulnessSessionEntry(
+    String id,
+    MindfulnessSessionWriteRequest request,
+  ) =>
+      _api.updateMindfulnessSessionEntry(
+        id,
+        MindfulnessSessionWriteRequestMsg(
+          title: request.title,
+          startEpochMs: request.startTime.millisecondsSinceEpoch,
+          endEpochMs: request.endTime.millisecondsSinceEpoch,
+        ),
+      );
+
+  @override
+  Future<void> deleteMindfulnessSessionEntry(String id) =>
+      _api.deleteMindfulnessSessionEntry(id);
 
   @override
   Future<String> writeBodyMeasurementEntry(

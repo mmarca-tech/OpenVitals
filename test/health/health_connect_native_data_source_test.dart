@@ -122,6 +122,15 @@ class FakeHostApi extends HealthConnectHostApi {
     bodyWriteRequest = request;
     return 'openvitals_body_${request.type.name}_written';
   }
+
+  // ── Hydration (Phase 2) typed fakes ───────────────────────────────────────
+  HydrationWriteRequestMsg? hydrationWriteRequest;
+
+  @override
+  Future<String> writeHydrationEntry(HydrationWriteRequestMsg request) async {
+    hydrationWriteRequest = request;
+    return 'openvitals_hydration_written';
+  }
 }
 
 HealthConnectNativeDataSource _source(FakeHostApi api) =>
@@ -409,7 +418,9 @@ void main() {
   });
 
   group('writes', () {
-    test('writeHydrationEntry builds a Hydration record in litres', () async {
+    test('writeHydrationEntry forwards a typed request', () async {
+      // The record build (litres->mL, clientRecordId) now lives in the native
+      // HydrationHealthReader; the data source forwards the typed request.
       final api = FakeHostApi();
       final id = await _source(api).writeHydrationEntry(
         HydrationWriteRequest(
@@ -418,12 +429,9 @@ void main() {
         ),
       );
       expect(id, startsWith('openvitals_hydration_'));
-      final record = api.inserted.single;
-      expect(record['recordType'], 'Hydration');
-      expect(record['volumeLiters'], 0.25);
-      expect(record['clientRecordId'], id);
-      expect(record['recordingMethod'], recordingMethodManual);
-      expect(record['startEpochMs'], _ms(2026, 1, 2, 10));
+      final req = api.hydrationWriteRequest!;
+      expect(req.volumeLiters, 0.25);
+      expect(req.timeEpochMs, _ms(2026, 1, 2, 10));
     });
 
     test('writeBodyMeasurementEntry forwards a typed request', () async {

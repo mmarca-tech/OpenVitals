@@ -66,9 +66,17 @@ class HealthConnectNativePlugin :
 
   /** Typed domain readers (populated in [onAttachedToEngine]). */
   private var bodyReader: BodyHealthReader? = null
+  private var hydrationReader: HydrationHealthReader? = null
+  private var mindfulnessReader: MindfulnessHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireHydrationReader(): HydrationHealthReader =
+    hydrationReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireMindfulnessReader(): MindfulnessHealthReader =
+    mindfulnessReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -104,6 +112,8 @@ class HealthConnectNativePlugin :
     )
     readerSupport = support
     bodyReader = BodyHealthReader(support, context.packageName)
+    hydrationReader = HydrationHealthReader(support, context.packageName)
+    mindfulnessReader = MindfulnessHealthReader(support, context.packageName)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -114,6 +124,8 @@ class HealthConnectNativePlugin :
     availabilityService = null
     readerSupport = null
     bodyReader = null
+    hydrationReader = null
+    mindfulnessReader = null
     scope.cancel()
   }
 
@@ -322,6 +334,113 @@ class HealthConnectNativePlugin :
     id: String,
     callback: (Result<Unit>) -> Unit,
   ) = launchCatching(callback) { requireBodyReader().deleteBodyMeasurementEntry(type, id) }
+
+  // ---------------------------------------------------------------------------
+  // Hydration (Phase 2)
+  // ---------------------------------------------------------------------------
+
+  override fun readHydrationLiters(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Double?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHydrationReader().readHydrationLiters(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readDailyHydration(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<DailyHydrationMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHydrationReader().readDailyHydration(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readHydrationEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<HydrationEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHydrationReader().readHydrationEntries(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readHydrationEntry(
+    id: String,
+    callback: (Result<HydrationEntryMsg?>) -> Unit,
+  ) = launchCatching(callback) { requireHydrationReader().readHydrationEntry(id) }
+
+  override fun writeHydrationEntry(
+    request: HydrationWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireHydrationReader().writeHydrationEntry(request) }
+
+  override fun updateHydrationEntry(
+    id: String,
+    request: HydrationWriteRequestMsg,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireHydrationReader().updateHydrationEntry(id, request) }
+
+  override fun deleteHydrationEntry(
+    id: String,
+    callback: (Result<String?>) -> Unit,
+  ) = launchCatching(callback) { requireHydrationReader().deleteHydrationEntry(id) }
+
+  // ---------------------------------------------------------------------------
+  // Mindfulness (Phase 2)
+  // ---------------------------------------------------------------------------
+
+  override fun readMindfulnessSessions(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<MindfulnessSessionMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireMindfulnessReader().readMindfulnessSessions(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun readMindfulnessSession(
+    id: String,
+    callback: (Result<MindfulnessSessionMsg?>) -> Unit,
+  ) = launchCatching(callback) { requireMindfulnessReader().readMindfulnessSession(id) }
+
+  override fun readMindfulnessMinutes(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Long>) -> Unit,
+  ) = launchCatching(callback) {
+    requireMindfulnessReader().readMindfulnessMinutes(
+      Instant.ofEpochMilli(startEpochMs),
+      Instant.ofEpochMilli(endEpochMs),
+    )
+  }
+
+  override fun writeMindfulnessSessionEntry(
+    request: MindfulnessSessionWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireMindfulnessReader().writeMindfulnessSessionEntry(request) }
+
+  override fun updateMindfulnessSessionEntry(
+    id: String,
+    request: MindfulnessSessionWriteRequestMsg,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) {
+    requireMindfulnessReader().updateMindfulnessSessionEntry(id, request)
+  }
+
+  override fun deleteMindfulnessSessionEntry(
+    id: String,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireMindfulnessReader().deleteMindfulnessSessionEntry(id) }
 
   override fun getGrantedPermissions(
     permissions: List<String>,

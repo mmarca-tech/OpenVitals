@@ -598,6 +598,317 @@ class BodyMeasurementWriteRequestMsg {
   }
 }
 
+class HydrationEntryMsg {
+  HydrationEntryMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.liters,
+    required this.source,
+    required this.id,
+    this.clientRecordId,
+    required this.isOpenVitalsEntry,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  double liters;
+
+  String source;
+
+  String id;
+
+  String? clientRecordId;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      liters,
+      source,
+      id,
+      clientRecordId,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HydrationEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return HydrationEntryMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      liters: result[2]! as double,
+      source: result[3]! as String,
+      id: result[4]! as String,
+      clientRecordId: result[5] as String?,
+      isOpenVitalsEntry: result[6]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HydrationEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(liters, other.liters) && _deepEquals(source, other.source) && _deepEquals(id, other.id) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HydrationEntryMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, liters: $liters, source: $source, id: $id, clientRecordId: $clientRecordId, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+/// One daily hydration total; [dateEpochMs] is local midnight of the day.
+class DailyHydrationMsg {
+  DailyHydrationMsg({
+    required this.dateEpochMs,
+    required this.liters,
+  });
+
+  int dateEpochMs;
+
+  double liters;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      dateEpochMs,
+      liters,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DailyHydrationMsg decode(Object result) {
+    result as List<Object?>;
+    return DailyHydrationMsg(
+      dateEpochMs: result[0]! as int,
+      liters: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DailyHydrationMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(dateEpochMs, other.dateEpochMs) && _deepEquals(liters, other.liters);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DailyHydrationMsg(dateEpochMs: $dateEpochMs, liters: $liters)';
+  }
+}
+
+class HydrationWriteRequestMsg {
+  HydrationWriteRequestMsg({
+    required this.timeEpochMs,
+    required this.volumeLiters,
+    this.drinkId,
+  });
+
+  int timeEpochMs;
+
+  double volumeLiters;
+
+  String? drinkId;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      volumeLiters,
+      drinkId,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HydrationWriteRequestMsg decode(Object result) {
+    result as List<Object?>;
+    return HydrationWriteRequestMsg(
+      timeEpochMs: result[0]! as int,
+      volumeLiters: result[1]! as double,
+      drinkId: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HydrationWriteRequestMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(volumeLiters, other.volumeLiters) && _deepEquals(drinkId, other.drinkId);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HydrationWriteRequestMsg(timeEpochMs: $timeEpochMs, volumeLiters: $volumeLiters, drinkId: $drinkId)';
+  }
+}
+
+class MindfulnessSessionMsg {
+  MindfulnessSessionMsg({
+    required this.id,
+    this.title,
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.durationMs,
+    required this.source,
+    required this.isOpenVitalsEntry,
+  });
+
+  String id;
+
+  String? title;
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  int durationMs;
+
+  String source;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      title,
+      startEpochMs,
+      endEpochMs,
+      durationMs,
+      source,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MindfulnessSessionMsg decode(Object result) {
+    result as List<Object?>;
+    return MindfulnessSessionMsg(
+      id: result[0]! as String,
+      title: result[1] as String?,
+      startEpochMs: result[2]! as int,
+      endEpochMs: result[3]! as int,
+      durationMs: result[4]! as int,
+      source: result[5]! as String,
+      isOpenVitalsEntry: result[6]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MindfulnessSessionMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(durationMs, other.durationMs) && _deepEquals(source, other.source) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MindfulnessSessionMsg(id: $id, title: $title, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, durationMs: $durationMs, source: $source, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class MindfulnessSessionWriteRequestMsg {
+  MindfulnessSessionWriteRequestMsg({
+    required this.title,
+    required this.startEpochMs,
+    required this.endEpochMs,
+  });
+
+  String title;
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      title,
+      startEpochMs,
+      endEpochMs,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MindfulnessSessionWriteRequestMsg decode(Object result) {
+    result as List<Object?>;
+    return MindfulnessSessionWriteRequestMsg(
+      title: result[0]! as String,
+      startEpochMs: result[1]! as int,
+      endEpochMs: result[2]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MindfulnessSessionWriteRequestMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(title, other.title) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MindfulnessSessionWriteRequestMsg(title: $title, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -633,6 +944,21 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is BodyMeasurementWriteRequestMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
+    }    else if (value is HydrationEntryMsg) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is DailyHydrationMsg) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is HydrationWriteRequestMsg) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is MindfulnessSessionMsg) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is MindfulnessSessionWriteRequestMsg) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -660,6 +986,16 @@ class _PigeonCodec extends StandardMessageCodec {
         return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
       case 137:
         return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+      case 138:
+        return HydrationEntryMsg.decode(readValue(buffer)!);
+      case 139:
+        return DailyHydrationMsg.decode(readValue(buffer)!);
+      case 140:
+        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
+      case 141:
+        return MindfulnessSessionMsg.decode(readValue(buffer)!);
+      case 142:
+        return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1353,6 +1689,250 @@ class HealthConnectHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[type, id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<double?> readHydrationLiters(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHydrationLiters$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as double?;
+  }
+
+  Future<List<DailyHydrationMsg>> readDailyHydration(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyHydration$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<DailyHydrationMsg>();
+  }
+
+  Future<List<HydrationEntryMsg>> readHydrationEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHydrationEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<HydrationEntryMsg>();
+  }
+
+  Future<HydrationEntryMsg?> readHydrationEntry(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHydrationEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as HydrationEntryMsg?;
+  }
+
+  Future<String> writeHydrationEntry(HydrationWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writeHydrationEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> updateHydrationEntry(String id, HydrationWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.updateHydrationEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id, request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<String?> deleteHydrationEntry(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteHydrationEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  Future<List<MindfulnessSessionMsg>> readMindfulnessSessions(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMindfulnessSessions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<MindfulnessSessionMsg>();
+  }
+
+  Future<MindfulnessSessionMsg?> readMindfulnessSession(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMindfulnessSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as MindfulnessSessionMsg?;
+  }
+
+  Future<int> readMindfulnessMinutes(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMindfulnessMinutes$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<String> writeMindfulnessSessionEntry(MindfulnessSessionWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writeMindfulnessSessionEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> updateMindfulnessSessionEntry(String id, MindfulnessSessionWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.updateMindfulnessSessionEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id, request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> deleteMindfulnessSessionEntry(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteMindfulnessSessionEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

@@ -142,6 +142,67 @@ class BodyMeasurementWriteRequestMsg {
   BodyMeasurementWriteRequestMsg(this.type, this.timeEpochMs, this.value);
 }
 
+// ── Hydration + Mindfulness (Phase 2) ────────────────────────────────────────
+
+class HydrationEntryMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final double liters;
+  final String source;
+  final String id;
+  final String? clientRecordId;
+  final bool isOpenVitalsEntry;
+  HydrationEntryMsg(
+    this.startEpochMs,
+    this.endEpochMs,
+    this.liters,
+    this.source,
+    this.id,
+    this.clientRecordId,
+    this.isOpenVitalsEntry,
+  );
+}
+
+/// One daily hydration total; [dateEpochMs] is local midnight of the day.
+class DailyHydrationMsg {
+  final int dateEpochMs;
+  final double liters;
+  DailyHydrationMsg(this.dateEpochMs, this.liters);
+}
+
+class HydrationWriteRequestMsg {
+  final int timeEpochMs;
+  final double volumeLiters;
+  final String? drinkId;
+  HydrationWriteRequestMsg(this.timeEpochMs, this.volumeLiters, this.drinkId);
+}
+
+class MindfulnessSessionMsg {
+  final String id;
+  final String? title;
+  final int startEpochMs;
+  final int endEpochMs;
+  final int durationMs;
+  final String source;
+  final bool isOpenVitalsEntry;
+  MindfulnessSessionMsg(
+    this.id,
+    this.title,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.durationMs,
+    this.source,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class MindfulnessSessionWriteRequestMsg {
+  final String title;
+  final int startEpochMs;
+  final int endEpochMs;
+  MindfulnessSessionWriteRequestMsg(this.title, this.startEpochMs, this.endEpochMs);
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -301,4 +362,36 @@ abstract class HealthConnectHostApi {
   void updateBodyMeasurementEntry(String id, BodyMeasurementWriteRequestMsg request);
   @async
   void deleteBodyMeasurementEntry(BodyMeasurementTypeMsg type, String id);
+
+  // ── Hydration (Phase 2) ────────────────────────────────────────────────────
+
+  @async
+  double? readHydrationLiters(int startEpochMs, int endEpochMs);
+  @async
+  List<DailyHydrationMsg> readDailyHydration(int startEpochMs, int endEpochMs);
+  @async
+  List<HydrationEntryMsg> readHydrationEntries(int startEpochMs, int endEpochMs);
+  @async
+  HydrationEntryMsg? readHydrationEntry(String id);
+  @async
+  String writeHydrationEntry(HydrationWriteRequestMsg request);
+  @async
+  void updateHydrationEntry(String id, HydrationWriteRequestMsg request);
+  @async
+  String? deleteHydrationEntry(String id);
+
+  // ── Mindfulness (Phase 2) ──────────────────────────────────────────────────
+
+  @async
+  List<MindfulnessSessionMsg> readMindfulnessSessions(int startEpochMs, int endEpochMs);
+  @async
+  MindfulnessSessionMsg? readMindfulnessSession(String id);
+  @async
+  int readMindfulnessMinutes(int startEpochMs, int endEpochMs);
+  @async
+  String writeMindfulnessSessionEntry(MindfulnessSessionWriteRequestMsg request);
+  @async
+  void updateMindfulnessSessionEntry(String id, MindfulnessSessionWriteRequestMsg request);
+  @async
+  void deleteMindfulnessSessionEntry(String id);
 }
