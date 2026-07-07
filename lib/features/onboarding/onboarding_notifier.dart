@@ -146,6 +146,18 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
+  /// Re-reads the granted permission set without the full-screen loader. Called
+  /// when the app returns to the foreground (e.g. after the user granted access
+  /// manually in the Health Connect settings page), so category rows flip to
+  /// "Granted" without needing an app restart.
+  Future<void> refreshGrantedPermissions() async {
+    if (state.availability != HealthConnectAvailability.available) return;
+    final granted = await _repo.grantedPermissions();
+    if (!ref.mounted || granted == state.grantedPermissions) return;
+    state = state.copyWith(grantedPermissions: granted);
+    ref.invalidate(grantedHealthPermissionsProvider);
+  }
+
   /// Requests [permissions] then re-reads the granted set (Kotlin
   /// `onPermissionsResult`). No-op for an empty request.
   ///

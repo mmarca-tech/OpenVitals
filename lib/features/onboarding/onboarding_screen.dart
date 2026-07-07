@@ -18,13 +18,41 @@ import 'onboarding_notifier.dart';
 ///
 /// All copy is localized one-to-one from the Kotlin `strings.xml` onboarding_*
 /// resources via [AppLocalizations].
-class OnboardingScreen extends ConsumerWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, this.onOnboardingComplete});
 
   final VoidCallback? onOnboardingComplete;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    // When the user returns from the Health Connect page (or the permission
+    // dialog), re-check what's granted so category rows update to "Granted"
+    // without an app restart.
+    if (lifecycleState == AppLifecycleState.resumed) {
+      ref.read(onboardingNotifierProvider.notifier).refreshGrantedPermissions();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final notifier = ref.read(onboardingNotifierProvider.notifier);
 
@@ -41,7 +69,7 @@ class OnboardingScreen extends ConsumerWidget {
             notifier: notifier,
             onComplete: () {
               notifier.completeOnboarding();
-              onOnboardingComplete?.call();
+              widget.onOnboardingComplete?.call();
             },
           ),
         ),
