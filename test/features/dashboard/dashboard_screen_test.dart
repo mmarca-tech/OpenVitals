@@ -13,9 +13,10 @@ import 'package:openvitals/features/dashboard/dashboard_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
-import 'package:openvitals/ui/components/metric_card.dart';
+import 'package:openvitals/ui/components/metric_stat_card.dart';
 import 'package:openvitals/ui/components/period_navigator.dart';
 import 'package:openvitals/ui/components/permission_callout.dart';
+import 'package:openvitals/ui/components/summary_ring_card.dart';
 
 /// A [HealthDataSource] whose availability + granted-permission answers are
 /// fixed, so the real [HealthRepositoryImpl] over it (and the notifier) resolve
@@ -91,9 +92,22 @@ Future<Widget> _bootstrap({
   );
 }
 
+/// Drives the layout on a tall test surface. The square hero ring cards are half
+/// the screen wide, so on the default 800×600 surface they inflate to ~380dp
+/// tall and push the lazily-built stat-tile carousel outside the render cache; a
+/// taller viewport keeps the whole summary column on screen (and the width stays
+/// wide enough for the permission callout not to overflow).
+void _usePhoneViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 void main() {
-  testWidgets('shows a loader then renders grouped metric cards',
+  testWidgets('shows a loader then renders the summary dashboard',
       (tester) async {
+    _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(availability: HealthConnectAvailability.available),
     );
@@ -105,13 +119,19 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(DayNavigator), findsOneWidget);
-    expect(find.byType(MetricCard), findsWidgets);
+    // Two hero ring cards (Steps + Weekly cardio) and a carousel of stat tiles.
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
+    expect(find.byType(MetricStatCard), findsWidgets);
+    // The Log / Start quick-action row.
+    expect(find.text('Log'), findsOneWidget);
+    expect(find.text('Start workout'), findsOneWidget);
     expect(find.text('Steps'), findsOneWidget);
     expect(find.text('Today'), findsOneWidget);
   });
 
   testWidgets('renders the inline permission callout when permissions missing',
       (tester) async {
+    _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(
         availability: HealthConnectAvailability.available,
@@ -122,11 +142,13 @@ void main() {
 
     expect(find.byType(PermissionCallout), findsOneWidget);
     // Content still renders below the callout (Kotlin degrades gracefully).
-    expect(find.byType(MetricCard), findsWidgets);
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
+    expect(find.byType(MetricStatCard), findsWidgets);
   });
 
   testWidgets('previous-day navigation moves the selected day back',
       (tester) async {
+    _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(availability: HealthConnectAvailability.available),
     );
@@ -142,12 +164,14 @@ void main() {
 
   testWidgets('shows the access gate when Health Connect is unavailable',
       (tester) async {
+    _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(availability: HealthConnectAvailability.notSupported),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Health Connect unavailable'), findsOneWidget);
-    expect(find.byType(MetricCard), findsNothing);
+    expect(find.byType(SummaryRingCard), findsNothing);
+    expect(find.byType(MetricStatCard), findsNothing);
   });
 }

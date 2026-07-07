@@ -41,6 +41,31 @@ class OpenVitalsAdaptiveScaffold extends StatelessWidget {
           ? l10n.appName
           : navDestinationLabel(l10n, _destinations[index]);
 
+  /// The dashboard top-bar actions (Mindfulness / Achievements / Settings),
+  /// matching the OpenVitals design-system home `TopBar`. Only shown on the
+  /// dashboard branch; other branches keep a bare app bar.
+  List<Widget>? _appBarActions(BuildContext context, int index) {
+    if (index != TopLevelDestination.dashboard.branchIndex) return null;
+    final l10n = AppLocalizations.of(context);
+    return [
+      IconButton(
+        tooltip: l10n.screenMindfulness,
+        icon: const Icon(Icons.self_improvement_outlined),
+        onPressed: () => context.push(AppRoutes.mindfulnessEntry),
+      ),
+      IconButton(
+        tooltip: l10n.screenAchievements,
+        icon: const Icon(Icons.workspace_premium_outlined),
+        onPressed: () => context.push(AppRoutes.achievements),
+      ),
+      IconButton(
+        tooltip: l10n.screenSettings,
+        icon: const Icon(Icons.settings_outlined),
+        onPressed: () => _goBranch(TopLevelDestination.settings.branchIndex),
+      ),
+    ];
+  }
+
   /// Contextual Add action, mirroring the Kotlin `addEntryActionForCurrentRoute`
   /// which surfaces an Add FAB on the Activities section (→ new activity entry).
   Widget? _floatingActionButton(BuildContext context, int index) {
@@ -69,6 +94,7 @@ class OpenVitalsAdaptiveScaffold extends StatelessWidget {
           appBar: AppBar(
             title: Text(_appBarTitle(l10n, index)),
             centerTitle: false,
+            actions: _appBarActions(context, index),
           ),
           floatingActionButton: fab,
           body: useRail
