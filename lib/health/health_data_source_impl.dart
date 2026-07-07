@@ -18,6 +18,7 @@ import '../domain/preferences/sleep_range_mode.dart';
 import 'health_connect_mappers.dart';
 import 'health_data_source.dart';
 import 'health_permissions.dart';
+import '../features/imports/applehealth/apple_health_import_records.dart';
 
 /// Real [HealthDataSource] over the `health` package's [Health] facade.
 ///
@@ -942,6 +943,186 @@ class HealthDataSourceImpl extends HealthDataSource {
   Future<void> deleteActivityEntry(String id) async {
     await _catch(
       () => _health.deleteByUUID(uuid: id, type: HealthDataType.WORKOUT),
+      false,
+    );
+  }
+
+  // ── Apple Health import (Phase 6c) ────────────────────────────────────────
+
+  @override
+  Future<void> insertImportedRecords(List<ImportRecord> records) async {
+    for (final record in records) {
+      await _writeImportedRecord(record);
+    }
+  }
+
+  /// Best-effort mapping of one converted [ImportRecord] onto a `health`-package
+  /// write. Record types with no `health` package / Health Connect equivalent
+  /// are skipped and flagged with `// TODO(health-pkg):`.
+  Future<void> _writeImportedRecord(ImportRecord record) async {
+    switch (record) {
+      case StepsImportRecord r:
+        await _writeImportedScalar(HealthDataType.STEPS, r.count.toDouble(),
+            HealthDataUnit.COUNT, r.startTime, r.endTime, r.clientRecordId);
+      case DistanceImportRecord r:
+        await _writeImportedScalar(HealthDataType.DISTANCE_DELTA, r.meters,
+            HealthDataUnit.METER, r.startTime, r.endTime, r.clientRecordId);
+      case ActiveCaloriesBurnedImportRecord r:
+        await _writeImportedScalar(HealthDataType.ACTIVE_ENERGY_BURNED,
+            r.kilocalories, HealthDataUnit.KILOCALORIE, r.startTime, r.endTime,
+            r.clientRecordId);
+      case FloorsClimbedImportRecord r:
+        await _writeImportedScalar(HealthDataType.FLIGHTS_CLIMBED, r.floors,
+            HealthDataUnit.COUNT, r.startTime, r.endTime, r.clientRecordId);
+      case HeartRateImportRecord r:
+        for (final sample in r.samples) {
+          await _writeImportedScalar(
+              HealthDataType.HEART_RATE,
+              sample.beatsPerMinute.toDouble(),
+              HealthDataUnit.BEATS_PER_MINUTE,
+              sample.time,
+              sample.time,
+              r.clientRecordId);
+        }
+      case RestingHeartRateImportRecord r:
+        await _writeImportedScalar(
+            HealthDataType.RESTING_HEART_RATE,
+            r.beatsPerMinute.toDouble(),
+            HealthDataUnit.BEATS_PER_MINUTE,
+            r.time,
+            r.time,
+            r.clientRecordId);
+      case WeightImportRecord r:
+        await _writeImportedScalar(HealthDataType.WEIGHT, r.kilograms,
+            HealthDataUnit.KILOGRAM, r.time, r.time, r.clientRecordId);
+      case HeightImportRecord r:
+        await _writeImportedScalar(HealthDataType.HEIGHT, r.meters,
+            HealthDataUnit.METER, r.time, r.time, r.clientRecordId);
+      case BodyFatImportRecord r:
+        await _writeImportedScalar(HealthDataType.BODY_FAT_PERCENTAGE, r.percent,
+            HealthDataUnit.PERCENT, r.time, r.time, r.clientRecordId);
+      case LeanBodyMassImportRecord r:
+        await _writeImportedScalar(HealthDataType.LEAN_BODY_MASS, r.kilograms,
+            HealthDataUnit.KILOGRAM, r.time, r.time, r.clientRecordId);
+      case HydrationImportRecord r:
+        await _writeImportedScalar(HealthDataType.WATER, r.milliliters / 1000.0,
+            HealthDataUnit.LITER, r.startTime, r.endTime, r.clientRecordId);
+      case OxygenSaturationImportRecord r:
+        await _writeImportedScalar(HealthDataType.BLOOD_OXYGEN, r.percent,
+            HealthDataUnit.PERCENT, r.time, r.time, r.clientRecordId);
+      case RespiratoryRateImportRecord r:
+        await _writeImportedScalar(HealthDataType.RESPIRATORY_RATE, r.rate,
+            HealthDataUnit.RESPIRATIONS_PER_MINUTE, r.time, r.time,
+            r.clientRecordId);
+      case BodyTemperatureImportRecord r:
+        await _writeImportedScalar(HealthDataType.BODY_TEMPERATURE, r.celsius,
+            HealthDataUnit.DEGREE_CELSIUS, r.time, r.time, r.clientRecordId);
+      case BasalBodyTemperatureImportRecord r:
+        // No BasalBodyTemperature HealthDataType; import as body temperature.
+        await _writeImportedScalar(HealthDataType.BODY_TEMPERATURE, r.celsius,
+            HealthDataUnit.DEGREE_CELSIUS, r.time, r.time, r.clientRecordId);
+      case BloodGlucoseImportRecord r:
+        await _writeImportedScalar(
+            HealthDataType.BLOOD_GLUCOSE,
+            r.milligramsPerDeciliter,
+            HealthDataUnit.MILLIGRAM_PER_DECILITER,
+            r.time,
+            r.time,
+            r.clientRecordId);
+      case BloodPressureImportRecord r:
+        await _catch(
+          () => _health.writeBloodPressure(
+            systolic: r.systolicMmHg.round(),
+            diastolic: r.diastolicMmHg.round(),
+            startTime: r.time,
+            clientRecordId: r.clientRecordId,
+            recordingMethod: RecordingMethod.manual,
+          ),
+          false,
+        );
+      case SleepSessionImportRecord r:
+        await _writeImportedScalar(
+            HealthDataType.SLEEP_SESSION,
+            r.endTime.difference(r.startTime).inMinutes.toDouble(),
+            HealthDataUnit.MINUTE,
+            r.startTime,
+            r.endTime,
+            r.clientRecordId);
+      case NutritionImportRecord r:
+        double? gram(String key) => r.nutrientGrams[key];
+        await _catch(
+          () => _health.writeMeal(
+            mealType: MealType.UNKNOWN,
+            startTime: r.startTime,
+            endTime: r.endTime,
+            name: r.name,
+            clientRecordId: r.clientRecordId,
+            caloriesConsumed: r.energyKilocalories,
+            carbohydrates: gram('totalCarbohydrate'),
+            protein: gram('protein'),
+            fatTotal: gram('totalFat'),
+            fiber: gram('dietaryFiber'),
+            sugar: gram('sugar'),
+            caffeine: gram('caffeine'),
+            recordingMethod: RecordingMethod.manual,
+          ),
+          false,
+        );
+      case ExerciseSessionImportRecord r:
+        // TODO(health-pkg): writeWorkoutData accepts no clientRecordId, so
+        //   imported workouts cannot be de-duplicated, and the synthesized GPS
+        //   route cannot be attached.
+        await _catch(
+          () => _health.writeWorkoutData(
+            activityType: HealthWorkoutActivityType.OTHER,
+            start: r.startTime,
+            end: r.endTime,
+            title: r.title,
+            recordingMethod: RecordingMethod.manual,
+          ),
+          false,
+        );
+      // TODO(health-pkg): the following imported record types have no `health`
+      //   package / Health Connect equivalent and are skipped:
+      //   BasalMetabolicRate, ElevationGained, WheelchairPushes, Speed,
+      //   BoneMass, BodyWaterMass, Vo2Max, MindfulnessSession, and every cycle
+      //   record (MenstruationFlow / OvulationTest / CervicalMucus /
+      //   IntermenstrualBleeding / SexualActivity).
+      case BasalMetabolicRateImportRecord():
+      case ElevationGainedImportRecord():
+      case WheelchairPushesImportRecord():
+      case SpeedImportRecord():
+      case BoneMassImportRecord():
+      case BodyWaterMassImportRecord():
+      case Vo2MaxImportRecord():
+      case MindfulnessSessionImportRecord():
+      case MenstruationFlowImportRecord():
+      case OvulationTestImportRecord():
+      case CervicalMucusImportRecord():
+      case IntermenstrualBleedingImportRecord():
+      case SexualActivityImportRecord():
+        break;
+    }
+  }
+
+  Future<void> _writeImportedScalar(
+    HealthDataType type,
+    double value,
+    HealthDataUnit unit,
+    DateTime start,
+    DateTime end,
+    String clientRecordId,
+  ) async {
+    await _catch(
+      () => _health.writeHealthData(
+        value: value,
+        type: type,
+        unit: unit,
+        startTime: start,
+        endTime: end,
+        recordingMethod: RecordingMethod.manual,
+        clientRecordId: clientRecordId,
+      ),
       false,
     );
   }

@@ -9,6 +9,7 @@ import '../domain/model/nutrition_models.dart';
 import '../domain/model/sleep_models.dart';
 import '../domain/model/vitals_models.dart';
 import '../domain/preferences/sleep_range_mode.dart';
+import '../features/imports/applehealth/apple_health_import_records.dart';
 import 'health_permissions.dart';
 
 /// The `HealthConnectManager` analogue: a single facade over the `health`
@@ -481,4 +482,26 @@ class HealthDataSource {
     DateTime end,
   ) async =>
       const <SexualActivityEntry>[];
+
+  // ── Apple Health import (Phase 6c) ────────────────────────────────────────
+
+  /// Bulk-inserts records converted from an Apple Health export, tagged with a
+  /// deterministic `apple_health_`-prefixed clientRecordId (Kotlin
+  /// `HealthConnectManager.insertImportedRecords`). The base is a no-op so unit
+  /// tests can drive a fake repository; [HealthDataSourceImpl] writes them
+  /// best-effort over the `health` package.
+  Future<void> insertImportedRecords(List<ImportRecord> records) async {}
+
+  /// The subset of [wantedIds] already present for [recordType] (an
+  /// [ImportRecord.targetType]) within [start]..[end]. Base returns empty.
+  // TODO(health-pkg): clientRecordId is not queryable via the `health` package,
+  //   so imported-record de-duplication against existing data cannot be
+  //   resolved. Always returns empty.
+  Future<Set<String>> findMatchingImportedClientRecordIds(
+    String recordType,
+    DateTime start,
+    DateTime end,
+    Set<String> wantedIds,
+  ) async =>
+      const <String>{};
 }

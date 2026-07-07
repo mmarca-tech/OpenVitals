@@ -42,6 +42,8 @@ import '../data/repository/impl/nutrition_repository_impl.dart';
 import '../data/repository/impl/sleep_repository_impl.dart';
 import '../data/repository/impl/vitals_repository_impl.dart';
 import '../domain/usecase/load_dashboard_day_use_case.dart';
+import '../features/imports/applehealth/apple_health_import_report_store.dart';
+import '../features/imports/applehealth/apple_health_import_service.dart';
 import '../domain/usecase/load_heart_period_use_case.dart';
 import '../domain/usecase/load_sleep_period_use_case.dart';
 import '../health/health_data_source.dart';
@@ -171,6 +173,16 @@ final bleDeviceRepositoryProvider = Provider<BleDeviceRepository>(
 final appleHealthImportRepositoryProvider =
     Provider<AppleHealthImportRepository>(
   (ref) => AppleHealthImportRepositoryImpl(ref.watch(healthDataSourceProvider)),
+);
+
+final appleHealthImportServiceProvider = Provider<AppleHealthImportService>(
+  (ref) =>
+      AppleHealthImportService(ref.watch(appleHealthImportRepositoryProvider)),
+);
+
+final appleHealthImportReportStoreProvider =
+    Provider<AppleHealthImportReportStore>(
+  (ref) => AppleHealthImportReportStore(ref.watch(sharedPreferencesProvider)),
 );
 
 final bodyEnergyRepositoryProvider = Provider<BodyEnergyRepository>(
