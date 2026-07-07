@@ -103,6 +103,13 @@ enum BodyMeasurementTypeMsg {
   bodyFat,
 }
 
+enum VitalsMeasurementTypeMsg {
+  bloodPressure,
+  spo2,
+  respiratoryRate,
+  bodyTemperature,
+}
+
 /// Raw Health Connect availability signals, mapped to the Dart
 /// `HealthConnectAvailability` enum on the Flutter side. Kept as separate
 /// signals (rather than a native enum) so the enum stays a single source of
@@ -909,6 +916,611 @@ class MindfulnessSessionWriteRequestMsg {
   }
 }
 
+class BloodPressureEntryMsg {
+  BloodPressureEntryMsg({
+    required this.timeEpochMs,
+    required this.systolicMmHg,
+    required this.diastolicMmHg,
+    required this.source,
+    required this.id,
+    required this.isOpenVitalsEntry,
+  });
+
+  int timeEpochMs;
+
+  int systolicMmHg;
+
+  int diastolicMmHg;
+
+  String source;
+
+  String id;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      systolicMmHg,
+      diastolicMmHg,
+      source,
+      id,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static BloodPressureEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return BloodPressureEntryMsg(
+      timeEpochMs: result[0]! as int,
+      systolicMmHg: result[1]! as int,
+      diastolicMmHg: result[2]! as int,
+      source: result[3]! as String,
+      id: result[4]! as String,
+      isOpenVitalsEntry: result[5]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BloodPressureEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(systolicMmHg, other.systolicMmHg) && _deepEquals(diastolicMmHg, other.diastolicMmHg) && _deepEquals(source, other.source) && _deepEquals(id, other.id) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BloodPressureEntryMsg(timeEpochMs: $timeEpochMs, systolicMmHg: $systolicMmHg, diastolicMmHg: $diastolicMmHg, source: $source, id: $id, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class SpO2EntryMsg {
+  SpO2EntryMsg({
+    required this.timeEpochMs,
+    required this.percent,
+    required this.source,
+    required this.id,
+    required this.isOpenVitalsEntry,
+  });
+
+  int timeEpochMs;
+
+  double percent;
+
+  String source;
+
+  String id;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      percent,
+      source,
+      id,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SpO2EntryMsg decode(Object result) {
+    result as List<Object?>;
+    return SpO2EntryMsg(
+      timeEpochMs: result[0]! as int,
+      percent: result[1]! as double,
+      source: result[2]! as String,
+      id: result[3]! as String,
+      isOpenVitalsEntry: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SpO2EntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(percent, other.percent) && _deepEquals(source, other.source) && _deepEquals(id, other.id) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SpO2EntryMsg(timeEpochMs: $timeEpochMs, percent: $percent, source: $source, id: $id, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class RespiratoryRateEntryMsg {
+  RespiratoryRateEntryMsg({
+    required this.timeEpochMs,
+    required this.breathsPerMinute,
+    required this.source,
+    required this.id,
+    required this.isOpenVitalsEntry,
+  });
+
+  int timeEpochMs;
+
+  double breathsPerMinute;
+
+  String source;
+
+  String id;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      breathsPerMinute,
+      source,
+      id,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static RespiratoryRateEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return RespiratoryRateEntryMsg(
+      timeEpochMs: result[0]! as int,
+      breathsPerMinute: result[1]! as double,
+      source: result[2]! as String,
+      id: result[3]! as String,
+      isOpenVitalsEntry: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! RespiratoryRateEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(breathsPerMinute, other.breathsPerMinute) && _deepEquals(source, other.source) && _deepEquals(id, other.id) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'RespiratoryRateEntryMsg(timeEpochMs: $timeEpochMs, breathsPerMinute: $breathsPerMinute, source: $source, id: $id, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class BodyTempEntryMsg {
+  BodyTempEntryMsg({
+    required this.timeEpochMs,
+    required this.temperatureCelsius,
+    required this.source,
+    required this.id,
+    required this.isOpenVitalsEntry,
+  });
+
+  int timeEpochMs;
+
+  double temperatureCelsius;
+
+  String source;
+
+  String id;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      temperatureCelsius,
+      source,
+      id,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static BodyTempEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return BodyTempEntryMsg(
+      timeEpochMs: result[0]! as int,
+      temperatureCelsius: result[1]! as double,
+      source: result[2]! as String,
+      id: result[3]! as String,
+      isOpenVitalsEntry: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BodyTempEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(temperatureCelsius, other.temperatureCelsius) && _deepEquals(source, other.source) && _deepEquals(id, other.id) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BodyTempEntryMsg(timeEpochMs: $timeEpochMs, temperatureCelsius: $temperatureCelsius, source: $source, id: $id, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class Vo2MaxEntryMsg {
+  Vo2MaxEntryMsg({
+    required this.timeEpochMs,
+    required this.vo2MaxMlPerKgPerMin,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  double vo2MaxMlPerKgPerMin;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      vo2MaxMlPerKgPerMin,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static Vo2MaxEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return Vo2MaxEntryMsg(
+      timeEpochMs: result[0]! as int,
+      vo2MaxMlPerKgPerMin: result[1]! as double,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! Vo2MaxEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(vo2MaxMlPerKgPerMin, other.vo2MaxMlPerKgPerMin) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'Vo2MaxEntryMsg(timeEpochMs: $timeEpochMs, vo2MaxMlPerKgPerMin: $vo2MaxMlPerKgPerMin, source: $source)';
+  }
+}
+
+class BloodGlucoseEntryMsg {
+  BloodGlucoseEntryMsg({
+    required this.timeEpochMs,
+    required this.millimolesPerLiter,
+    required this.specimenSource,
+    required this.mealType,
+    required this.relationToMeal,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  double millimolesPerLiter;
+
+  int specimenSource;
+
+  int mealType;
+
+  int relationToMeal;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      millimolesPerLiter,
+      specimenSource,
+      mealType,
+      relationToMeal,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static BloodGlucoseEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return BloodGlucoseEntryMsg(
+      timeEpochMs: result[0]! as int,
+      millimolesPerLiter: result[1]! as double,
+      specimenSource: result[2]! as int,
+      mealType: result[3]! as int,
+      relationToMeal: result[4]! as int,
+      source: result[5]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BloodGlucoseEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(millimolesPerLiter, other.millimolesPerLiter) && _deepEquals(specimenSource, other.specimenSource) && _deepEquals(mealType, other.mealType) && _deepEquals(relationToMeal, other.relationToMeal) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BloodGlucoseEntryMsg(timeEpochMs: $timeEpochMs, millimolesPerLiter: $millimolesPerLiter, specimenSource: $specimenSource, mealType: $mealType, relationToMeal: $relationToMeal, source: $source)';
+  }
+}
+
+class SkinTemperatureEntryMsg {
+  SkinTemperatureEntryMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    this.baselineCelsius,
+    this.averageDeltaCelsius,
+    this.minDeltaCelsius,
+    this.maxDeltaCelsius,
+    required this.measurementLocation,
+    required this.source,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  double? baselineCelsius;
+
+  double? averageDeltaCelsius;
+
+  double? minDeltaCelsius;
+
+  double? maxDeltaCelsius;
+
+  int measurementLocation;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      baselineCelsius,
+      averageDeltaCelsius,
+      minDeltaCelsius,
+      maxDeltaCelsius,
+      measurementLocation,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SkinTemperatureEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return SkinTemperatureEntryMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      baselineCelsius: result[2] as double?,
+      averageDeltaCelsius: result[3] as double?,
+      minDeltaCelsius: result[4] as double?,
+      maxDeltaCelsius: result[5] as double?,
+      measurementLocation: result[6]! as int,
+      source: result[7]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SkinTemperatureEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(baselineCelsius, other.baselineCelsius) && _deepEquals(averageDeltaCelsius, other.averageDeltaCelsius) && _deepEquals(minDeltaCelsius, other.minDeltaCelsius) && _deepEquals(maxDeltaCelsius, other.maxDeltaCelsius) && _deepEquals(measurementLocation, other.measurementLocation) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SkinTemperatureEntryMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, baselineCelsius: $baselineCelsius, averageDeltaCelsius: $averageDeltaCelsius, minDeltaCelsius: $minDeltaCelsius, maxDeltaCelsius: $maxDeltaCelsius, measurementLocation: $measurementLocation, source: $source)';
+  }
+}
+
+class VitalsMeasurementEntryMsg {
+  VitalsMeasurementEntryMsg({
+    required this.id,
+    required this.type,
+    required this.timeEpochMs,
+    required this.value,
+    this.secondaryValue,
+    required this.source,
+    required this.isOpenVitalsEntry,
+  });
+
+  String id;
+
+  VitalsMeasurementTypeMsg type;
+
+  int timeEpochMs;
+
+  double value;
+
+  double? secondaryValue;
+
+  String source;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      type,
+      timeEpochMs,
+      value,
+      secondaryValue,
+      source,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VitalsMeasurementEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return VitalsMeasurementEntryMsg(
+      id: result[0]! as String,
+      type: result[1]! as VitalsMeasurementTypeMsg,
+      timeEpochMs: result[2]! as int,
+      value: result[3]! as double,
+      secondaryValue: result[4] as double?,
+      source: result[5]! as String,
+      isOpenVitalsEntry: result[6]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VitalsMeasurementEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(type, other.type) && _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(value, other.value) && _deepEquals(secondaryValue, other.secondaryValue) && _deepEquals(source, other.source) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VitalsMeasurementEntryMsg(id: $id, type: $type, timeEpochMs: $timeEpochMs, value: $value, secondaryValue: $secondaryValue, source: $source, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class VitalsMeasurementWriteRequestMsg {
+  VitalsMeasurementWriteRequestMsg({
+    required this.type,
+    required this.timeEpochMs,
+    required this.value,
+    this.secondaryValue,
+  });
+
+  VitalsMeasurementTypeMsg type;
+
+  int timeEpochMs;
+
+  double value;
+
+  double? secondaryValue;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      type,
+      timeEpochMs,
+      value,
+      secondaryValue,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VitalsMeasurementWriteRequestMsg decode(Object result) {
+    result as List<Object?>;
+    return VitalsMeasurementWriteRequestMsg(
+      type: result[0]! as VitalsMeasurementTypeMsg,
+      timeEpochMs: result[1]! as int,
+      value: result[2]! as double,
+      secondaryValue: result[3] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VitalsMeasurementWriteRequestMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(type, other.type) && _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(value, other.value) && _deepEquals(secondaryValue, other.secondaryValue);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VitalsMeasurementWriteRequestMsg(type: $type, timeEpochMs: $timeEpochMs, value: $value, secondaryValue: $secondaryValue)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -920,44 +1532,74 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is BodyMeasurementTypeMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is HealthConnectAvailabilityDetail) {
+    }    else if (value is VitalsMeasurementTypeMsg) {
       buffer.putUint8(130);
-      writeValue(buffer, value.encode());
-    }    else if (value is WeightEntryMsg) {
+      writeValue(buffer, value.index);
+    }    else if (value is HealthConnectAvailabilityDetail) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is HeightEntryMsg) {
+    }    else if (value is WeightEntryMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyFatEntryMsg) {
+    }    else if (value is HeightEntryMsg) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMassEntryMsg) {
+    }    else if (value is BodyFatEntryMsg) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is BmrEntryMsg) {
+    }    else if (value is BodyMassEntryMsg) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementEntryMsg) {
+    }    else if (value is BmrEntryMsg) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementWriteRequestMsg) {
+    }    else if (value is BodyMeasurementEntryMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationEntryMsg) {
+    }    else if (value is BodyMeasurementWriteRequestMsg) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyHydrationMsg) {
+    }    else if (value is HydrationEntryMsg) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationWriteRequestMsg) {
+    }    else if (value is DailyHydrationMsg) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionMsg) {
+    }    else if (value is HydrationWriteRequestMsg) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionWriteRequestMsg) {
+    }    else if (value is MindfulnessSessionMsg) {
       buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is MindfulnessSessionWriteRequestMsg) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is BloodPressureEntryMsg) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is SpO2EntryMsg) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    }    else if (value is RespiratoryRateEntryMsg) {
+      buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    }    else if (value is BodyTempEntryMsg) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    }    else if (value is Vo2MaxEntryMsg) {
+      buffer.putUint8(148);
+      writeValue(buffer, value.encode());
+    }    else if (value is BloodGlucoseEntryMsg) {
+      buffer.putUint8(149);
+      writeValue(buffer, value.encode());
+    }    else if (value is SkinTemperatureEntryMsg) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is VitalsMeasurementEntryMsg) {
+      buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    }    else if (value is VitalsMeasurementWriteRequestMsg) {
+      buffer.putUint8(152);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -971,31 +1613,52 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : BodyMeasurementTypeMsg.values[value];
       case 130:
-        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : VitalsMeasurementTypeMsg.values[value];
       case 131:
-        return WeightEntryMsg.decode(readValue(buffer)!);
+        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
       case 132:
-        return HeightEntryMsg.decode(readValue(buffer)!);
+        return WeightEntryMsg.decode(readValue(buffer)!);
       case 133:
-        return BodyFatEntryMsg.decode(readValue(buffer)!);
+        return HeightEntryMsg.decode(readValue(buffer)!);
       case 134:
-        return BodyMassEntryMsg.decode(readValue(buffer)!);
+        return BodyFatEntryMsg.decode(readValue(buffer)!);
       case 135:
-        return BmrEntryMsg.decode(readValue(buffer)!);
+        return BodyMassEntryMsg.decode(readValue(buffer)!);
       case 136:
-        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
+        return BmrEntryMsg.decode(readValue(buffer)!);
       case 137:
-        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
       case 138:
-        return HydrationEntryMsg.decode(readValue(buffer)!);
+        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       case 139:
-        return DailyHydrationMsg.decode(readValue(buffer)!);
+        return HydrationEntryMsg.decode(readValue(buffer)!);
       case 140:
-        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
+        return DailyHydrationMsg.decode(readValue(buffer)!);
       case 141:
-        return MindfulnessSessionMsg.decode(readValue(buffer)!);
+        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
       case 142:
+        return MindfulnessSessionMsg.decode(readValue(buffer)!);
+      case 143:
         return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
+      case 144:
+        return BloodPressureEntryMsg.decode(readValue(buffer)!);
+      case 145:
+        return SpO2EntryMsg.decode(readValue(buffer)!);
+      case 146:
+        return RespiratoryRateEntryMsg.decode(readValue(buffer)!);
+      case 147:
+        return BodyTempEntryMsg.decode(readValue(buffer)!);
+      case 148:
+        return Vo2MaxEntryMsg.decode(readValue(buffer)!);
+      case 149:
+        return BloodGlucoseEntryMsg.decode(readValue(buffer)!);
+      case 150:
+        return SkinTemperatureEntryMsg.decode(readValue(buffer)!);
+      case 151:
+        return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
+      case 152:
+        return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1933,6 +2596,270 @@ class HealthConnectHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<List<BloodPressureEntryMsg>> readBloodPressureEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readBloodPressureEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<BloodPressureEntryMsg>();
+  }
+
+  Future<BloodPressureEntryMsg?> readLatestBloodPressure(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readLatestBloodPressure$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as BloodPressureEntryMsg?;
+  }
+
+  Future<List<SpO2EntryMsg>> readSpO2Entries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSpO2Entries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<SpO2EntryMsg>();
+  }
+
+  Future<SpO2EntryMsg?> readLatestSpO2(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readLatestSpO2$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as SpO2EntryMsg?;
+  }
+
+  Future<List<RespiratoryRateEntryMsg>> readRespiratoryRateEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRespiratoryRateEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<RespiratoryRateEntryMsg>();
+  }
+
+  Future<List<BodyTempEntryMsg>> readBodyTemperatureEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readBodyTemperatureEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<BodyTempEntryMsg>();
+  }
+
+  Future<List<Vo2MaxEntryMsg>> readVo2MaxEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readVo2MaxEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<Vo2MaxEntryMsg>();
+  }
+
+  Future<Vo2MaxEntryMsg?> readLatestVo2Max(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readLatestVo2Max$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as Vo2MaxEntryMsg?;
+  }
+
+  Future<List<BloodGlucoseEntryMsg>> readBloodGlucoseEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readBloodGlucoseEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<BloodGlucoseEntryMsg>();
+  }
+
+  Future<List<SkinTemperatureEntryMsg>> readSkinTemperatureEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSkinTemperatureEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<SkinTemperatureEntryMsg>();
+  }
+
+  Future<String> writeVitalsMeasurementEntry(VitalsMeasurementWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writeVitalsMeasurementEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<VitalsMeasurementEntryMsg?> readVitalsMeasurementEntry(VitalsMeasurementTypeMsg type, String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readVitalsMeasurementEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[type, id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as VitalsMeasurementEntryMsg?;
+  }
+
+  Future<void> updateVitalsMeasurementEntry(String id, VitalsMeasurementWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.updateVitalsMeasurementEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id, request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> deleteVitalsMeasurementEntry(VitalsMeasurementTypeMsg type, String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteVitalsMeasurementEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[type, id]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

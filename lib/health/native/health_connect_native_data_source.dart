@@ -725,37 +725,105 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     return HealthRecordJson.dailyHrv(samples);
   }
 
-  // ── Vitals ────────────────────────────────────────────────────────────────
+  // ── Vitals (Phase 3) — typed via native VitalsHealthReader ──────────────────
+
+  VitalsMeasurementTypeMsg _vitalsTypeMsg(VitalsMeasurementType type) =>
+      switch (type) {
+        VitalsMeasurementType.bloodPressure =>
+          VitalsMeasurementTypeMsg.bloodPressure,
+        VitalsMeasurementType.spo2 => VitalsMeasurementTypeMsg.spo2,
+        VitalsMeasurementType.respiratoryRate =>
+          VitalsMeasurementTypeMsg.respiratoryRate,
+        VitalsMeasurementType.bodyTemperature =>
+          VitalsMeasurementTypeMsg.bodyTemperature,
+      };
+
+  VitalsMeasurementType _vitalsType(VitalsMeasurementTypeMsg type) =>
+      switch (type) {
+        VitalsMeasurementTypeMsg.bloodPressure =>
+          VitalsMeasurementType.bloodPressure,
+        VitalsMeasurementTypeMsg.spo2 => VitalsMeasurementType.spo2,
+        VitalsMeasurementTypeMsg.respiratoryRate =>
+          VitalsMeasurementType.respiratoryRate,
+        VitalsMeasurementTypeMsg.bodyTemperature =>
+          VitalsMeasurementType.bodyTemperature,
+      };
+
+  BloodPressureEntry _bloodPressureEntry(BloodPressureEntryMsg m) =>
+      BloodPressureEntry(
+        time: _fromMs(m.timeEpochMs),
+        systolicMmHg: m.systolicMmHg,
+        diastolicMmHg: m.diastolicMmHg,
+        source: m.source,
+        id: m.id,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  SpO2Entry _spO2Entry(SpO2EntryMsg m) => SpO2Entry(
+        time: _fromMs(m.timeEpochMs),
+        percent: m.percent,
+        source: m.source,
+        id: m.id,
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  Vo2MaxEntry _vo2MaxEntry(Vo2MaxEntryMsg m) => Vo2MaxEntry(
+        time: _fromMs(m.timeEpochMs),
+        vo2MaxMlPerKgPerMin: m.vo2MaxMlPerKgPerMin,
+        source: m.source,
+      );
 
   @override
   Future<List<BloodPressureEntry>> readBloodPressureEntries(
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('BloodPressure', start, end);
-    return [
-      for (final m in maps) HealthRecordJson.bloodPressureEntry(m, appPackageName),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readBloodPressureEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <BloodPressureEntryMsg>[],
+    );
+    return [for (final m in msgs) _bloodPressureEntry(m)]
+      ..sort((a, b) => a.time.compareTo(b.time));
   }
 
   @override
   Future<BloodPressureEntry?> readLatestBloodPressure(LocalDate date) async {
-    final entries = await readBloodPressureEntries(_dayStart(date), _dayEnd(date));
-    return entries.isEmpty ? null : entries.last;
+    final m = await _catch(
+      () => _api.readLatestBloodPressure(
+        _dayStart(date).millisecondsSinceEpoch,
+        _dayEnd(date).millisecondsSinceEpoch,
+      ),
+      null,
+    );
+    return m == null ? null : _bloodPressureEntry(m);
   }
 
   @override
   Future<List<SpO2Entry>> readSpO2Entries(DateTime start, DateTime end) async {
-    final maps = await _read('OxygenSaturation', start, end);
-    return [
-      for (final m in maps) HealthRecordJson.spO2Entry(m, appPackageName),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readSpO2Entries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <SpO2EntryMsg>[],
+    );
+    return [for (final m in msgs) _spO2Entry(m)]
+      ..sort((a, b) => a.time.compareTo(b.time));
   }
 
   @override
   Future<SpO2Entry?> readLatestSpO2(LocalDate date) async {
-    final entries = await readSpO2Entries(_dayStart(date), _dayEnd(date));
-    return entries.isEmpty ? null : entries.last;
+    final m = await _catch(
+      () => _api.readLatestSpO2(
+        _dayStart(date).millisecondsSinceEpoch,
+        _dayEnd(date).millisecondsSinceEpoch,
+      ),
+      null,
+    );
+    return m == null ? null : _spO2Entry(m);
   }
 
   @override
@@ -763,10 +831,22 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('RespiratoryRate', start, end);
+    final msgs = await _catch(
+      () => _api.readRespiratoryRateEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <RespiratoryRateEntryMsg>[],
+    );
     return [
-      for (final m in maps)
-        HealthRecordJson.respiratoryRateEntry(m, appPackageName),
+      for (final m in msgs)
+        RespiratoryRateEntry(
+          time: _fromMs(m.timeEpochMs),
+          breathsPerMinute: m.breathsPerMinute,
+          source: m.source,
+          id: m.id,
+          isOpenVitalsEntry: m.isOpenVitalsEntry,
+        ),
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
@@ -775,9 +855,22 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('BodyTemperature', start, end);
+    final msgs = await _catch(
+      () => _api.readBodyTemperatureEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <BodyTempEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.bodyTempEntry(m, appPackageName),
+      for (final m in msgs)
+        BodyTempEntry(
+          time: _fromMs(m.timeEpochMs),
+          temperatureCelsius: m.temperatureCelsius,
+          source: m.source,
+          id: m.id,
+          isOpenVitalsEntry: m.isOpenVitalsEntry,
+        ),
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
@@ -786,16 +879,27 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('Vo2Max', start, end);
-    return [
-      for (final m in maps) HealthRecordJson.vo2MaxEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    final msgs = await _catch(
+      () => _api.readVo2MaxEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <Vo2MaxEntryMsg>[],
+    );
+    return [for (final m in msgs) _vo2MaxEntry(m)]
+      ..sort((a, b) => a.time.compareTo(b.time));
   }
 
   @override
   Future<Vo2MaxEntry?> readLatestVo2Max(LocalDate date) async {
-    final entries = await readVo2MaxEntries(_dayStart(date), _dayEnd(date));
-    return entries.isEmpty ? null : entries.last;
+    final m = await _catch(
+      () => _api.readLatestVo2Max(
+        _dayStart(date).millisecondsSinceEpoch,
+        _dayEnd(date).millisecondsSinceEpoch,
+      ),
+      null,
+    );
+    return m == null ? null : _vo2MaxEntry(m);
   }
 
   @override
@@ -803,9 +907,23 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('BloodGlucose', start, end);
+    final msgs = await _catch(
+      () => _api.readBloodGlucoseEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <BloodGlucoseEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.bloodGlucoseEntry(m),
+      for (final m in msgs)
+        BloodGlucoseEntry(
+          time: _fromMs(m.timeEpochMs),
+          millimolesPerLiter: m.millimolesPerLiter,
+          specimenSource: m.specimenSource,
+          mealType: m.mealType,
+          relationToMeal: m.relationToMeal,
+          source: m.source,
+        ),
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
@@ -815,9 +933,25 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime end,
   ) async {
     if (!isSkinTemperatureAvailable()) return const <SkinTemperatureEntry>[];
-    final maps = await _read('SkinTemperature', start, end);
+    final msgs = await _catch(
+      () => _api.readSkinTemperatureEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <SkinTemperatureEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.skinTemperatureEntry(m),
+      for (final m in msgs)
+        SkinTemperatureEntry(
+          startTime: _fromMs(m.startEpochMs),
+          endTime: _fromMs(m.endEpochMs),
+          baselineCelsius: m.baselineCelsius,
+          averageDeltaCelsius: m.averageDeltaCelsius,
+          minDeltaCelsius: m.minDeltaCelsius,
+          maxDeltaCelsius: m.maxDeltaCelsius,
+          measurementLocation: m.measurementLocation,
+          source: m.source,
+        ),
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
@@ -1027,40 +1161,57 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   ) =>
       _api.deleteBodyMeasurementEntry(_bodyTypeMsg(type), id);
 
+  VitalsMeasurementWriteRequestMsg _vitalsWriteMsg(
+    VitalsMeasurementWriteRequest request,
+  ) =>
+      VitalsMeasurementWriteRequestMsg(
+        type: _vitalsTypeMsg(request.type),
+        timeEpochMs: request.time.millisecondsSinceEpoch,
+        value: request.value,
+        secondaryValue: request.secondaryValue,
+      );
+
   @override
   Future<String> writeVitalsMeasurementEntry(
     VitalsMeasurementWriteRequest request,
+  ) =>
+      _api.writeVitalsMeasurementEntry(_vitalsWriteMsg(request));
+
+  @override
+  Future<VitalsMeasurementEntry?> readVitalsMeasurementEntry(
+    VitalsMeasurementType type,
+    String id,
   ) async {
-    final clientRecordId =
-        'openvitals_vitals_${request.type.storageName.toLowerCase()}_${request.time.millisecondsSinceEpoch}_${_newId()}';
-    final (recordType, fields) = switch (request.type) {
-      VitalsMeasurementType.bloodPressure => (
-          'BloodPressure',
-          {
-            'systolicMmHg': request.value,
-            'diastolicMmHg': request.secondaryValue ?? 0.0,
-          },
-        ),
-      VitalsMeasurementType.spo2 => ('OxygenSaturation', {'percentage': request.value}),
-      VitalsMeasurementType.respiratoryRate => (
-          'RespiratoryRate',
-          {'rate': request.value},
-        ),
-      VitalsMeasurementType.bodyTemperature => (
-          'BodyTemperature',
-          {'temperatureCelsius': request.value},
-        ),
-    };
-    await _insert(
-      HealthRecordJson.instantRecord(
-        recordType,
-        request.time,
-        clientRecordId,
-        fields: fields,
-      ),
+    final m = await _catch(
+      () => _api.readVitalsMeasurementEntry(_vitalsTypeMsg(type), id),
+      null,
     );
-    return clientRecordId;
+    return m == null
+        ? null
+        : VitalsMeasurementEntry(
+            id: m.id,
+            type: _vitalsType(m.type),
+            time: _fromMs(m.timeEpochMs),
+            value: m.value,
+            secondaryValue: m.secondaryValue,
+            source: m.source,
+            isOpenVitalsEntry: m.isOpenVitalsEntry,
+          );
   }
+
+  @override
+  Future<void> updateVitalsMeasurementEntry(
+    String id,
+    VitalsMeasurementWriteRequest request,
+  ) =>
+      _api.updateVitalsMeasurementEntry(id, _vitalsWriteMsg(request));
+
+  @override
+  Future<void> deleteVitalsMeasurementEntry(
+    VitalsMeasurementType type,
+    String id,
+  ) =>
+      _api.deleteVitalsMeasurementEntry(_vitalsTypeMsg(type), id);
 
   @override
   Future<String> writeNutritionEntry(NutritionWriteRequest request) async {

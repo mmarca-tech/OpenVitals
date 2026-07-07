@@ -131,6 +131,25 @@ class FakeHostApi extends HealthConnectHostApi {
     hydrationWriteRequest = request;
     return 'openvitals_hydration_written';
   }
+
+  // ── Vitals (Phase 3) typed fakes ──────────────────────────────────────────
+  List<BloodPressureEntryMsg> bloodPressureEntries = const [];
+  VitalsMeasurementWriteRequestMsg? vitalsWriteRequest;
+
+  @override
+  Future<List<BloodPressureEntryMsg>> readBloodPressureEntries(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      bloodPressureEntries;
+
+  @override
+  Future<String> writeVitalsMeasurementEntry(
+    VitalsMeasurementWriteRequestMsg request,
+  ) async {
+    vitalsWriteRequest = request;
+    return 'openvitals_vitals_${request.type.name}_written';
+  }
 }
 
 HealthConnectNativeDataSource _source(FakeHostApi api) =>
@@ -280,19 +299,19 @@ void main() {
       expect(samples.every((s) => s.source == 'com.watch'), isTrue);
     });
 
-    test('BloodPressure record maps systolic and diastolic from one record',
+    test('BloodPressure entries map systolic/diastolic and ownership',
         () async {
-      final api = FakeHostApi();
-      api.records['BloodPressure'] = [
-        jsonEncode({
-          'recordType': 'BloodPressure',
-          'id': 'bp-1',
-          'dataOriginPackage': _appPackage,
-          'timeEpochMs': _ms(2026, 1, 2, 8),
-          'systolicMmHg': 120.0,
-          'diastolicMmHg': 80.0,
-        }),
-      ];
+      final api = FakeHostApi()
+        ..bloodPressureEntries = [
+          BloodPressureEntryMsg(
+            timeEpochMs: _ms(2026, 1, 2, 8),
+            systolicMmHg: 120,
+            diastolicMmHg: 80,
+            source: _appPackage,
+            id: 'bp-1',
+            isOpenVitalsEntry: true,
+          ),
+        ];
       final entries = await _source(api).readBloodPressureEntries(
         DateTime.utc(2026, 1, 2),
         DateTime.utc(2026, 1, 3),
@@ -452,7 +471,9 @@ void main() {
       expect(req.timeEpochMs, _ms(2026, 1, 2, 8));
     });
 
-    test('writeVitalsMeasurementEntry builds a BloodPressure record', () async {
+    test('writeVitalsMeasurementEntry forwards a typed request', () async {
+      // The record build (mmHg units, clientRecordId) now lives in the native
+      // VitalsHealthReader; the data source forwards the typed request.
       final api = FakeHostApi();
       final id = await _source(api).writeVitalsMeasurementEntry(
         VitalsMeasurementWriteRequest(
@@ -462,11 +483,12 @@ void main() {
           secondaryValue: 76,
         ),
       );
-      expect(id, startsWith('openvitals_vitals_blood_pressure_'));
-      final record = api.inserted.single;
-      expect(record['recordType'], 'BloodPressure');
-      expect(record['systolicMmHg'], 118.0);
-      expect(record['diastolicMmHg'], 76.0);
+      expect(id, isNotEmpty);
+      final req = api.vitalsWriteRequest!;
+      expect(req.type, VitalsMeasurementTypeMsg.bloodPressure);
+      expect(req.value, 118);
+      expect(req.secondaryValue, 76);
+      expect(req.timeEpochMs, _ms(2026, 1, 2, 8));
     });
 
     test('writeNutritionEntry maps nutrients to canonical keys/units', () async {

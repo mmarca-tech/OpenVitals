@@ -68,6 +68,7 @@ class HealthConnectNativePlugin :
   private var bodyReader: BodyHealthReader? = null
   private var hydrationReader: HydrationHealthReader? = null
   private var mindfulnessReader: MindfulnessHealthReader? = null
+  private var vitalsReader: VitalsHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
@@ -77,6 +78,9 @@ class HealthConnectNativePlugin :
 
   private fun requireMindfulnessReader(): MindfulnessHealthReader =
     mindfulnessReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireVitalsReader(): VitalsHealthReader =
+    vitalsReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -114,6 +118,7 @@ class HealthConnectNativePlugin :
     bodyReader = BodyHealthReader(support, context.packageName)
     hydrationReader = HydrationHealthReader(support, context.packageName)
     mindfulnessReader = MindfulnessHealthReader(support, context.packageName)
+    vitalsReader = VitalsHealthReader(support, context.packageName)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -126,6 +131,7 @@ class HealthConnectNativePlugin :
     bodyReader = null
     hydrationReader = null
     mindfulnessReader = null
+    vitalsReader = null
     scope.cancel()
   }
 
@@ -441,6 +447,115 @@ class HealthConnectNativePlugin :
     id: String,
     callback: (Result<Unit>) -> Unit,
   ) = launchCatching(callback) { requireMindfulnessReader().deleteMindfulnessSessionEntry(id) }
+
+  // ---------------------------------------------------------------------------
+  // Vitals (Phase 3)
+  // ---------------------------------------------------------------------------
+
+  private fun instant(startEpochMs: Long) = Instant.ofEpochMilli(startEpochMs)
+
+  override fun readBloodPressureEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BloodPressureEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readBloodPressureEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readLatestBloodPressure(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<BloodPressureEntryMsg?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readLatestBloodPressure(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readSpO2Entries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<SpO2EntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readSpO2Entries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readLatestSpO2(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<SpO2EntryMsg?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readLatestSpO2(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readRespiratoryRateEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<RespiratoryRateEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readRespiratoryRateEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readBodyTemperatureEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BodyTempEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readBodyTemperatureEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readVo2MaxEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<Vo2MaxEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readVo2MaxEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readLatestVo2Max(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Vo2MaxEntryMsg?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readLatestVo2Max(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readBloodGlucoseEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BloodGlucoseEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readBloodGlucoseEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readSkinTemperatureEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<SkinTemperatureEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireVitalsReader().readSkinTemperatureEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun writeVitalsMeasurementEntry(
+    request: VitalsMeasurementWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireVitalsReader().writeVitalsMeasurementEntry(request) }
+
+  override fun readVitalsMeasurementEntry(
+    type: VitalsMeasurementTypeMsg,
+    id: String,
+    callback: (Result<VitalsMeasurementEntryMsg?>) -> Unit,
+  ) = launchCatching(callback) { requireVitalsReader().readVitalsMeasurementEntry(type, id) }
+
+  override fun updateVitalsMeasurementEntry(
+    id: String,
+    request: VitalsMeasurementWriteRequestMsg,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireVitalsReader().updateVitalsMeasurementEntry(id, request) }
+
+  override fun deleteVitalsMeasurementEntry(
+    type: VitalsMeasurementTypeMsg,
+    id: String,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireVitalsReader().deleteVitalsMeasurementEntry(type, id) }
 
   override fun getGrantedPermissions(
     permissions: List<String>,

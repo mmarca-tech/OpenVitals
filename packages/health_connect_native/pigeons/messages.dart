@@ -203,6 +203,143 @@ class MindfulnessSessionWriteRequestMsg {
   MindfulnessSessionWriteRequestMsg(this.title, this.startEpochMs, this.endEpochMs);
 }
 
+// ── Vitals (Phase 3) ─────────────────────────────────────────────────────────
+
+enum VitalsMeasurementTypeMsg { bloodPressure, spo2, respiratoryRate, bodyTemperature }
+
+class BloodPressureEntryMsg {
+  final int timeEpochMs;
+  final int systolicMmHg;
+  final int diastolicMmHg;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  BloodPressureEntryMsg(
+    this.timeEpochMs,
+    this.systolicMmHg,
+    this.diastolicMmHg,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class SpO2EntryMsg {
+  final int timeEpochMs;
+  final double percent;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  SpO2EntryMsg(this.timeEpochMs, this.percent, this.source, this.id, this.isOpenVitalsEntry);
+}
+
+class RespiratoryRateEntryMsg {
+  final int timeEpochMs;
+  final double breathsPerMinute;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  RespiratoryRateEntryMsg(
+    this.timeEpochMs,
+    this.breathsPerMinute,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class BodyTempEntryMsg {
+  final int timeEpochMs;
+  final double temperatureCelsius;
+  final String source;
+  final String id;
+  final bool isOpenVitalsEntry;
+  BodyTempEntryMsg(
+    this.timeEpochMs,
+    this.temperatureCelsius,
+    this.source,
+    this.id,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class Vo2MaxEntryMsg {
+  final int timeEpochMs;
+  final double vo2MaxMlPerKgPerMin;
+  final String source;
+  Vo2MaxEntryMsg(this.timeEpochMs, this.vo2MaxMlPerKgPerMin, this.source);
+}
+
+class BloodGlucoseEntryMsg {
+  final int timeEpochMs;
+  final double millimolesPerLiter;
+  final int specimenSource;
+  final int mealType;
+  final int relationToMeal;
+  final String source;
+  BloodGlucoseEntryMsg(
+    this.timeEpochMs,
+    this.millimolesPerLiter,
+    this.specimenSource,
+    this.mealType,
+    this.relationToMeal,
+    this.source,
+  );
+}
+
+class SkinTemperatureEntryMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final double? baselineCelsius;
+  final double? averageDeltaCelsius;
+  final double? minDeltaCelsius;
+  final double? maxDeltaCelsius;
+  final int measurementLocation;
+  final String source;
+  SkinTemperatureEntryMsg(
+    this.startEpochMs,
+    this.endEpochMs,
+    this.baselineCelsius,
+    this.averageDeltaCelsius,
+    this.minDeltaCelsius,
+    this.maxDeltaCelsius,
+    this.measurementLocation,
+    this.source,
+  );
+}
+
+class VitalsMeasurementEntryMsg {
+  final String id;
+  final VitalsMeasurementTypeMsg type;
+  final int timeEpochMs;
+  final double value;
+  final double? secondaryValue;
+  final String source;
+  final bool isOpenVitalsEntry;
+  VitalsMeasurementEntryMsg(
+    this.id,
+    this.type,
+    this.timeEpochMs,
+    this.value,
+    this.secondaryValue,
+    this.source,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class VitalsMeasurementWriteRequestMsg {
+  final VitalsMeasurementTypeMsg type;
+  final int timeEpochMs;
+  final double value;
+  final double? secondaryValue;
+  VitalsMeasurementWriteRequestMsg(
+    this.type,
+    this.timeEpochMs,
+    this.value,
+    this.secondaryValue,
+  );
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -394,4 +531,38 @@ abstract class HealthConnectHostApi {
   void updateMindfulnessSessionEntry(String id, MindfulnessSessionWriteRequestMsg request);
   @async
   void deleteMindfulnessSessionEntry(String id);
+
+  // ── Vitals (Phase 3) ───────────────────────────────────────────────────────
+
+  @async
+  List<BloodPressureEntryMsg> readBloodPressureEntries(int startEpochMs, int endEpochMs);
+  @async
+  BloodPressureEntryMsg? readLatestBloodPressure(int startEpochMs, int endEpochMs);
+  @async
+  List<SpO2EntryMsg> readSpO2Entries(int startEpochMs, int endEpochMs);
+  @async
+  SpO2EntryMsg? readLatestSpO2(int startEpochMs, int endEpochMs);
+  @async
+  List<RespiratoryRateEntryMsg> readRespiratoryRateEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<BodyTempEntryMsg> readBodyTemperatureEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<Vo2MaxEntryMsg> readVo2MaxEntries(int startEpochMs, int endEpochMs);
+  @async
+  Vo2MaxEntryMsg? readLatestVo2Max(int startEpochMs, int endEpochMs);
+  @async
+  List<BloodGlucoseEntryMsg> readBloodGlucoseEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<SkinTemperatureEntryMsg> readSkinTemperatureEntries(int startEpochMs, int endEpochMs);
+  @async
+  String writeVitalsMeasurementEntry(VitalsMeasurementWriteRequestMsg request);
+  @async
+  VitalsMeasurementEntryMsg? readVitalsMeasurementEntry(
+    VitalsMeasurementTypeMsg type,
+    String id,
+  );
+  @async
+  void updateVitalsMeasurementEntry(String id, VitalsMeasurementWriteRequestMsg request);
+  @async
+  void deleteVitalsMeasurementEntry(VitalsMeasurementTypeMsg type, String id);
 }
