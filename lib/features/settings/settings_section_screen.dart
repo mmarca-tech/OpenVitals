@@ -20,8 +20,9 @@ import 'settings_section.dart';
 /// wires each control to [settingsProvider] (which persists through
 /// `PreferencesRepository`).
 ///
-/// The BLE Sensors and Data Import sections configure Phase-6 subsystems and
-/// route to a "coming soon" placeholder.
+/// The Data Import section is a Phase-6 subsystem and routes to a "coming soon"
+/// placeholder; the Sensors section routes directly to [BleDevicesScreen] (wired
+/// in the router), so its case below is unreachable but kept for exhaustiveness.
 class SettingsSectionScreen extends ConsumerWidget {
   const SettingsSectionScreen({super.key, required this.section});
 

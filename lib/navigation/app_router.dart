@@ -37,6 +37,7 @@ import '../features/readiness/stress_details_screen.dart';
 import '../features/readiness/training_readiness_details_screen.dart';
 import '../features/recovery/sleep_efficiency_detail_screen.dart';
 import '../features/recovery/sleep_score_detail_screen.dart';
+import '../features/settings/ble_devices_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/settings_section.dart';
 import '../features/settings/settings_section_screen.dart';
@@ -302,8 +303,9 @@ List<RouteBase> _settingsSectionRoutes() => [
       for (final section in SettingsSection.values)
         GoRoute(
           path: section.route,
-          builder: (context, state) =>
-              SettingsSectionScreen(section: section),
+          builder: (context, state) => section == SettingsSection.sensors
+              ? const BleDevicesScreen()
+              : SettingsSectionScreen(section: section),
         ),
     ];
 

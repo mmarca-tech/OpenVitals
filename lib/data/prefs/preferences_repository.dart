@@ -13,6 +13,8 @@ import '../../domain/model/hydration_reminder_config.dart';
 import '../../domain/model/mindfulness_models.dart';
 import '../../domain/model/mindfulness_reminder_config.dart';
 import '../../domain/model/nutrition_models.dart';
+import '../../domain/preferences/activity_recording_dashboard_layout.dart';
+import '../../domain/preferences/activity_recording_preferences.dart';
 import '../../domain/preferences/activity_week_mode.dart';
 import '../../domain/preferences/app_language.dart';
 import '../../domain/preferences/app_theme_mode.dart';
@@ -32,10 +34,6 @@ import '../../domain/preferences/unit_system.dart';
 /// Note: SharedPreferences updates its in-memory cache synchronously, so the
 /// void setters here fire the async platform write without awaiting while
 /// remaining immediately readable (matching the Kotlin `apply()` semantics).
-///
-/// Not ported: the activity-recording preferences and per-activity dashboard
-/// layout keys, whose domain types (`ActivityRecordingPreferences`,
-/// `ActivityRecordingDashboardLayout`) are not part of the ported domain layer.
 class PreferencesRepository {
   PreferencesRepository(this._prefs)
       : _unitSystem = ValueNotifier(_readUnitSystem(_prefs)),
@@ -559,6 +557,147 @@ class PreferencesRepository {
     );
   }
 
+  // region Activity recording preferences.
+  ActivityRecordingPreferences activityRecordingPreferences() {
+    int? nullableIfSentinel(String key, int defaultValue, int sentinel) {
+      final value = _prefs.getInt(key) ?? defaultValue;
+      return value == sentinel ? null : value;
+    }
+
+    return ActivityRecordingPreferences(
+      autoIdleEnabled: _prefs.getBool(_keyActivityRecordingAutoIdleEnabled) ??
+          ActivityRecordingPreferences.defaultAutoIdleEnabled,
+      autoIdleTimeoutSeconds:
+          _prefs.getInt(_keyActivityRecordingAutoIdleTimeoutSeconds) ??
+              ActivityRecordingPreferences.defaultAutoIdleTimeoutSeconds,
+      keepScreenOnDuringRecording:
+          _prefs.getBool(_keyActivityRecordingKeepScreenOn) ??
+              ActivityRecordingPreferences.defaultKeepScreenOnDuringRecording,
+      requiredGpsAccuracyMeters:
+          _prefs.getInt(_keyActivityRecordingRequiredGpsAccuracyMeters) ??
+              ActivityRecordingPreferences.defaultRequiredGpsAccuracyMeters,
+      routeGapMeters: nullableIfSentinel(
+        _keyActivityRecordingRouteGapMeters,
+        ActivityRecordingPreferences.defaultRouteGapMeters,
+        _routeGapOff,
+      ),
+      barometerClimbEnabled:
+          _prefs.getBool(_keyActivityRecordingBarometerClimbEnabled) ??
+              ActivityRecordingPreferences.defaultBarometerClimbEnabled,
+      recordingDistanceIntervalMeters: nullableIfSentinel(
+        _keyActivityRecordingDistanceIntervalMeters,
+        ActivityRecordingPreferences.defaultRecordingDistanceIntervalMeters ??
+            _recordingIntervalOff,
+        _recordingIntervalOff,
+      ),
+      recordingTimeIntervalMillis:
+          _prefs.getInt(_keyActivityRecordingTimeIntervalMillis) ??
+              ActivityRecordingPreferences.defaultRecordingTimeIntervalMillis,
+      voiceAnnouncementsEnabled:
+          _prefs.getBool(_keyActivityRecordingVoiceEnabled) ??
+              ActivityRecordingPreferences.defaultVoiceAnnouncementsEnabled,
+      voiceAnnouncementTimeIntervalMinutes: nullableIfSentinel(
+        _keyActivityRecordingVoiceTimeIntervalMinutes,
+        ActivityRecordingPreferences.defaultVoiceAnnouncementTimeIntervalMinutes,
+        _recordingIntervalOff,
+      ),
+      voiceAnnouncementDistanceIntervalMeters: nullableIfSentinel(
+        _keyActivityRecordingVoiceDistanceIntervalMeters,
+        ActivityRecordingPreferences
+            .defaultVoiceAnnouncementDistanceIntervalMeters,
+        _recordingIntervalOff,
+      ),
+      voiceIdleAnnouncementsEnabled:
+          _prefs.getBool(_keyActivityRecordingVoiceIdleEnabled) ??
+              ActivityRecordingPreferences.defaultVoiceIdleAnnouncementsEnabled,
+      voiceLapAnnouncementsEnabled:
+          _prefs.getBool(_keyActivityRecordingVoiceLapEnabled) ??
+              ActivityRecordingPreferences.defaultVoiceLapAnnouncementsEnabled,
+      restTimerBellEnabled:
+          _prefs.getBool(_keyActivityRecordingRestTimerBellEnabled) ??
+              ActivityRecordingPreferences.defaultRestTimerBellEnabled,
+    ).normalized();
+  }
+
+  void setActivityRecordingPreferences(ActivityRecordingPreferences preferences) {
+    final normalized = preferences.normalized();
+    _putBool(_keyActivityRecordingAutoIdleEnabled, normalized.autoIdleEnabled);
+    _putInt(
+      _keyActivityRecordingAutoIdleTimeoutSeconds,
+      normalized.autoIdleTimeoutSeconds,
+    );
+    _putBool(
+      _keyActivityRecordingKeepScreenOn,
+      normalized.keepScreenOnDuringRecording,
+    );
+    _putInt(
+      _keyActivityRecordingRequiredGpsAccuracyMeters,
+      normalized.requiredGpsAccuracyMeters,
+    );
+    _putInt(
+      _keyActivityRecordingRouteGapMeters,
+      normalized.routeGapMeters ?? _routeGapOff,
+    );
+    _putBool(
+      _keyActivityRecordingBarometerClimbEnabled,
+      normalized.barometerClimbEnabled,
+    );
+    _putInt(
+      _keyActivityRecordingDistanceIntervalMeters,
+      normalized.recordingDistanceIntervalMeters ?? _recordingIntervalOff,
+    );
+    _putInt(
+      _keyActivityRecordingTimeIntervalMillis,
+      normalized.recordingTimeIntervalMillis,
+    );
+    _putBool(
+      _keyActivityRecordingVoiceEnabled,
+      normalized.voiceAnnouncementsEnabled,
+    );
+    _putInt(
+      _keyActivityRecordingVoiceTimeIntervalMinutes,
+      normalized.voiceAnnouncementTimeIntervalMinutes ?? _recordingIntervalOff,
+    );
+    _putInt(
+      _keyActivityRecordingVoiceDistanceIntervalMeters,
+      normalized.voiceAnnouncementDistanceIntervalMeters ?? _recordingIntervalOff,
+    );
+    _putBool(
+      _keyActivityRecordingVoiceIdleEnabled,
+      normalized.voiceIdleAnnouncementsEnabled,
+    );
+    _putBool(
+      _keyActivityRecordingVoiceLapEnabled,
+      normalized.voiceLapAnnouncementsEnabled,
+    );
+    _putBool(
+      _keyActivityRecordingRestTimerBellEnabled,
+      normalized.restTimerBellEnabled,
+    );
+  }
+
+  ActivityRecordingDashboardLayout activityRecordingDashboardLayout(
+    String activityTypeId,
+  ) {
+    final raw =
+        _prefs.getString(_activityRecordingDashboardLayoutKey(activityTypeId));
+    if (raw == null) return ActivityRecordingDashboardLayout();
+    return _layoutFromPreferenceString(raw) ??
+        ActivityRecordingDashboardLayout();
+  }
+
+  void setActivityRecordingDashboardLayout(
+    String activityTypeId,
+    ActivityRecordingDashboardLayout layout,
+  ) {
+    if (activityTypeId.trim().isEmpty) return;
+    _putString(
+      _activityRecordingDashboardLayoutKey(activityTypeId),
+      _layoutToPreferenceString(layout),
+    );
+  }
+  // endregion
+
   /// Disposes the reactive [ValueNotifier]s.
   void dispose() {
     _unitSystem.dispose();
@@ -822,6 +961,54 @@ class PreferencesRepository {
   String _acknowledgedFeatureKey(String featureName) =>
       '$_keyAcknowledgedFeaturePrefix$featureName';
 
+  String _activityRecordingDashboardLayoutKey(String activityTypeId) =>
+      '$_keyActivityRecordingDashboardLayoutPrefix$activityTypeId';
+
+  String _layoutToPreferenceString(ActivityRecordingDashboardLayout layout) {
+    final normalized = layout.normalized();
+    final items = normalized.items
+        .map((item) =>
+            '${item.field.storageName}$_keyValuePairSeparator'
+            '${item.size.toPreferenceString()}')
+        .join(_keyValueSeparator);
+    return '${normalized.template.storageName}'
+        '$_keyLayoutSectionSeparator$items';
+  }
+
+  ActivityRecordingDashboardLayout? _layoutFromPreferenceString(String value) {
+    final sections =
+        _splitWithLimit(value, _keyLayoutSectionSeparator, 2);
+    final template = sections.isEmpty
+        ? null
+        : ActivityRecordingDashboardTemplate.fromStorage(sections.first);
+    if (template == null) return null;
+    final fields = <ActivityRecordingDashboardField>[];
+    final sizes =
+        <ActivityRecordingDashboardField, ActivityRecordingDashboardItemSize>{};
+    if (sections.length > 1) {
+      for (final entry in sections[1].split(_keyValueSeparator)) {
+        final itemSections =
+            _splitWithLimit(entry, _keyValuePairSeparator, 2);
+        final field = itemSections.isEmpty
+            ? null
+            : ActivityRecordingDashboardField.fromStorage(itemSections.first);
+        if (field == null) continue;
+        final size = itemSections.length > 1
+            ? ActivityRecordingDashboardItemSize.fromPreferenceString(
+                itemSections[1],
+              )
+            : null;
+        fields.add(field);
+        if (size != null) sizes[field] = size;
+      }
+    }
+    return ActivityRecordingDashboardLayout(
+      template: template,
+      fields: fields,
+      sizes: sizes,
+    ).normalized();
+  }
+
   int? _intOrNull(String key) => _prefs.containsKey(key) ? _prefs.getInt(key) : null;
 
   double? _doubleOrNull(String key) =>
@@ -951,6 +1138,38 @@ class PreferencesRepository {
   static const String _keyDynamicColor = 'dynamic_color';
   static const String _keySleepRangeMode = 'sleep_range_mode';
   static const String _keyActivityWeekMode = 'activity_week_mode';
+  static const String _keyActivityRecordingAutoIdleEnabled =
+      'activity_recording_auto_idle_enabled';
+  static const String _keyActivityRecordingAutoIdleTimeoutSeconds =
+      'activity_recording_auto_idle_timeout_seconds';
+  static const String _keyActivityRecordingKeepScreenOn =
+      'activity_recording_keep_screen_on';
+  static const String _keyActivityRecordingRequiredGpsAccuracyMeters =
+      'activity_recording_required_gps_accuracy_meters';
+  static const String _keyActivityRecordingRouteGapMeters =
+      'activity_recording_route_gap_meters';
+  static const String _keyActivityRecordingBarometerClimbEnabled =
+      'activity_recording_barometer_climb_enabled';
+  static const String _keyActivityRecordingDistanceIntervalMeters =
+      'activity_recording_distance_interval_meters';
+  static const String _keyActivityRecordingTimeIntervalMillis =
+      'activity_recording_time_interval_millis';
+  static const String _keyActivityRecordingVoiceEnabled =
+      'activity_recording_voice_enabled';
+  static const String _keyActivityRecordingVoiceTimeIntervalMinutes =
+      'activity_recording_voice_time_interval_minutes';
+  static const String _keyActivityRecordingVoiceDistanceIntervalMeters =
+      'activity_recording_voice_distance_interval_meters';
+  static const String _keyActivityRecordingVoiceIdleEnabled =
+      'activity_recording_voice_idle_enabled';
+  static const String _keyActivityRecordingVoiceLapEnabled =
+      'activity_recording_voice_lap_enabled';
+  static const String _keyActivityRecordingRestTimerBellEnabled =
+      'activity_recording_rest_timer_bell_enabled';
+  static const String _keyActivityRecordingDashboardLayoutPrefix =
+      'activity_recording_dashboard_layout_';
+  static const int _routeGapOff = 0;
+  static const int _recordingIntervalOff = 0;
   static const String _keyShowOpenVitalsCalculatedCalories =
       'show_openvitals_calculated_calories';
   static const String _keyHealthConnectSyncEnabled =
