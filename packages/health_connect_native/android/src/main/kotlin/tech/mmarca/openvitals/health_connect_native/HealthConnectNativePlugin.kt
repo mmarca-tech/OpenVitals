@@ -70,6 +70,7 @@ class HealthConnectNativePlugin :
   private var mindfulnessReader: MindfulnessHealthReader? = null
   private var vitalsReader: VitalsHealthReader? = null
   private var cycleReader: CycleHealthReader? = null
+  private var heartReader: HeartHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
@@ -85,6 +86,9 @@ class HealthConnectNativePlugin :
 
   private fun requireCycleReader(): CycleHealthReader =
     cycleReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireHeartReader(): HeartHealthReader =
+    heartReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -124,6 +128,7 @@ class HealthConnectNativePlugin :
     mindfulnessReader = MindfulnessHealthReader(support, context.packageName)
     vitalsReader = VitalsHealthReader(support, context.packageName)
     cycleReader = CycleHealthReader(support)
+    heartReader = HeartHealthReader(support)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -138,6 +143,7 @@ class HealthConnectNativePlugin :
     mindfulnessReader = null
     vitalsReader = null
     cycleReader = null
+    heartReader = null
     scope.cancel()
   }
 
@@ -621,6 +627,87 @@ class HealthConnectNativePlugin :
     callback: (Result<List<SexualActivityEntryMsg>>) -> Unit,
   ) = launchCatching(callback) {
     requireCycleReader().readSexualActivityEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Heart (Phase 5)
+  // ---------------------------------------------------------------------------
+
+  override fun readAvgHeartRate(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Long?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readAvgHeartRate(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readRawHeartRateSamples(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<HeartRateSampleMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readRawHeartRateSamples(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readHeartRateAggregatedBuckets(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    bucketMs: Long,
+    callback: (Result<List<HeartRateAggBucketMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readHeartRateAggregatedBuckets(
+      instant(startEpochMs),
+      instant(endEpochMs),
+      bucketMs,
+    )
+  }
+
+  override fun readDailyHeartRateSummaries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<HeartRateSummaryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readDailyHeartRateSummaries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readRestingHeartRate(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Long?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readRestingHeartRate(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readRestingHeartRateSamples(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<RestingHeartRateSampleMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readRestingHeartRateSamples(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readDailyRestingHR(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<DailyRestingHRMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readDailyRestingHR(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readHrvSamples(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<HrvSampleMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readHrvSamples(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readDailyHRV(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<DailyHrvMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireHeartReader().readDailyHRV(instant(startEpochMs), instant(endEpochMs))
   }
 
   override fun getGrantedPermissions(

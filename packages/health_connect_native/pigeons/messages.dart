@@ -397,6 +397,57 @@ class SexualActivityEntryMsg {
   SexualActivityEntryMsg(this.timeEpochMs, this.protectionUsed, this.source);
 }
 
+// ── Heart (Phase 5) ──────────────────────────────────────────────────────────
+
+class HeartRateSampleMsg {
+  final int timeEpochMs;
+  final int beatsPerMinute;
+  final String source;
+  HeartRateSampleMsg(this.timeEpochMs, this.beatsPerMinute, this.source);
+}
+
+/// One heart-rate aggregate bucket (avg bpm over [startEpochMs]..bucket end);
+/// the Dart side turns these into `HeartRateSample`s via the shared helper.
+class HeartRateAggBucketMsg {
+  final int startEpochMs;
+  final int avgBpm;
+  HeartRateAggBucketMsg(this.startEpochMs, this.avgBpm);
+}
+
+class HeartRateSummaryMsg {
+  final int dateEpochMs;
+  final int avgBpm;
+  final int minBpm;
+  final int maxBpm;
+  HeartRateSummaryMsg(this.dateEpochMs, this.avgBpm, this.minBpm, this.maxBpm);
+}
+
+class RestingHeartRateSampleMsg {
+  final int timeEpochMs;
+  final int beatsPerMinute;
+  final String source;
+  RestingHeartRateSampleMsg(this.timeEpochMs, this.beatsPerMinute, this.source);
+}
+
+class DailyRestingHRMsg {
+  final int dateEpochMs;
+  final int bpm;
+  DailyRestingHRMsg(this.dateEpochMs, this.bpm);
+}
+
+class HrvSampleMsg {
+  final int timeEpochMs;
+  final double rmssdMs;
+  final String source;
+  HrvSampleMsg(this.timeEpochMs, this.rmssdMs, this.source);
+}
+
+class DailyHrvMsg {
+  final int dateEpochMs;
+  final double rmssdMs;
+  DailyHrvMsg(this.dateEpochMs, this.rmssdMs);
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -639,4 +690,29 @@ abstract class HealthConnectHostApi {
   List<IntermenstrualBleedingEntryMsg> readIntermenstrualBleedingEntries(int startEpochMs, int endEpochMs);
   @async
   List<SexualActivityEntryMsg> readSexualActivityEntries(int startEpochMs, int endEpochMs);
+
+  // ── Heart (Phase 5) ────────────────────────────────────────────────────────
+
+  @async
+  int? readAvgHeartRate(int startEpochMs, int endEpochMs);
+  @async
+  List<HeartRateSampleMsg> readRawHeartRateSamples(int startEpochMs, int endEpochMs);
+  @async
+  List<HeartRateAggBucketMsg> readHeartRateAggregatedBuckets(
+    int startEpochMs,
+    int endEpochMs,
+    int bucketMs,
+  );
+  @async
+  List<HeartRateSummaryMsg> readDailyHeartRateSummaries(int startEpochMs, int endEpochMs);
+  @async
+  int? readRestingHeartRate(int startEpochMs, int endEpochMs);
+  @async
+  List<RestingHeartRateSampleMsg> readRestingHeartRateSamples(int startEpochMs, int endEpochMs);
+  @async
+  List<DailyRestingHRMsg> readDailyRestingHR(int startEpochMs, int endEpochMs);
+  @async
+  List<HrvSampleMsg> readHrvSamples(int startEpochMs, int endEpochMs);
+  @async
+  List<DailyHrvMsg> readDailyHRV(int startEpochMs, int endEpochMs);
 }

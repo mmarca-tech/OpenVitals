@@ -132,6 +132,16 @@ class FakeHostApi extends HealthConnectHostApi {
     return 'openvitals_hydration_written';
   }
 
+  // ── Heart (Phase 5) typed fakes ───────────────────────────────────────────
+  List<HeartRateSampleMsg> rawHeartRateSamples = const [];
+
+  @override
+  Future<List<HeartRateSampleMsg>> readRawHeartRateSamples(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      rawHeartRateSamples;
+
   // ── Vitals (Phase 3) typed fakes ──────────────────────────────────────────
   List<BloodPressureEntryMsg> bloodPressureEntries = const [];
   VitalsMeasurementWriteRequestMsg? vitalsWriteRequest;
@@ -275,21 +285,22 @@ void main() {
       expect(session.route.points.single.latitude, 51.5);
     });
 
-    test('HeartRate record samples flatten into HeartRateSamples', () async {
-      final api = FakeHostApi();
-      api.records['HeartRate'] = [
-        jsonEncode({
-          'recordType': 'HeartRate',
-          'id': 'hr-1',
-          'dataOriginPackage': 'com.watch',
-          'startEpochMs': _ms(2026, 1, 2, 6),
-          'endEpochMs': _ms(2026, 1, 2, 6, 10),
-          'samples': [
-            {'timeEpochMs': _ms(2026, 1, 2, 6), 'bpm': 60},
-            {'timeEpochMs': _ms(2026, 1, 2, 6, 5), 'bpm': 80},
-          ],
-        }),
-      ];
+    test('HeartRate raw samples map from typed msgs (short range)', () async {
+      // A 1h range is below the aggregate threshold, so the data source takes
+      // the raw path; sample flattening now happens in the native reader.
+      final api = FakeHostApi()
+        ..rawHeartRateSamples = [
+          HeartRateSampleMsg(
+            timeEpochMs: _ms(2026, 1, 2, 6),
+            beatsPerMinute: 60,
+            source: 'com.watch',
+          ),
+          HeartRateSampleMsg(
+            timeEpochMs: _ms(2026, 1, 2, 6, 5),
+            beatsPerMinute: 80,
+            source: 'com.watch',
+          ),
+        ];
       final samples = await _source(api).readHeartRateSamples(
         DateTime.utc(2026, 1, 2, 6),
         DateTime.utc(2026, 1, 2, 7),

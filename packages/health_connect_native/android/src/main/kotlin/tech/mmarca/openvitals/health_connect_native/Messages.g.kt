@@ -1701,6 +1701,318 @@ data class SexualActivityEntryMsg (
     return "SexualActivityEntryMsg(timeEpochMs=$timeEpochMs, protectionUsed=$protectionUsed, source=$source)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class HeartRateSampleMsg (
+  val timeEpochMs: Long,
+  val beatsPerMinute: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): HeartRateSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val beatsPerMinute = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return HeartRateSampleMsg(timeEpochMs, beatsPerMinute, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      beatsPerMinute,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as HeartRateSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.beatsPerMinute, other.beatsPerMinute) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.beatsPerMinute)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "HeartRateSampleMsg(timeEpochMs=$timeEpochMs, beatsPerMinute=$beatsPerMinute, source=$source)"
+  }
+}
+
+/**
+ * One heart-rate aggregate bucket (avg bpm over [startEpochMs]..bucket end);
+ * the Dart side turns these into `HeartRateSample`s via the shared helper.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class HeartRateAggBucketMsg (
+  val startEpochMs: Long,
+  val avgBpm: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): HeartRateAggBucketMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val avgBpm = pigeonVar_list[1] as Long
+      return HeartRateAggBucketMsg(startEpochMs, avgBpm)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      avgBpm,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as HeartRateAggBucketMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.avgBpm, other.avgBpm)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.avgBpm)
+    return result
+  }
+  override fun toString(): String {
+    return "HeartRateAggBucketMsg(startEpochMs=$startEpochMs, avgBpm=$avgBpm)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class HeartRateSummaryMsg (
+  val dateEpochMs: Long,
+  val avgBpm: Long,
+  val minBpm: Long,
+  val maxBpm: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): HeartRateSummaryMsg {
+      val dateEpochMs = pigeonVar_list[0] as Long
+      val avgBpm = pigeonVar_list[1] as Long
+      val minBpm = pigeonVar_list[2] as Long
+      val maxBpm = pigeonVar_list[3] as Long
+      return HeartRateSummaryMsg(dateEpochMs, avgBpm, minBpm, maxBpm)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dateEpochMs,
+      avgBpm,
+      minBpm,
+      maxBpm,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as HeartRateSummaryMsg
+    return MessagesPigeonUtils.deepEquals(this.dateEpochMs, other.dateEpochMs) && MessagesPigeonUtils.deepEquals(this.avgBpm, other.avgBpm) && MessagesPigeonUtils.deepEquals(this.minBpm, other.minBpm) && MessagesPigeonUtils.deepEquals(this.maxBpm, other.maxBpm)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dateEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.avgBpm)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.minBpm)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.maxBpm)
+    return result
+  }
+  override fun toString(): String {
+    return "HeartRateSummaryMsg(dateEpochMs=$dateEpochMs, avgBpm=$avgBpm, minBpm=$minBpm, maxBpm=$maxBpm)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RestingHeartRateSampleMsg (
+  val timeEpochMs: Long,
+  val beatsPerMinute: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RestingHeartRateSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val beatsPerMinute = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return RestingHeartRateSampleMsg(timeEpochMs, beatsPerMinute, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      beatsPerMinute,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RestingHeartRateSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.beatsPerMinute, other.beatsPerMinute) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.beatsPerMinute)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "RestingHeartRateSampleMsg(timeEpochMs=$timeEpochMs, beatsPerMinute=$beatsPerMinute, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DailyRestingHRMsg (
+  val dateEpochMs: Long,
+  val bpm: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DailyRestingHRMsg {
+      val dateEpochMs = pigeonVar_list[0] as Long
+      val bpm = pigeonVar_list[1] as Long
+      return DailyRestingHRMsg(dateEpochMs, bpm)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dateEpochMs,
+      bpm,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DailyRestingHRMsg
+    return MessagesPigeonUtils.deepEquals(this.dateEpochMs, other.dateEpochMs) && MessagesPigeonUtils.deepEquals(this.bpm, other.bpm)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dateEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.bpm)
+    return result
+  }
+  override fun toString(): String {
+    return "DailyRestingHRMsg(dateEpochMs=$dateEpochMs, bpm=$bpm)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class HrvSampleMsg (
+  val timeEpochMs: Long,
+  val rmssdMs: Double,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): HrvSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val rmssdMs = pigeonVar_list[1] as Double
+      val source = pigeonVar_list[2] as String
+      return HrvSampleMsg(timeEpochMs, rmssdMs, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      rmssdMs,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as HrvSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.rmssdMs, other.rmssdMs) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rmssdMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "HrvSampleMsg(timeEpochMs=$timeEpochMs, rmssdMs=$rmssdMs, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DailyHrvMsg (
+  val dateEpochMs: Long,
+  val rmssdMs: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DailyHrvMsg {
+      val dateEpochMs = pigeonVar_list[0] as Long
+      val rmssdMs = pigeonVar_list[1] as Double
+      return DailyHrvMsg(dateEpochMs, rmssdMs)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dateEpochMs,
+      rmssdMs,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DailyHrvMsg
+    return MessagesPigeonUtils.deepEquals(this.dateEpochMs, other.dateEpochMs) && MessagesPigeonUtils.deepEquals(this.rmssdMs, other.rmssdMs)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dateEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rmssdMs)
+    return result
+  }
+  override fun toString(): String {
+    return "DailyHrvMsg(dateEpochMs=$dateEpochMs, rmssdMs=$rmssdMs)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1859,6 +2171,41 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           SexualActivityEntryMsg.fromList(it)
         }
       }
+      160.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          HeartRateSampleMsg.fromList(it)
+        }
+      }
+      161.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          HeartRateAggBucketMsg.fromList(it)
+        }
+      }
+      162.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          HeartRateSummaryMsg.fromList(it)
+        }
+      }
+      163.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RestingHeartRateSampleMsg.fromList(it)
+        }
+      }
+      164.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DailyRestingHRMsg.fromList(it)
+        }
+      }
+      165.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          HrvSampleMsg.fromList(it)
+        }
+      }
+      166.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DailyHrvMsg.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1986,6 +2333,34 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is SexualActivityEntryMsg -> {
         stream.write(159)
+        writeValue(stream, value.toList())
+      }
+      is HeartRateSampleMsg -> {
+        stream.write(160)
+        writeValue(stream, value.toList())
+      }
+      is HeartRateAggBucketMsg -> {
+        stream.write(161)
+        writeValue(stream, value.toList())
+      }
+      is HeartRateSummaryMsg -> {
+        stream.write(162)
+        writeValue(stream, value.toList())
+      }
+      is RestingHeartRateSampleMsg -> {
+        stream.write(163)
+        writeValue(stream, value.toList())
+      }
+      is DailyRestingHRMsg -> {
+        stream.write(164)
+        writeValue(stream, value.toList())
+      }
+      is HrvSampleMsg -> {
+        stream.write(165)
+        writeValue(stream, value.toList())
+      }
+      is DailyHrvMsg -> {
+        stream.write(166)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2134,6 +2509,15 @@ interface HealthConnectHostApi {
   fun readBasalBodyTemperatureEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<BasalBodyTemperatureEntryMsg>>) -> Unit)
   fun readIntermenstrualBleedingEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<IntermenstrualBleedingEntryMsg>>) -> Unit)
   fun readSexualActivityEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SexualActivityEntryMsg>>) -> Unit)
+  fun readAvgHeartRate(startEpochMs: Long, endEpochMs: Long, callback: (Result<Long?>) -> Unit)
+  fun readRawHeartRateSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<HeartRateSampleMsg>>) -> Unit)
+  fun readHeartRateAggregatedBuckets(startEpochMs: Long, endEpochMs: Long, bucketMs: Long, callback: (Result<List<HeartRateAggBucketMsg>>) -> Unit)
+  fun readDailyHeartRateSummaries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<HeartRateSummaryMsg>>) -> Unit)
+  fun readRestingHeartRate(startEpochMs: Long, endEpochMs: Long, callback: (Result<Long?>) -> Unit)
+  fun readRestingHeartRateSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<RestingHeartRateSampleMsg>>) -> Unit)
+  fun readDailyRestingHR(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<DailyRestingHRMsg>>) -> Unit)
+  fun readHrvSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<HrvSampleMsg>>) -> Unit)
+  fun readDailyHRV(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<DailyHrvMsg>>) -> Unit)
 
   companion object {
     /** The codec used by HealthConnectHostApi. */
@@ -3498,6 +3882,196 @@ interface HealthConnectHostApi {
             val startEpochMsArg = args[0] as Long
             val endEpochMsArg = args[1] as Long
             api.readSexualActivityEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<SexualActivityEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readAvgHeartRate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readAvgHeartRate(startEpochMsArg, endEpochMsArg) { result: Result<Long?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRawHeartRateSamples$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readRawHeartRateSamples(startEpochMsArg, endEpochMsArg) { result: Result<List<HeartRateSampleMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHeartRateAggregatedBuckets$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            val bucketMsArg = args[2] as Long
+            api.readHeartRateAggregatedBuckets(startEpochMsArg, endEpochMsArg, bucketMsArg) { result: Result<List<HeartRateAggBucketMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyHeartRateSummaries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readDailyHeartRateSummaries(startEpochMsArg, endEpochMsArg) { result: Result<List<HeartRateSummaryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRestingHeartRate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readRestingHeartRate(startEpochMsArg, endEpochMsArg) { result: Result<Long?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRestingHeartRateSamples$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readRestingHeartRateSamples(startEpochMsArg, endEpochMsArg) { result: Result<List<RestingHeartRateSampleMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyRestingHR$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readDailyRestingHR(startEpochMsArg, endEpochMsArg) { result: Result<List<DailyRestingHRMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHrvSamples$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readHrvSamples(startEpochMsArg, endEpochMsArg) { result: Result<List<HrvSampleMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyHRV$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readDailyHRV(startEpochMsArg, endEpochMsArg) { result: Result<List<DailyHrvMsg>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

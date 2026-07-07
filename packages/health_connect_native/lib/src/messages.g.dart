@@ -1911,6 +1911,383 @@ class SexualActivityEntryMsg {
   }
 }
 
+class HeartRateSampleMsg {
+  HeartRateSampleMsg({
+    required this.timeEpochMs,
+    required this.beatsPerMinute,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int beatsPerMinute;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      beatsPerMinute,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HeartRateSampleMsg decode(Object result) {
+    result as List<Object?>;
+    return HeartRateSampleMsg(
+      timeEpochMs: result[0]! as int,
+      beatsPerMinute: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HeartRateSampleMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(beatsPerMinute, other.beatsPerMinute) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HeartRateSampleMsg(timeEpochMs: $timeEpochMs, beatsPerMinute: $beatsPerMinute, source: $source)';
+  }
+}
+
+/// One heart-rate aggregate bucket (avg bpm over [startEpochMs]..bucket end);
+/// the Dart side turns these into `HeartRateSample`s via the shared helper.
+class HeartRateAggBucketMsg {
+  HeartRateAggBucketMsg({
+    required this.startEpochMs,
+    required this.avgBpm,
+  });
+
+  int startEpochMs;
+
+  int avgBpm;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      avgBpm,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HeartRateAggBucketMsg decode(Object result) {
+    result as List<Object?>;
+    return HeartRateAggBucketMsg(
+      startEpochMs: result[0]! as int,
+      avgBpm: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HeartRateAggBucketMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(avgBpm, other.avgBpm);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HeartRateAggBucketMsg(startEpochMs: $startEpochMs, avgBpm: $avgBpm)';
+  }
+}
+
+class HeartRateSummaryMsg {
+  HeartRateSummaryMsg({
+    required this.dateEpochMs,
+    required this.avgBpm,
+    required this.minBpm,
+    required this.maxBpm,
+  });
+
+  int dateEpochMs;
+
+  int avgBpm;
+
+  int minBpm;
+
+  int maxBpm;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      dateEpochMs,
+      avgBpm,
+      minBpm,
+      maxBpm,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HeartRateSummaryMsg decode(Object result) {
+    result as List<Object?>;
+    return HeartRateSummaryMsg(
+      dateEpochMs: result[0]! as int,
+      avgBpm: result[1]! as int,
+      minBpm: result[2]! as int,
+      maxBpm: result[3]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HeartRateSummaryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(dateEpochMs, other.dateEpochMs) && _deepEquals(avgBpm, other.avgBpm) && _deepEquals(minBpm, other.minBpm) && _deepEquals(maxBpm, other.maxBpm);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HeartRateSummaryMsg(dateEpochMs: $dateEpochMs, avgBpm: $avgBpm, minBpm: $minBpm, maxBpm: $maxBpm)';
+  }
+}
+
+class RestingHeartRateSampleMsg {
+  RestingHeartRateSampleMsg({
+    required this.timeEpochMs,
+    required this.beatsPerMinute,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int beatsPerMinute;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      beatsPerMinute,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static RestingHeartRateSampleMsg decode(Object result) {
+    result as List<Object?>;
+    return RestingHeartRateSampleMsg(
+      timeEpochMs: result[0]! as int,
+      beatsPerMinute: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! RestingHeartRateSampleMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(beatsPerMinute, other.beatsPerMinute) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'RestingHeartRateSampleMsg(timeEpochMs: $timeEpochMs, beatsPerMinute: $beatsPerMinute, source: $source)';
+  }
+}
+
+class DailyRestingHRMsg {
+  DailyRestingHRMsg({
+    required this.dateEpochMs,
+    required this.bpm,
+  });
+
+  int dateEpochMs;
+
+  int bpm;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      dateEpochMs,
+      bpm,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DailyRestingHRMsg decode(Object result) {
+    result as List<Object?>;
+    return DailyRestingHRMsg(
+      dateEpochMs: result[0]! as int,
+      bpm: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DailyRestingHRMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(dateEpochMs, other.dateEpochMs) && _deepEquals(bpm, other.bpm);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DailyRestingHRMsg(dateEpochMs: $dateEpochMs, bpm: $bpm)';
+  }
+}
+
+class HrvSampleMsg {
+  HrvSampleMsg({
+    required this.timeEpochMs,
+    required this.rmssdMs,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  double rmssdMs;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      rmssdMs,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static HrvSampleMsg decode(Object result) {
+    result as List<Object?>;
+    return HrvSampleMsg(
+      timeEpochMs: result[0]! as int,
+      rmssdMs: result[1]! as double,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! HrvSampleMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(rmssdMs, other.rmssdMs) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'HrvSampleMsg(timeEpochMs: $timeEpochMs, rmssdMs: $rmssdMs, source: $source)';
+  }
+}
+
+class DailyHrvMsg {
+  DailyHrvMsg({
+    required this.dateEpochMs,
+    required this.rmssdMs,
+  });
+
+  int dateEpochMs;
+
+  double rmssdMs;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      dateEpochMs,
+      rmssdMs,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DailyHrvMsg decode(Object result) {
+    result as List<Object?>;
+    return DailyHrvMsg(
+      dateEpochMs: result[0]! as int,
+      rmssdMs: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DailyHrvMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(dateEpochMs, other.dateEpochMs) && _deepEquals(rmssdMs, other.rmssdMs);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DailyHrvMsg(dateEpochMs: $dateEpochMs, rmssdMs: $rmssdMs)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -2012,6 +2389,27 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is SexualActivityEntryMsg) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
+    }    else if (value is HeartRateSampleMsg) {
+      buffer.putUint8(160);
+      writeValue(buffer, value.encode());
+    }    else if (value is HeartRateAggBucketMsg) {
+      buffer.putUint8(161);
+      writeValue(buffer, value.encode());
+    }    else if (value is HeartRateSummaryMsg) {
+      buffer.putUint8(162);
+      writeValue(buffer, value.encode());
+    }    else if (value is RestingHeartRateSampleMsg) {
+      buffer.putUint8(163);
+      writeValue(buffer, value.encode());
+    }    else if (value is DailyRestingHRMsg) {
+      buffer.putUint8(164);
+      writeValue(buffer, value.encode());
+    }    else if (value is HrvSampleMsg) {
+      buffer.putUint8(165);
+      writeValue(buffer, value.encode());
+    }    else if (value is DailyHrvMsg) {
+      buffer.putUint8(166);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -2084,6 +2482,20 @@ class _PigeonCodec extends StandardMessageCodec {
         return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
       case 159:
         return SexualActivityEntryMsg.decode(readValue(buffer)!);
+      case 160:
+        return HeartRateSampleMsg.decode(readValue(buffer)!);
+      case 161:
+        return HeartRateAggBucketMsg.decode(readValue(buffer)!);
+      case 162:
+        return HeartRateSummaryMsg.decode(readValue(buffer)!);
+      case 163:
+        return RestingHeartRateSampleMsg.decode(readValue(buffer)!);
+      case 164:
+        return DailyRestingHRMsg.decode(readValue(buffer)!);
+      case 165:
+        return HrvSampleMsg.decode(readValue(buffer)!);
+      case 166:
+        return DailyHrvMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -3426,5 +3838,176 @@ class HealthConnectHostApi {
     )
     ;
     return (pigeonVar_replyValue! as List<Object?>).cast<SexualActivityEntryMsg>();
+  }
+
+  Future<int?> readAvgHeartRate(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readAvgHeartRate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as int?;
+  }
+
+  Future<List<HeartRateSampleMsg>> readRawHeartRateSamples(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRawHeartRateSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<HeartRateSampleMsg>();
+  }
+
+  Future<List<HeartRateAggBucketMsg>> readHeartRateAggregatedBuckets(int startEpochMs, int endEpochMs, int bucketMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHeartRateAggregatedBuckets$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs, bucketMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<HeartRateAggBucketMsg>();
+  }
+
+  Future<List<HeartRateSummaryMsg>> readDailyHeartRateSummaries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyHeartRateSummaries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<HeartRateSummaryMsg>();
+  }
+
+  Future<int?> readRestingHeartRate(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRestingHeartRate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as int?;
+  }
+
+  Future<List<RestingHeartRateSampleMsg>> readRestingHeartRateSamples(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRestingHeartRateSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<RestingHeartRateSampleMsg>();
+  }
+
+  Future<List<DailyRestingHRMsg>> readDailyRestingHR(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyRestingHR$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<DailyRestingHRMsg>();
+  }
+
+  Future<List<HrvSampleMsg>> readHrvSamples(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readHrvSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<HrvSampleMsg>();
+  }
+
+  Future<List<DailyHrvMsg>> readDailyHRV(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyHRV$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<DailyHrvMsg>();
   }
 }

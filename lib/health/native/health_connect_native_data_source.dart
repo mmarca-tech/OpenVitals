@@ -10,6 +10,7 @@ import '../../domain/model/body_models.dart';
 import '../../domain/model/cycle_models.dart';
 import '../../domain/model/health_connect_availability.dart';
 import '../../domain/model/heart_models.dart';
+import '../../domain/model/heart_rate_aggregated_samples.dart';
 import '../../domain/model/mindfulness_models.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../domain/model/sleep_models.dart';
@@ -640,39 +641,86 @@ class HealthConnectNativeDataSource extends HealthDataSource {
 
   // ── Heart ─────────────────────────────────────────────────────────────────
 
+  // ── Heart (Phase 5) — typed via native HeartHealthReader ────────────────────
+
+  HeartRateSample _heartRateSample(HeartRateSampleMsg m) => HeartRateSample(
+        time: _fromMs(m.timeEpochMs),
+        beatsPerMinute: m.beatsPerMinute,
+        source: m.source,
+      );
+
   @override
   Future<List<HeartRateSample>> readHeartRateSamples(
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('HeartRate', start, end);
-    return [
-      for (final m in maps) ...HealthRecordJson.heartRateSamples(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+    // Adaptive: high-frequency days would blow past page limits, so aggregate
+    // them into chart buckets; short (workout) ranges keep raw samples.
+    if (shouldUseAggregatedHeartRateSamples(end.difference(start))) {
+      final buckets = await _catch(
+        () => _api.readHeartRateAggregatedBuckets(
+          start.millisecondsSinceEpoch,
+          end.millisecondsSinceEpoch,
+          heartRateChartBucketDuration.inMilliseconds,
+        ),
+        const <HeartRateAggBucketMsg>[],
+      );
+      return [
+        for (final b in buckets)
+          heartRateSampleFromAggregateBucket(
+            startTime: _fromMs(b.startEpochMs),
+            avgBpm: b.avgBpm,
+          ),
+      ];
+    }
+    return readRawHeartRateSamples(start, end);
   }
 
   @override
   Future<List<HeartRateSample>> readRawHeartRateSamples(
     DateTime start,
     DateTime end,
-  ) =>
-      readHeartRateSamples(start, end);
+  ) async {
+    final msgs = await _catch(
+      () => _api.readRawHeartRateSamples(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <HeartRateSampleMsg>[],
+    );
+    return [for (final m in msgs) _heartRateSample(m)];
+  }
 
   @override
-  Future<int?> readAvgHeartRate(LocalDate date) async {
-    final samples = await readHeartRateSamples(_dayStart(date), _dayEnd(date));
-    if (samples.isEmpty) return null;
-    final sum = samples.fold<int>(0, (a, s) => a + s.beatsPerMinute);
-    return (sum / samples.length).round();
-  }
+  Future<int?> readAvgHeartRate(LocalDate date) => _catch(
+        () => _api.readAvgHeartRate(
+          _dayStart(date).millisecondsSinceEpoch,
+          _dayEnd(date).millisecondsSinceEpoch,
+        ),
+        null,
+      );
 
   @override
   Future<List<HeartRateSummary>> readDailyHeartRateSummaries(
     LocalDate start,
     LocalDate end,
   ) async {
-    final samples = await readHeartRateSamples(_dayStart(start), _dayEnd(end));
-    return HealthRecordJson.dailyHeartRateSummaries(samples);
+    final msgs = await _catch(
+      () => _api.readDailyHeartRateSummaries(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <HeartRateSummaryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        HeartRateSummary(
+          date: LocalDate.fromDateTime(_fromMs(m.dateEpochMs)),
+          avgBpm: m.avgBpm,
+          minBpm: m.minBpm,
+          maxBpm: m.maxBpm,
+        ),
+    ];
   }
 
   @override
@@ -680,35 +728,66 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('RestingHeartRate', start, end);
+    final msgs = await _catch(
+      () => _api.readRestingHeartRateSamples(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <RestingHeartRateSampleMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.restingHeartRateSample(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        RestingHeartRateSample(
+          time: _fromMs(m.timeEpochMs),
+          beatsPerMinute: m.beatsPerMinute,
+          source: m.source,
+        ),
+    ];
   }
 
   @override
-  Future<int?> readRestingHeartRate(LocalDate date) async {
-    final samples =
-        await readRestingHeartRateSamples(_dayStart(date), _dayEnd(date));
-    return samples.isEmpty ? null : samples.last.beatsPerMinute;
-  }
+  Future<int?> readRestingHeartRate(LocalDate date) => _catch(
+        () => _api.readRestingHeartRate(
+          _dayStart(date).millisecondsSinceEpoch,
+          _dayEnd(date).millisecondsSinceEpoch,
+        ),
+        null,
+      );
 
   @override
   Future<List<DailyRestingHR>> readDailyRestingHR(
     LocalDate start,
     LocalDate end,
   ) async {
-    final samples =
-        await readRestingHeartRateSamples(_dayStart(start), _dayEnd(end));
-    return HealthRecordJson.dailyRestingHR(samples);
+    final msgs = await _catch(
+      () => _api.readDailyRestingHR(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <DailyRestingHRMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        DailyRestingHR(
+          date: LocalDate.fromDateTime(_fromMs(m.dateEpochMs)),
+          bpm: m.bpm,
+        ),
+    ];
   }
 
   @override
   Future<List<HrvSample>> readHrvSamples(DateTime start, DateTime end) async {
-    final maps = await _read('HeartRateVariabilityRmssd', start, end);
+    final msgs = await _catch(
+      () => _api.readHrvSamples(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <HrvSampleMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.hrvSample(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        HrvSample(time: _fromMs(m.timeEpochMs), rmssdMs: m.rmssdMs, source: m.source),
+    ];
   }
 
   @override
@@ -721,8 +800,20 @@ class HealthConnectNativeDataSource extends HealthDataSource {
 
   @override
   Future<List<DailyHrv>> readDailyHRV(LocalDate start, LocalDate end) async {
-    final samples = await readHrvSamples(_dayStart(start), _dayEnd(end));
-    return HealthRecordJson.dailyHrv(samples);
+    final msgs = await _catch(
+      () => _api.readDailyHRV(
+        _dayStart(start).millisecondsSinceEpoch,
+        _dayEnd(end).millisecondsSinceEpoch,
+      ),
+      const <DailyHrvMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        DailyHrv(
+          date: LocalDate.fromDateTime(_fromMs(m.dateEpochMs)),
+          rmssdMs: m.rmssdMs,
+        ),
+    ];
   }
 
   // ── Vitals (Phase 3) — typed via native VitalsHealthReader ──────────────────
