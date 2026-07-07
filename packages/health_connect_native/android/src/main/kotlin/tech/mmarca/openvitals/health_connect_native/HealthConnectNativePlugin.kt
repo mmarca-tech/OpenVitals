@@ -269,8 +269,13 @@ class HealthConnectNativePlugin :
         Instant.ofEpochMilli(startEpochMs),
         Instant.ofEpochMilli(endEpochMs),
       )
-      val records = withContext(Dispatchers.IO) { readAllRecords(recordClass, timeRangeFilter) }
-      records.map { HealthRecordConverters.recordToJson(it) }
+      // Both the read and the (potentially large, CPU-heavy) JSON serialization
+      // run off the main thread; only the finished List<String> returns to Main.
+      // Serializing thousands of records on Main previously caused input-dispatch ANRs.
+      withContext(Dispatchers.IO) {
+        readAllRecords(recordClass, timeRangeFilter)
+          .map { HealthRecordConverters.recordToJson(it) }
+      }
     }
   }
 
@@ -366,26 +371,26 @@ class HealthConnectNativePlugin :
         Instant.ofEpochMilli(endEpochMs).atZone(zone).toLocalDateTime(),
       )
       val metricSet = specs.map { it.second.metric }.toSet()
-      val buckets = withContext(Dispatchers.IO) {
-        client().aggregateGroupByPeriod(
+      withContext(Dispatchers.IO) {
+        val buckets = client().aggregateGroupByPeriod(
           AggregateGroupByPeriodRequest(
             metrics = metricSet,
             timeRangeFilter = timeRangeFilter,
             timeRangeSlicer = period,
           ),
         )
-      }
-      buckets.map { bucket ->
-        val values = JSONObject()
-        for ((key, spec) in specs) {
-          val value = runCatching { spec.extract(bucket.result) }.getOrNull()
-          values.put(key, value ?: JSONObject.NULL)
+        buckets.map { bucket ->
+          val values = JSONObject()
+          for ((key, spec) in specs) {
+            val value = runCatching { spec.extract(bucket.result) }.getOrNull()
+            values.put(key, value ?: JSONObject.NULL)
+          }
+          JSONObject()
+            .put("startEpochMs", bucket.startTime.atZone(zone).toInstant().toEpochMilli())
+            .put("endEpochMs", bucket.endTime.atZone(zone).toInstant().toEpochMilli())
+            .put("values", values)
+            .toString()
         }
-        JSONObject()
-          .put("startEpochMs", bucket.startTime.atZone(zone).toInstant().toEpochMilli())
-          .put("endEpochMs", bucket.endTime.atZone(zone).toInstant().toEpochMilli())
-          .put("values", values)
-          .toString()
       }
     }
   }
@@ -395,8 +400,10 @@ class HealthConnectNativePlugin :
     callback: (Result<List<String>>) -> Unit,
   ) {
     launchCatching(callback) {
-      val records = recordsJson.map { HealthRecordConverters.jsonToRecord(JSONObject(it)) }
+      // Deserialize the (potentially large) batch off the main thread alongside
+      // the insert, so parsing never blocks input dispatch.
       withContext(Dispatchers.IO) {
+        val records = recordsJson.map { HealthRecordConverters.jsonToRecord(JSONObject(it)) }
         client().insertRecords(records).recordIdsList
       }
     }
