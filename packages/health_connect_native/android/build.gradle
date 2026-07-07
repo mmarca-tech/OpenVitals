@@ -39,6 +39,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // MindfulnessSessionRecord + its aggregate metric and feature flag are
+        // gated behind an experimental opt-in in connect-client; opt in here so
+        // the record converter/aggregate map can reference them.
+        freeCompilerArgs += ["-opt-in=androidx.health.connect.client.feature.ExperimentalMindfulnessSessionApi"]
     }
 
     defaultConfig {
