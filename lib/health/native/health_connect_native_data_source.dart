@@ -998,17 +998,161 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     );
   }
 
-  // ── Cycle ─────────────────────────────────────────────────────────────────
+  // ── Cycle (Phase 4) — typed via native CycleHealthReader (read-only) ────────
 
   @override
   Future<List<MenstruationFlowEntry>> readMenstruationFlowEntries(
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('MenstruationFlow', start, end);
+    final msgs = await _catch(
+      () => _api.readMenstruationFlowEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <MenstruationFlowEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.menstruationFlowEntry(m),
-    ]..sort((a, b) => a.time.compareTo(b.time));
+      for (final m in msgs)
+        MenstruationFlowEntry(
+          time: _fromMs(m.timeEpochMs),
+          flow: m.flow,
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<MenstruationPeriodEntry>> readMenstruationPeriods(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readMenstruationPeriods(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <MenstruationPeriodEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        MenstruationPeriodEntry(
+          startTime: _fromMs(m.startEpochMs),
+          endTime: _fromMs(m.endEpochMs),
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<OvulationTestEntry>> readOvulationTests(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readOvulationTests(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <OvulationTestEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        OvulationTestEntry(
+          time: _fromMs(m.timeEpochMs),
+          result: m.result,
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<CervicalMucusEntry>> readCervicalMucusEntries(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readCervicalMucusEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <CervicalMucusEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        CervicalMucusEntry(
+          time: _fromMs(m.timeEpochMs),
+          appearance: m.appearance,
+          sensation: m.sensation,
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<BasalBodyTemperatureEntry>> readBasalBodyTemperatureEntries(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readBasalBodyTemperatureEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <BasalBodyTemperatureEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        BasalBodyTemperatureEntry(
+          time: _fromMs(m.timeEpochMs),
+          temperatureCelsius: m.temperatureCelsius,
+          measurementLocation: m.measurementLocation,
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<IntermenstrualBleedingEntry>> readIntermenstrualBleedingEntries(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readIntermenstrualBleedingEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <IntermenstrualBleedingEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        IntermenstrualBleedingEntry(
+          time: _fromMs(m.timeEpochMs),
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<SexualActivityEntry>> readSexualActivityEntries(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readSexualActivityEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <SexualActivityEntryMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        SexualActivityEntry(
+          time: _fromMs(m.timeEpochMs),
+          protectionUsed: m.protectionUsed,
+          source: m.source,
+        ),
+    ];
   }
 
   // ── Writes ────────────────────────────────────────────────────────────────

@@ -340,6 +340,63 @@ class VitalsMeasurementWriteRequestMsg {
   );
 }
 
+// ── Cycle (Phase 4) — all read-only ──────────────────────────────────────────
+
+class MenstruationFlowEntryMsg {
+  final int timeEpochMs;
+  final int flow;
+  final String source;
+  MenstruationFlowEntryMsg(this.timeEpochMs, this.flow, this.source);
+}
+
+class MenstruationPeriodEntryMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final String source;
+  MenstruationPeriodEntryMsg(this.startEpochMs, this.endEpochMs, this.source);
+}
+
+class OvulationTestEntryMsg {
+  final int timeEpochMs;
+  final int result;
+  final String source;
+  OvulationTestEntryMsg(this.timeEpochMs, this.result, this.source);
+}
+
+class CervicalMucusEntryMsg {
+  final int timeEpochMs;
+  final int appearance;
+  final int sensation;
+  final String source;
+  CervicalMucusEntryMsg(this.timeEpochMs, this.appearance, this.sensation, this.source);
+}
+
+class BasalBodyTemperatureEntryMsg {
+  final int timeEpochMs;
+  final double temperatureCelsius;
+  final int measurementLocation;
+  final String source;
+  BasalBodyTemperatureEntryMsg(
+    this.timeEpochMs,
+    this.temperatureCelsius,
+    this.measurementLocation,
+    this.source,
+  );
+}
+
+class IntermenstrualBleedingEntryMsg {
+  final int timeEpochMs;
+  final String source;
+  IntermenstrualBleedingEntryMsg(this.timeEpochMs, this.source);
+}
+
+class SexualActivityEntryMsg {
+  final int timeEpochMs;
+  final int protectionUsed;
+  final String source;
+  SexualActivityEntryMsg(this.timeEpochMs, this.protectionUsed, this.source);
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -565,4 +622,21 @@ abstract class HealthConnectHostApi {
   void updateVitalsMeasurementEntry(String id, VitalsMeasurementWriteRequestMsg request);
   @async
   void deleteVitalsMeasurementEntry(VitalsMeasurementTypeMsg type, String id);
+
+  // ── Cycle (Phase 4) — read-only ────────────────────────────────────────────
+
+  @async
+  List<MenstruationFlowEntryMsg> readMenstruationFlowEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<MenstruationPeriodEntryMsg> readMenstruationPeriods(int startEpochMs, int endEpochMs);
+  @async
+  List<OvulationTestEntryMsg> readOvulationTests(int startEpochMs, int endEpochMs);
+  @async
+  List<CervicalMucusEntryMsg> readCervicalMucusEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<BasalBodyTemperatureEntryMsg> readBasalBodyTemperatureEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<IntermenstrualBleedingEntryMsg> readIntermenstrualBleedingEntries(int startEpochMs, int endEpochMs);
+  @async
+  List<SexualActivityEntryMsg> readSexualActivityEntries(int startEpochMs, int endEpochMs);
 }

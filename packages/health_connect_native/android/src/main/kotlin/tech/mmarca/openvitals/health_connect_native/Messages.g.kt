@@ -1382,6 +1382,325 @@ data class VitalsMeasurementWriteRequestMsg (
     return "VitalsMeasurementWriteRequestMsg(type=$type, timeEpochMs=$timeEpochMs, value=$value, secondaryValue=$secondaryValue)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class MenstruationFlowEntryMsg (
+  val timeEpochMs: Long,
+  val flow: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MenstruationFlowEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val flow = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return MenstruationFlowEntryMsg(timeEpochMs, flow, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      flow,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MenstruationFlowEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.flow, other.flow) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.flow)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "MenstruationFlowEntryMsg(timeEpochMs=$timeEpochMs, flow=$flow, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class MenstruationPeriodEntryMsg (
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MenstruationPeriodEntryMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val endEpochMs = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return MenstruationPeriodEntryMsg(startEpochMs, endEpochMs, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      endEpochMs,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MenstruationPeriodEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "MenstruationPeriodEntryMsg(startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class OvulationTestEntryMsg (
+  val timeEpochMs: Long,
+  val result: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): OvulationTestEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val result = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return OvulationTestEntryMsg(timeEpochMs, result, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      result,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as OvulationTestEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.result, other.result) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.result)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "OvulationTestEntryMsg(timeEpochMs=$timeEpochMs, result=$result, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class CervicalMucusEntryMsg (
+  val timeEpochMs: Long,
+  val appearance: Long,
+  val sensation: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): CervicalMucusEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val appearance = pigeonVar_list[1] as Long
+      val sensation = pigeonVar_list[2] as Long
+      val source = pigeonVar_list[3] as String
+      return CervicalMucusEntryMsg(timeEpochMs, appearance, sensation, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      appearance,
+      sensation,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as CervicalMucusEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.appearance, other.appearance) && MessagesPigeonUtils.deepEquals(this.sensation, other.sensation) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.appearance)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.sensation)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "CervicalMucusEntryMsg(timeEpochMs=$timeEpochMs, appearance=$appearance, sensation=$sensation, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BasalBodyTemperatureEntryMsg (
+  val timeEpochMs: Long,
+  val temperatureCelsius: Double,
+  val measurementLocation: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BasalBodyTemperatureEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val temperatureCelsius = pigeonVar_list[1] as Double
+      val measurementLocation = pigeonVar_list[2] as Long
+      val source = pigeonVar_list[3] as String
+      return BasalBodyTemperatureEntryMsg(timeEpochMs, temperatureCelsius, measurementLocation, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      temperatureCelsius,
+      measurementLocation,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BasalBodyTemperatureEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.temperatureCelsius, other.temperatureCelsius) && MessagesPigeonUtils.deepEquals(this.measurementLocation, other.measurementLocation) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.temperatureCelsius)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.measurementLocation)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "BasalBodyTemperatureEntryMsg(timeEpochMs=$timeEpochMs, temperatureCelsius=$temperatureCelsius, measurementLocation=$measurementLocation, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class IntermenstrualBleedingEntryMsg (
+  val timeEpochMs: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): IntermenstrualBleedingEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val source = pigeonVar_list[1] as String
+      return IntermenstrualBleedingEntryMsg(timeEpochMs, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as IntermenstrualBleedingEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "IntermenstrualBleedingEntryMsg(timeEpochMs=$timeEpochMs, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class SexualActivityEntryMsg (
+  val timeEpochMs: Long,
+  val protectionUsed: Long,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SexualActivityEntryMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val protectionUsed = pigeonVar_list[1] as Long
+      val source = pigeonVar_list[2] as String
+      return SexualActivityEntryMsg(timeEpochMs, protectionUsed, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      protectionUsed,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SexualActivityEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.protectionUsed, other.protectionUsed) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.protectionUsed)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "SexualActivityEntryMsg(timeEpochMs=$timeEpochMs, protectionUsed=$protectionUsed, source=$source)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1505,6 +1824,41 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           VitalsMeasurementWriteRequestMsg.fromList(it)
         }
       }
+      153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MenstruationFlowEntryMsg.fromList(it)
+        }
+      }
+      154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MenstruationPeriodEntryMsg.fromList(it)
+        }
+      }
+      155.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          OvulationTestEntryMsg.fromList(it)
+        }
+      }
+      156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CervicalMucusEntryMsg.fromList(it)
+        }
+      }
+      157.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BasalBodyTemperatureEntryMsg.fromList(it)
+        }
+      }
+      158.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          IntermenstrualBleedingEntryMsg.fromList(it)
+        }
+      }
+      159.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SexualActivityEntryMsg.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1604,6 +1958,34 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is VitalsMeasurementWriteRequestMsg -> {
         stream.write(152)
+        writeValue(stream, value.toList())
+      }
+      is MenstruationFlowEntryMsg -> {
+        stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is MenstruationPeriodEntryMsg -> {
+        stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is OvulationTestEntryMsg -> {
+        stream.write(155)
+        writeValue(stream, value.toList())
+      }
+      is CervicalMucusEntryMsg -> {
+        stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is BasalBodyTemperatureEntryMsg -> {
+        stream.write(157)
+        writeValue(stream, value.toList())
+      }
+      is IntermenstrualBleedingEntryMsg -> {
+        stream.write(158)
+        writeValue(stream, value.toList())
+      }
+      is SexualActivityEntryMsg -> {
+        stream.write(159)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1745,6 +2127,13 @@ interface HealthConnectHostApi {
   fun readVitalsMeasurementEntry(type: VitalsMeasurementTypeMsg, id: String, callback: (Result<VitalsMeasurementEntryMsg?>) -> Unit)
   fun updateVitalsMeasurementEntry(id: String, request: VitalsMeasurementWriteRequestMsg, callback: (Result<Unit>) -> Unit)
   fun deleteVitalsMeasurementEntry(type: VitalsMeasurementTypeMsg, id: String, callback: (Result<Unit>) -> Unit)
+  fun readMenstruationFlowEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<MenstruationFlowEntryMsg>>) -> Unit)
+  fun readMenstruationPeriods(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<MenstruationPeriodEntryMsg>>) -> Unit)
+  fun readOvulationTests(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<OvulationTestEntryMsg>>) -> Unit)
+  fun readCervicalMucusEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<CervicalMucusEntryMsg>>) -> Unit)
+  fun readBasalBodyTemperatureEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<BasalBodyTemperatureEntryMsg>>) -> Unit)
+  fun readIntermenstrualBleedingEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<IntermenstrualBleedingEntryMsg>>) -> Unit)
+  fun readSexualActivityEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SexualActivityEntryMsg>>) -> Unit)
 
   companion object {
     /** The codec used by HealthConnectHostApi. */
@@ -2968,6 +3357,153 @@ interface HealthConnectHostApi {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
               } else {
                 reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMenstruationFlowEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readMenstruationFlowEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<MenstruationFlowEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMenstruationPeriods$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readMenstruationPeriods(startEpochMsArg, endEpochMsArg) { result: Result<List<MenstruationPeriodEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readOvulationTests$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readOvulationTests(startEpochMsArg, endEpochMsArg) { result: Result<List<OvulationTestEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readCervicalMucusEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readCervicalMucusEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<CervicalMucusEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readBasalBodyTemperatureEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readBasalBodyTemperatureEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<BasalBodyTemperatureEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readIntermenstrualBleedingEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readIntermenstrualBleedingEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<IntermenstrualBleedingEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSexualActivityEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readSexualActivityEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<SexualActivityEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
               }
             }
           }

@@ -1521,6 +1521,396 @@ class VitalsMeasurementWriteRequestMsg {
   }
 }
 
+class MenstruationFlowEntryMsg {
+  MenstruationFlowEntryMsg({
+    required this.timeEpochMs,
+    required this.flow,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int flow;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      flow,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MenstruationFlowEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return MenstruationFlowEntryMsg(
+      timeEpochMs: result[0]! as int,
+      flow: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MenstruationFlowEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(flow, other.flow) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MenstruationFlowEntryMsg(timeEpochMs: $timeEpochMs, flow: $flow, source: $source)';
+  }
+}
+
+class MenstruationPeriodEntryMsg {
+  MenstruationPeriodEntryMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.source,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MenstruationPeriodEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return MenstruationPeriodEntryMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MenstruationPeriodEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MenstruationPeriodEntryMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, source: $source)';
+  }
+}
+
+class OvulationTestEntryMsg {
+  OvulationTestEntryMsg({
+    required this.timeEpochMs,
+    required this.result,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int result;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      result,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static OvulationTestEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return OvulationTestEntryMsg(
+      timeEpochMs: result[0]! as int,
+      result: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! OvulationTestEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(result, other.result) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'OvulationTestEntryMsg(timeEpochMs: $timeEpochMs, result: $result, source: $source)';
+  }
+}
+
+class CervicalMucusEntryMsg {
+  CervicalMucusEntryMsg({
+    required this.timeEpochMs,
+    required this.appearance,
+    required this.sensation,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int appearance;
+
+  int sensation;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      appearance,
+      sensation,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static CervicalMucusEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return CervicalMucusEntryMsg(
+      timeEpochMs: result[0]! as int,
+      appearance: result[1]! as int,
+      sensation: result[2]! as int,
+      source: result[3]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! CervicalMucusEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(appearance, other.appearance) && _deepEquals(sensation, other.sensation) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'CervicalMucusEntryMsg(timeEpochMs: $timeEpochMs, appearance: $appearance, sensation: $sensation, source: $source)';
+  }
+}
+
+class BasalBodyTemperatureEntryMsg {
+  BasalBodyTemperatureEntryMsg({
+    required this.timeEpochMs,
+    required this.temperatureCelsius,
+    required this.measurementLocation,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  double temperatureCelsius;
+
+  int measurementLocation;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      temperatureCelsius,
+      measurementLocation,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static BasalBodyTemperatureEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return BasalBodyTemperatureEntryMsg(
+      timeEpochMs: result[0]! as int,
+      temperatureCelsius: result[1]! as double,
+      measurementLocation: result[2]! as int,
+      source: result[3]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BasalBodyTemperatureEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(temperatureCelsius, other.temperatureCelsius) && _deepEquals(measurementLocation, other.measurementLocation) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BasalBodyTemperatureEntryMsg(timeEpochMs: $timeEpochMs, temperatureCelsius: $temperatureCelsius, measurementLocation: $measurementLocation, source: $source)';
+  }
+}
+
+class IntermenstrualBleedingEntryMsg {
+  IntermenstrualBleedingEntryMsg({
+    required this.timeEpochMs,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static IntermenstrualBleedingEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return IntermenstrualBleedingEntryMsg(
+      timeEpochMs: result[0]! as int,
+      source: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! IntermenstrualBleedingEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'IntermenstrualBleedingEntryMsg(timeEpochMs: $timeEpochMs, source: $source)';
+  }
+}
+
+class SexualActivityEntryMsg {
+  SexualActivityEntryMsg({
+    required this.timeEpochMs,
+    required this.protectionUsed,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  int protectionUsed;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      protectionUsed,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SexualActivityEntryMsg decode(Object result) {
+    result as List<Object?>;
+    return SexualActivityEntryMsg(
+      timeEpochMs: result[0]! as int,
+      protectionUsed: result[1]! as int,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SexualActivityEntryMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(protectionUsed, other.protectionUsed) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SexualActivityEntryMsg(timeEpochMs: $timeEpochMs, protectionUsed: $protectionUsed, source: $source)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1601,6 +1991,27 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is VitalsMeasurementWriteRequestMsg) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
+    }    else if (value is MenstruationFlowEntryMsg) {
+      buffer.putUint8(153);
+      writeValue(buffer, value.encode());
+    }    else if (value is MenstruationPeriodEntryMsg) {
+      buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is OvulationTestEntryMsg) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is CervicalMucusEntryMsg) {
+      buffer.putUint8(156);
+      writeValue(buffer, value.encode());
+    }    else if (value is BasalBodyTemperatureEntryMsg) {
+      buffer.putUint8(157);
+      writeValue(buffer, value.encode());
+    }    else if (value is IntermenstrualBleedingEntryMsg) {
+      buffer.putUint8(158);
+      writeValue(buffer, value.encode());
+    }    else if (value is SexualActivityEntryMsg) {
+      buffer.putUint8(159);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1659,6 +2070,20 @@ class _PigeonCodec extends StandardMessageCodec {
         return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
       case 152:
         return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+      case 153:
+        return MenstruationFlowEntryMsg.decode(readValue(buffer)!);
+      case 154:
+        return MenstruationPeriodEntryMsg.decode(readValue(buffer)!);
+      case 155:
+        return OvulationTestEntryMsg.decode(readValue(buffer)!);
+      case 156:
+        return CervicalMucusEntryMsg.decode(readValue(buffer)!);
+      case 157:
+        return BasalBodyTemperatureEntryMsg.decode(readValue(buffer)!);
+      case 158:
+        return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
+      case 159:
+        return SexualActivityEntryMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2868,5 +3293,138 @@ class HealthConnectHostApi {
         isNullValid: true,
     )
     ;
+  }
+
+  Future<List<MenstruationFlowEntryMsg>> readMenstruationFlowEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMenstruationFlowEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<MenstruationFlowEntryMsg>();
+  }
+
+  Future<List<MenstruationPeriodEntryMsg>> readMenstruationPeriods(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readMenstruationPeriods$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<MenstruationPeriodEntryMsg>();
+  }
+
+  Future<List<OvulationTestEntryMsg>> readOvulationTests(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readOvulationTests$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<OvulationTestEntryMsg>();
+  }
+
+  Future<List<CervicalMucusEntryMsg>> readCervicalMucusEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readCervicalMucusEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<CervicalMucusEntryMsg>();
+  }
+
+  Future<List<BasalBodyTemperatureEntryMsg>> readBasalBodyTemperatureEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readBasalBodyTemperatureEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<BasalBodyTemperatureEntryMsg>();
+  }
+
+  Future<List<IntermenstrualBleedingEntryMsg>> readIntermenstrualBleedingEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readIntermenstrualBleedingEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<IntermenstrualBleedingEntryMsg>();
+  }
+
+  Future<List<SexualActivityEntryMsg>> readSexualActivityEntries(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSexualActivityEntries$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<SexualActivityEntryMsg>();
   }
 }

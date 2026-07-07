@@ -69,6 +69,7 @@ class HealthConnectNativePlugin :
   private var hydrationReader: HydrationHealthReader? = null
   private var mindfulnessReader: MindfulnessHealthReader? = null
   private var vitalsReader: VitalsHealthReader? = null
+  private var cycleReader: CycleHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
@@ -81,6 +82,9 @@ class HealthConnectNativePlugin :
 
   private fun requireVitalsReader(): VitalsHealthReader =
     vitalsReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireCycleReader(): CycleHealthReader =
+    cycleReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -119,6 +123,7 @@ class HealthConnectNativePlugin :
     hydrationReader = HydrationHealthReader(support, context.packageName)
     mindfulnessReader = MindfulnessHealthReader(support, context.packageName)
     vitalsReader = VitalsHealthReader(support, context.packageName)
+    cycleReader = CycleHealthReader(support)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -132,6 +137,7 @@ class HealthConnectNativePlugin :
     hydrationReader = null
     mindfulnessReader = null
     vitalsReader = null
+    cycleReader = null
     scope.cancel()
   }
 
@@ -556,6 +562,66 @@ class HealthConnectNativePlugin :
     id: String,
     callback: (Result<Unit>) -> Unit,
   ) = launchCatching(callback) { requireVitalsReader().deleteVitalsMeasurementEntry(type, id) }
+
+  // ---------------------------------------------------------------------------
+  // Cycle (Phase 4) — read-only
+  // ---------------------------------------------------------------------------
+
+  override fun readMenstruationFlowEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<MenstruationFlowEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readMenstruationFlowEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readMenstruationPeriods(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<MenstruationPeriodEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readMenstruationPeriods(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readOvulationTests(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<OvulationTestEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readOvulationTests(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readCervicalMucusEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<CervicalMucusEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readCervicalMucusEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readBasalBodyTemperatureEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<BasalBodyTemperatureEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readBasalBodyTemperatureEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readIntermenstrualBleedingEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<IntermenstrualBleedingEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readIntermenstrualBleedingEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readSexualActivityEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<SexualActivityEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireCycleReader().readSexualActivityEntries(instant(startEpochMs), instant(endEpochMs))
+  }
 
   override fun getGrantedPermissions(
     permissions: List<String>,
