@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/presentation/screen_error.dart';
 import '../../core/presentation/unit_formatter.dart';
+import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
@@ -66,6 +67,7 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final data = state.data;
     if (state.isLoading && data == null) {
       return const FullScreenLoading();
@@ -96,9 +98,8 @@ class _DashboardBody extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: PermissionCallout(
-                title: 'Connect more health data',
-                body: 'Grant access so these cards can show your latest '
-                    'readings.',
+                title: l10n.messageMissingPermissionsTitle,
+                body: l10n.messageMissingPermissionsBody,
                 onGrant: notifier.grantPermissions,
                 onDismiss: notifier.acknowledgePermissions,
               ),
@@ -134,13 +135,14 @@ class _DashboardQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
           child: FilledButton.tonalIcon(
             onPressed: () => context.go(AppRoutes.manualEntry),
             icon: const Icon(Icons.add),
-            label: const Text('Log entry'),
+            label: Text(l10n.dashboardActionLog),
           ),
         ),
         const SizedBox(width: 12),
@@ -152,7 +154,7 @@ class _DashboardQuickActions extends StatelessWidget {
               ),
             ),
             icon: const Icon(Icons.directions_run),
-            label: const Text('Start workout'),
+            label: Text(l10n.dashboardActionStartWorkout),
           ),
         ),
       ],

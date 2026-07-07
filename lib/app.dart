@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'domain/preferences/app_language.dart';
 import 'domain/preferences/app_theme_mode.dart';
+import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
 import 'state/app_providers.dart';
 import 'ui/theme/app_theme.dart';
@@ -51,11 +52,13 @@ class OpenVitalsApp extends ConsumerWidget {
           theme: AppTheme.themeFrom(lightScheme),
           darkTheme: AppTheme.themeFrom(darkScheme),
           themeMode: _materialThemeMode(themeMode),
-          // TODO(phase-l10n): full localization is a later phase. For now the
-          // Material default (English) delegates are used and the selected
-          // language only drives the app [Locale]; add
-          // `localizationsDelegates` + `supportedLocales` + generated ARB
-          // messages when l10n lands.
+          // Localization (Phase 7). The generated [AppLocalizations] delegates
+          // supply the app strings (ARB catalogs under `lib/l10n`) plus the
+          // Material/Cupertino/Widgets delegates for framework strings. The
+          // selected [AppLanguage] drives [locale]; `system` maps to null so the
+          // platform locale wins, resolved against [supportedLocales].
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           locale: _localeFor(language),
           routerConfig: router,
         );

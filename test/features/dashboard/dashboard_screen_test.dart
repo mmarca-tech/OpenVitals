@@ -11,6 +11,7 @@ import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/domain/usecase/load_dashboard_day_use_case.dart';
 import 'package:openvitals/features/dashboard/dashboard_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/metric_card.dart';
 import 'package:openvitals/ui/components/period_navigator.dart';
@@ -83,6 +84,8 @@ Future<Widget> _bootstrap({
       ),
     ],
     child: const MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: DashboardScreen()),
     ),
   );

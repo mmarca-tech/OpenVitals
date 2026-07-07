@@ -13,6 +13,9 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    # gen-l10n output (AppLocalizations + per-locale delegates) is generated and
+    # not `.g.dart`, so exclude it explicitly.
+    - "lib/l10n/app_localizations*.dart"
   errors:
     # Generated freezed/riverpod code and intentional patterns should not fail analyze.
     invalid_annotation_target: ignore

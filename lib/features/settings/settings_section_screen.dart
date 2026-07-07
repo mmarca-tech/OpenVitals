@@ -8,6 +8,7 @@ import '../../domain/preferences/app_language.dart';
 import '../../domain/preferences/app_theme_mode.dart';
 import '../../domain/preferences/sleep_range_mode.dart';
 import '../../domain/preferences/unit_system.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
@@ -30,8 +31,9 @@ class SettingsSectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(section.title)),
+      appBar: AppBar(title: Text(section.localizedTitle(l10n))),
       body: switch (section) {
         SettingsSection.sensors => const _ComingSoonBody(
             // TODO(phase6): BLE heart-rate sensor pairing is a Phase-6 subsystem.
@@ -59,43 +61,44 @@ class SettingsSectionScreen extends ConsumerWidget {
 List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section) {
   final notifier = ref.read(settingsProvider.notifier);
   final state = ref.watch(settingsProvider);
+  final l10n = AppLocalizations.of(context);
   switch (section) {
     case SettingsSection.display:
       return [
         _SettingsCard(
-          title: 'Language',
-          body: 'Choose the app language.',
+          title: l10n.settingsLanguageTitle,
+          body: l10n.settingsLanguageBody,
           child: _LanguageDropdown(
             selected: state.appLanguage,
             onSelect: notifier.selectAppLanguage,
           ),
         ),
         _SettingsCard(
-          title: 'Units',
-          body: 'Distance, weight and temperature units.',
+          title: l10n.settingsUnitsTitle,
+          body: l10n.settingsUnitsBody,
           child: _ChoiceRow<UnitSystem>(
             options: UnitSystem.values,
             selected: state.unitSystem,
-            labelFor: _unitLabel,
+            labelFor: (value) => _unitLabel(l10n, value),
             onSelect: notifier.selectUnitSystem,
           ),
         ),
         _SettingsCard(
-          title: 'Theme',
-          body: 'Light, dark or system appearance.',
+          title: l10n.settingsThemeTitle,
+          body: l10n.settingsThemeBody,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _ChoiceRow<AppThemeMode>(
                 options: AppThemeMode.values,
                 selected: state.appThemeMode,
-                labelFor: _themeLabel,
+                labelFor: (value) => _themeLabel(l10n, value),
                 onSelect: notifier.selectAppThemeMode,
               ),
               const SizedBox(height: 8),
               _InlineSwitchRow(
-                title: 'Dynamic colour',
-                body: 'Use colours from your wallpaper.',
+                title: l10n.settingsDynamicColorTitle,
+                body: l10n.settingsDynamicColorBody,
                 value: state.dynamicColor,
                 onChanged: notifier.setDynamicColor,
               ),
@@ -204,16 +207,16 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
   }
 }
 
-String _unitLabel(UnitSystem value) => switch (value) {
-      UnitSystem.metric => 'Metric',
-      UnitSystem.imperial => 'Imperial',
+String _unitLabel(AppLocalizations l10n, UnitSystem value) => switch (value) {
+      UnitSystem.metric => l10n.settingsUnitMetric,
+      UnitSystem.imperial => l10n.settingsUnitImperial,
     };
 
-String _themeLabel(AppThemeMode value) => switch (value) {
-      AppThemeMode.system => 'System',
-      AppThemeMode.light => 'Light',
-      AppThemeMode.dark => 'Dark',
-      AppThemeMode.amoled => 'AMOLED',
+String _themeLabel(AppLocalizations l10n, AppThemeMode value) => switch (value) {
+      AppThemeMode.system => l10n.settingsThemeSystem,
+      AppThemeMode.light => l10n.settingsThemeLight,
+      AppThemeMode.dark => l10n.settingsThemeDark,
+      AppThemeMode.amoled => l10n.settingsThemeAmoled,
     };
 
 String _sleepLabel(SleepRangeMode value) => switch (value) {
@@ -227,6 +230,10 @@ String _weekLabel(ActivityWeekMode value) => switch (value) {
       ActivityWeekMode.last7Days => 'Last 7 days',
     };
 
+// The language picker options are intentionally shown as autonyms (each
+// language in its own name, e.g. "Deutsch") rather than routed through the ARB
+// catalog: an autonym is the same in every locale, which is the accepted i18n
+// practice for a language selector so users can always recognise their language.
 String _languageLabel(AppLanguage value) => switch (value) {
       AppLanguage.system => 'System default',
       AppLanguage.english => 'English',

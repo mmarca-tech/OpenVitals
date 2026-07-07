@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 
 /// The top-level settings sections, ported from the Kotlin `SettingsSection`
@@ -65,5 +66,49 @@ enum SettingsSection {
       if (section.route == route) return section;
     }
     return null;
+  }
+}
+
+/// Localized card title/summary for each settings section, sourced from the ARB
+/// catalog (the Kotlin `settings_*_group_title` / `_group_body` strings). The
+/// enum's const [SettingsSection.title]/[SettingsSection.summary] remain as
+/// English fallbacks for non-UI callers.
+extension SettingsSectionL10n on SettingsSection {
+  String localizedTitle(AppLocalizations l10n) {
+    switch (this) {
+      case SettingsSection.display:
+        return l10n.settingsDisplayGroupTitle;
+      case SettingsSection.activities:
+        return l10n.settingsActivitiesGroupTitle;
+      case SettingsSection.sensors:
+        return l10n.settingsSensorsGroupTitle;
+      case SettingsSection.nutrition:
+        return l10n.settingsNutritionGroupTitle;
+      case SettingsSection.recovery:
+        return l10n.settingsRecoveryGroupTitle;
+      case SettingsSection.dataImport:
+        return l10n.settingsDataImportGroupTitle;
+      case SettingsSection.healthConnect:
+        return l10n.settingsHealthConnectGroupTitle;
+    }
+  }
+
+  String localizedSummary(AppLocalizations l10n) {
+    switch (this) {
+      case SettingsSection.display:
+        return l10n.settingsDisplayGroupBody;
+      case SettingsSection.activities:
+        return l10n.settingsActivitiesGroupBody;
+      case SettingsSection.sensors:
+        return l10n.settingsSensorsGroupBody;
+      case SettingsSection.nutrition:
+        return l10n.settingsNutritionGroupBody;
+      case SettingsSection.recovery:
+        return l10n.settingsRecoveryGroupBody;
+      case SettingsSection.dataImport:
+        return l10n.settingsDataImportGroupBody;
+      case SettingsSection.healthConnect:
+        return l10n.settingsHealthConnectGroupBody;
+    }
   }
 }

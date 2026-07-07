@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 
 /// The Flutter analogue of the Kotlin `OpenVitalsAdaptiveScaffold`.
@@ -35,26 +36,28 @@ class OpenVitalsAdaptiveScaffold extends StatelessWidget {
     );
   }
 
-  String _appBarTitle(int index) =>
+  String _appBarTitle(AppLocalizations l10n, int index) =>
       index == TopLevelDestination.dashboard.branchIndex
-          ? 'OpenVitals'
-          : _destinations[index].label;
+          ? l10n.appName
+          : navDestinationLabel(l10n, _destinations[index]);
 
   /// Contextual Add action, mirroring the Kotlin `addEntryActionForCurrentRoute`
   /// which surfaces an Add FAB on the Activities section (→ new activity entry).
   Widget? _floatingActionButton(BuildContext context, int index) {
     if (index != TopLevelDestination.activities.branchIndex) return null;
+    final l10n = AppLocalizations.of(context);
     return FloatingActionButton.extended(
       onPressed: () => context.push(
         AppRoutes.activityEntryLocation(mode: ActivityEntryMode.record.value),
       ),
       icon: const Icon(Icons.add),
-      label: const Text('New activity'),
+      label: Text(l10n.activityEntryRecordGps),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final int index = navigationShell.currentIndex;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -64,7 +67,7 @@ class OpenVitalsAdaptiveScaffold extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_appBarTitle(index)),
+            title: Text(_appBarTitle(l10n, index)),
             centerTitle: false,
           ),
           floatingActionButton: fab,
@@ -87,13 +90,30 @@ class OpenVitalsAdaptiveScaffold extends StatelessWidget {
                       NavigationDestination(
                         icon: Icon(d.icon),
                         selectedIcon: Icon(d.selectedIcon),
-                        label: d.label,
+                        label: navDestinationLabel(l10n, d),
                       ),
                   ],
                 ),
         );
       },
     );
+  }
+}
+
+/// Localized label for a top-level nav destination. The [TopLevelDestination]
+/// enum keeps a const English `label` for non-UI use (fallbacks, tests); this
+/// maps each destination to its ARB catalog string for display. Dashboard uses
+/// the Kotlin `bottom_nav_dashboard` ("Summary") label.
+String navDestinationLabel(AppLocalizations l10n, TopLevelDestination d) {
+  switch (d) {
+    case TopLevelDestination.dashboard:
+      return l10n.bottomNavDashboard;
+    case TopLevelDestination.activities:
+      return l10n.screenActivities;
+    case TopLevelDestination.addEntry:
+      return l10n.screenManualEntry;
+    case TopLevelDestination.settings:
+      return l10n.screenSettings;
   }
 }
 
@@ -114,6 +134,7 @@ class _RailLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         SingleChildScrollView(
@@ -137,7 +158,7 @@ class _RailLayout extends StatelessWidget {
                     NavigationRailDestination(
                       icon: Icon(d.icon),
                       selectedIcon: Icon(d.selectedIcon),
-                      label: Text(d.label),
+                      label: Text(navDestinationLabel(l10n, d)),
                     ),
                 ],
               ),

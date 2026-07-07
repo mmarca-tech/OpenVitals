@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'ov_card.dart';
 
 /// An inline permission-request card: a lock icon + title, an explanatory body,
@@ -25,6 +26,7 @@ class PermissionCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     return OpenVitalsCard(
       color: scheme.errorContainer.withValues(alpha: 0.3),
       child: Padding(
@@ -58,13 +60,13 @@ class PermissionCallout extends StatelessWidget {
               children: [
                 FilledButton.tonal(
                   onPressed: onGrant,
-                  child: Text(actionLabel ?? 'Grant permission'),
+                  child: Text(actionLabel ?? l10n.actionGrantPermission),
                 ),
                 if (onDismiss != null) ...[
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: onDismiss,
-                    child: const Text('Not now'),
+                    child: Text(l10n.actionNotNow),
                   ),
                 ],
               ],

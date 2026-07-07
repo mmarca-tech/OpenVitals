@@ -9,6 +9,7 @@ import 'package:openvitals/domain/preferences/app_theme_mode.dart';
 import 'package:openvitals/features/settings/settings_screen.dart';
 import 'package:openvitals/features/settings/settings_section.dart';
 import 'package:openvitals/features/settings/settings_section_screen.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 
 Future<(Widget, SharedPreferences)> _bootstrap(Widget child) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
@@ -16,7 +17,11 @@ Future<(Widget, SharedPreferences)> _bootstrap(Widget child) async {
   return (
     ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: MaterialApp(home: child),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: child,
+      ),
     ),
     prefs,
   );

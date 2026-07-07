@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/ov_card.dart';
 import 'settings_section.dart';
@@ -14,6 +15,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
@@ -26,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: _SettingsCategoryCard(section: section),
               ),
-            const SectionHeader('Privacy'),
+            SectionHeader(l10n.sectionPrivacy),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: OpenVitalsCard(
@@ -36,13 +38,12 @@ class SettingsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Your data stays on your device',
+                        l10n.settingsPrivacyOnDevice,
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'OpenVitals reads and writes your health data locally '
-                        'through Health Connect. Nothing is uploaded.',
+                        l10n.privacyPolicyBody2,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -55,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Text(
-                'OpenVitals',
+                l10n.appName,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -77,6 +78,7 @@ class _SettingsCategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return OpenVitalsCard(
       onTap: () => context.push(section.route),
       child: Padding(
@@ -90,13 +92,13 @@ class _SettingsCategoryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    section.title,
+                    section.localizedTitle(l10n),
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    section.summary,
+                    section.localizedSummary(l10n),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
