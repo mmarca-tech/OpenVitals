@@ -780,23 +780,6 @@ abstract class HealthConnectHostApi {
   @async
   bool isFeatureAvailable(String feature);
 
-  /// Reads records of [recordType] in the [startEpochMs, endEpochMs] window,
-  /// returning one JSON object (as a String) per record. [filterJson] is an
-  /// optional JSON object carrying extra read constraints (data origins,
-  /// paging, ascending/descending, page size, etc.).
-  @async
-  List<String> readRecordsJson(
-    String recordType,
-    int startEpochMs,
-    int endEpochMs,
-    String? filterJson,
-  );
-
-  /// Reads a single record of [recordType] by its Health Connect [recordId],
-  /// or `null` if it does not exist.
-  @async
-  String? readRecordJson(String recordType, String recordId);
-
   /// Runs an aggregation over [aggregateMetrics] in the given window, returning
   /// a metric-key -> value map (value is `null` when Health Connect has no data
   /// for that metric in the window).
@@ -817,19 +800,6 @@ abstract class HealthConnectHostApi {
     int endEpochMs,
     String bucketType,
   );
-
-  /// Inserts the given records (each a JSON object String matching the canonical
-  /// schema) and returns the inserted Health Connect record ids in order.
-  @async
-  List<String> insertRecordsJson(List<String> recordsJson);
-
-  /// Deletes records of [recordType] by their app-assigned client record ids.
-  @async
-  void deleteRecordsByClientIds(String recordType, List<String> clientRecordIds);
-
-  /// Deletes records of [recordType] by their Health Connect record ids.
-  @async
-  void deleteRecordsByIds(String recordType, List<String> recordIds);
 
   /// Import dedup helper: of the supplied [clientRecordIds], returns the subset
   /// that ALREADY exist in Health Connect for [recordType].

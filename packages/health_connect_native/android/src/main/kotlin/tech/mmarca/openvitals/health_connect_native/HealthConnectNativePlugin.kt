@@ -968,50 +968,6 @@ class HealthConnectNativePlugin :
     }
   }
 
-  override fun readRecordsJson(
-    recordType: String,
-    startEpochMs: Long,
-    endEpochMs: Long,
-    filterJson: String?,
-    callback: (Result<List<String>>) -> Unit,
-  ) {
-    launchCatching(callback) {
-      val recordClass = HealthRecordConverters.recordClassFor(recordType)
-        ?: throw IllegalArgumentException("Unknown record type: $recordType")
-      val timeRangeFilter = TimeRangeFilter.between(
-        Instant.ofEpochMilli(startEpochMs),
-        Instant.ofEpochMilli(endEpochMs),
-      )
-      // Both the read and the (potentially large, CPU-heavy) JSON serialization
-      // run off the main thread; only the finished List<String> returns to Main.
-      // Serializing thousands of records on Main previously caused input-dispatch ANRs.
-      withContext(Dispatchers.IO) {
-        readAllRecords(recordClass, timeRangeFilter)
-          .map { HealthRecordConverters.recordToJson(it) }
-      }
-    }
-  }
-
-  override fun readRecordJson(
-    recordType: String,
-    recordId: String,
-    callback: (Result<String?>) -> Unit,
-  ) {
-    launchCatching(callback) {
-      val recordClass = HealthRecordConverters.recordClassFor(recordType)
-        ?: throw IllegalArgumentException("Unknown record type: $recordType")
-      val record = withContext(Dispatchers.IO) {
-        try {
-          client().readRecord(recordClass as KClass<Record>, recordId).record
-        } catch (e: Throwable) {
-          // Health Connect throws when the id does not exist; treat as null.
-          null
-        }
-      }
-      record?.let { HealthRecordConverters.recordToJson(it) }
-    }
-  }
-
   override fun aggregate(
     aggregateMetrics: List<String>,
     startEpochMs: Long,
@@ -1108,69 +1064,13 @@ class HealthConnectNativePlugin :
     }
   }
 
-  override fun insertRecordsJson(
-    recordsJson: List<String>,
-    callback: (Result<List<String>>) -> Unit,
-  ) {
-    launchCatching(callback) {
-      // Deserialize the (potentially large) batch off the main thread alongside
-      // the insert, so parsing never blocks input dispatch.
-      withContext(Dispatchers.IO) {
-        val records = recordsJson.map { HealthRecordConverters.jsonToRecord(JSONObject(it)) }
-        client().insertRecords(records).recordIdsList
-      }
-    }
-  }
-
-  override fun deleteRecordsByClientIds(
-    recordType: String,
-    clientRecordIds: List<String>,
-    callback: (Result<Unit>) -> Unit,
-  ) {
-    launchCatching(callback) {
-      val recordClass = HealthRecordConverters.recordClassFor(recordType)
-        ?: throw IllegalArgumentException("Unknown record type: $recordType")
-      if (clientRecordIds.isNotEmpty()) {
-        withContext(Dispatchers.IO) {
-          client().deleteRecords(
-            recordType = recordClass,
-            recordIdsList = emptyList(),
-            clientRecordIdsList = clientRecordIds,
-          )
-        }
-      }
-      Unit
-    }
-  }
-
-  override fun deleteRecordsByIds(
-    recordType: String,
-    recordIds: List<String>,
-    callback: (Result<Unit>) -> Unit,
-  ) {
-    launchCatching(callback) {
-      val recordClass = HealthRecordConverters.recordClassFor(recordType)
-        ?: throw IllegalArgumentException("Unknown record type: $recordType")
-      if (recordIds.isNotEmpty()) {
-        withContext(Dispatchers.IO) {
-          client().deleteRecords(
-            recordType = recordClass,
-            recordIdsList = recordIds,
-            clientRecordIdsList = emptyList(),
-          )
-        }
-      }
-      Unit
-    }
-  }
-
   override fun filterExistingClientIds(
     recordType: String,
     clientRecordIds: List<String>,
     callback: (Result<List<String>>) -> Unit,
   ) {
     launchCatching(callback) {
-      val recordClass = HealthRecordConverters.recordClassFor(recordType)
+      val recordClass = recordClassFor(recordType)
         ?: throw IllegalArgumentException("Unknown record type: $recordType")
       if (clientRecordIds.isEmpty()) return@launchCatching emptyList()
 
@@ -1213,27 +1113,6 @@ class HealthConnectNativePlugin :
     val context = applicationContext
       ?: throw IllegalStateException("Plugin not attached to an engine")
     return HealthConnectClient.getOrCreate(context)
-  }
-
-  private suspend fun readAllRecords(
-    recordClass: KClass<out Record>,
-    timeRangeFilter: TimeRangeFilter,
-  ): List<Record> {
-    val records = mutableListOf<Record>()
-    var pageToken: String? = null
-    do {
-      val response = client().readRecords(
-        ReadRecordsRequest(
-          recordType = recordClass as KClass<Record>,
-          timeRangeFilter = timeRangeFilter,
-          pageSize = READ_PAGE_SIZE,
-          pageToken = pageToken,
-        ),
-      )
-      records += response.records
-      pageToken = response.pageToken
-    } while (pageToken != null)
-    return records
   }
 
   /**

@@ -10,7 +10,6 @@ import 'package:openvitals/domain/model/nutrition_models.dart';
 import 'package:openvitals/domain/model/vitals_models.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
 import 'package:openvitals/health/native/health_connect_native_data_source.dart';
-import 'package:openvitals/health/native/health_record_json.dart';
 
 const _appPackage = 'tech.mmarca.openvitals';
 
@@ -24,14 +23,10 @@ class FakeHostApi extends HealthConnectHostApi {
   List<String> grantedPermissionsResult = const [];
   bool requestPermissionsResult = true;
 
-  final Map<String, List<String>> records = {};
-  final Map<String, Map<String, String>> singleRecords = {};
   Map<String, double?> aggregateValues = {};
   List<String> periodBuckets = const [];
   List<String> existingClientIds = const [];
 
-  final List<Map<String, dynamic>> inserted = [];
-  final List<({String type, List<String> ids})> deletedByIds = [];
   final List<({String type, List<String> ids})> filterQueries = [];
 
   @override
@@ -50,19 +45,6 @@ class FakeHostApi extends HealthConnectHostApi {
       availableFeatures.contains(feature);
 
   @override
-  Future<List<String>> readRecordsJson(
-    String recordType,
-    int startEpochMs,
-    int endEpochMs,
-    String? filterJson,
-  ) async =>
-      records[recordType] ?? const [];
-
-  @override
-  Future<String?> readRecordJson(String recordType, String recordId) async =>
-      singleRecords[recordType]?[recordId];
-
-  @override
   Future<Map<String, double?>> aggregate(
     List<String> aggregateMetrics,
     int startEpochMs,
@@ -78,22 +60,6 @@ class FakeHostApi extends HealthConnectHostApi {
     String bucketType,
   ) async =>
       periodBuckets;
-
-  @override
-  Future<List<String>> insertRecordsJson(List<String> recordsJson) async {
-    for (final json in recordsJson) {
-      inserted.add(jsonDecode(json) as Map<String, dynamic>);
-    }
-    return [for (var i = 0; i < recordsJson.length; i++) 'inserted_$i'];
-  }
-
-  @override
-  Future<void> deleteRecordsByIds(
-    String recordType,
-    List<String> recordIds,
-  ) async {
-    deletedByIds.add((type: recordType, ids: recordIds));
-  }
 
   @override
   Future<List<String>> filterExistingClientIds(
@@ -487,18 +453,6 @@ void main() {
       expect(entries.last.isOpenVitalsEntry, isTrue);
       expect(entries.first.isOpenVitalsEntry, isFalse);
       expect(entries.first.source, 'com.other');
-    });
-
-    test('Height record reports centimetres from metres', () async {
-      final map = <String, dynamic>{
-        'recordType': 'Height',
-        'id': 'h-1',
-        'dataOriginPackage': 'com.other',
-        'timeEpochMs': _ms(2026, 1, 2, 8),
-        'heightMeters': 1.83,
-      };
-      final entry = HealthRecordJson.heightEntry(map, _appPackage);
-      expect(entry.heightCm, closeTo(183.0, 1e-9));
     });
   });
 

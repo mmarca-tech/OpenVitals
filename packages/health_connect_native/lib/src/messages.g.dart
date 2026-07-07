@@ -4017,50 +4017,6 @@ class HealthConnectHostApi {
     return pigeonVar_replyValue! as bool;
   }
 
-  /// Reads records of [recordType] in the [startEpochMs, endEpochMs] window,
-  /// returning one JSON object (as a String) per record. [filterJson] is an
-  /// optional JSON object carrying extra read constraints (data origins,
-  /// paging, ascending/descending, page size, etc.).
-  Future<List<String>> readRecordsJson(String recordType, int startEpochMs, int endEpochMs, String? filterJson) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRecordsJson$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[recordType, startEpochMs, endEpochMs, filterJson]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
-    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
-  }
-
-  /// Reads a single record of [recordType] by its Health Connect [recordId],
-  /// or `null` if it does not exist.
-  Future<String?> readRecordJson(String recordType, String recordId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRecordJson$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[recordType, recordId]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
-    return pigeonVar_replyValue as String?;
-  }
-
   /// Runs an aggregation over [aggregateMetrics] in the given window, returning
   /// a metric-key -> value map (value is `null` when Health Connect has no data
   /// for that metric in the window).
@@ -4103,65 +4059,6 @@ class HealthConnectHostApi {
     )
     ;
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
-  }
-
-  /// Inserts the given records (each a JSON object String matching the canonical
-  /// schema) and returns the inserted Health Connect record ids in order.
-  Future<List<String>> insertRecordsJson(List<String> recordsJson) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.insertRecordsJson$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[recordsJson]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
-    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
-  }
-
-  /// Deletes records of [recordType] by their app-assigned client record ids.
-  Future<void> deleteRecordsByClientIds(String recordType, List<String> clientRecordIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteRecordsByClientIds$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[recordType, clientRecordIds]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
-  }
-
-  /// Deletes records of [recordType] by their Health Connect record ids.
-  Future<void> deleteRecordsByIds(String recordType, List<String> recordIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteRecordsByIds$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[recordType, recordIds]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
   }
 
   /// Import dedup helper: of the supplied [clientRecordIds], returns the subset

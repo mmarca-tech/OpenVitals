@@ -3626,18 +3626,6 @@ interface HealthConnectHostApi {
    */
   fun isFeatureAvailable(feature: String, callback: (Result<Boolean>) -> Unit)
   /**
-   * Reads records of [recordType] in the [startEpochMs, endEpochMs] window,
-   * returning one JSON object (as a String) per record. [filterJson] is an
-   * optional JSON object carrying extra read constraints (data origins,
-   * paging, ascending/descending, page size, etc.).
-   */
-  fun readRecordsJson(recordType: String, startEpochMs: Long, endEpochMs: Long, filterJson: String?, callback: (Result<List<String>>) -> Unit)
-  /**
-   * Reads a single record of [recordType] by its Health Connect [recordId],
-   * or `null` if it does not exist.
-   */
-  fun readRecordJson(recordType: String, recordId: String, callback: (Result<String?>) -> Unit)
-  /**
    * Runs an aggregation over [aggregateMetrics] in the given window, returning
    * a metric-key -> value map (value is `null` when Health Connect has no data
    * for that metric in the window).
@@ -3649,15 +3637,6 @@ interface HealthConnectHostApi {
    * String) per bucket with its time range and aggregated values.
    */
   fun aggregateGroupByPeriodJson(aggregateMetrics: List<String>, startEpochMs: Long, endEpochMs: Long, bucketType: String, callback: (Result<List<String>>) -> Unit)
-  /**
-   * Inserts the given records (each a JSON object String matching the canonical
-   * schema) and returns the inserted Health Connect record ids in order.
-   */
-  fun insertRecordsJson(recordsJson: List<String>, callback: (Result<List<String>>) -> Unit)
-  /** Deletes records of [recordType] by their app-assigned client record ids. */
-  fun deleteRecordsByClientIds(recordType: String, clientRecordIds: List<String>, callback: (Result<Unit>) -> Unit)
-  /** Deletes records of [recordType] by their Health Connect record ids. */
-  fun deleteRecordsByIds(recordType: String, recordIds: List<String>, callback: (Result<Unit>) -> Unit)
   /**
    * Import dedup helper: of the supplied [clientRecordIds], returns the subset
    * that ALREADY exist in Health Connect for [recordType].
@@ -3893,50 +3872,6 @@ interface HealthConnectHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRecordsJson$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val recordTypeArg = args[0] as String
-            val startEpochMsArg = args[1] as Long
-            val endEpochMsArg = args[2] as Long
-            val filterJsonArg = args[3] as String?
-            api.readRecordsJson(recordTypeArg, startEpochMsArg, endEpochMsArg, filterJsonArg) { result: Result<List<String>> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                val data = result.getOrNull()
-                reply.reply(MessagesPigeonUtils.wrapResult(data))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readRecordJson$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val recordTypeArg = args[0] as String
-            val recordIdArg = args[1] as String
-            api.readRecordJson(recordTypeArg, recordIdArg) { result: Result<String?> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                val data = result.getOrNull()
-                reply.reply(MessagesPigeonUtils.wrapResult(data))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.aggregate$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -3974,66 +3909,6 @@ interface HealthConnectHostApi {
               } else {
                 val data = result.getOrNull()
                 reply.reply(MessagesPigeonUtils.wrapResult(data))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.insertRecordsJson$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val recordsJsonArg = args[0] as List<String>
-            api.insertRecordsJson(recordsJsonArg) { result: Result<List<String>> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                val data = result.getOrNull()
-                reply.reply(MessagesPigeonUtils.wrapResult(data))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteRecordsByClientIds$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val recordTypeArg = args[0] as String
-            val clientRecordIdsArg = args[1] as List<String>
-            api.deleteRecordsByClientIds(recordTypeArg, clientRecordIdsArg) { result: Result<Unit> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                reply.reply(MessagesPigeonUtils.wrapResult(null))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteRecordsByIds$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val recordTypeArg = args[0] as String
-            val recordIdsArg = args[1] as List<String>
-            api.deleteRecordsByIds(recordTypeArg, recordIdsArg) { result: Result<Unit> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                reply.reply(MessagesPigeonUtils.wrapResult(null))
               }
             }
           }
