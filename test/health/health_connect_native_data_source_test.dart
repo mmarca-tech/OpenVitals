@@ -160,6 +160,15 @@ class FakeHostApi extends HealthConnectHostApi {
     vitalsWriteRequest = request;
     return 'openvitals_vitals_${request.type.name}_written';
   }
+
+  // ── Nutrition (Phase 6) typed fakes ───────────────────────────────────────
+  NutritionWriteRequestMsg? nutritionWriteRequest;
+
+  @override
+  Future<String> writeNutritionEntry(NutritionWriteRequestMsg request) async {
+    nutritionWriteRequest = request;
+    return 'openvitals_nutrition_written';
+  }
 }
 
 HealthConnectNativeDataSource _source(FakeHostApi api) =>
@@ -502,7 +511,10 @@ void main() {
       expect(req.timeEpochMs, _ms(2026, 1, 2, 8));
     });
 
-    test('writeNutritionEntry maps nutrients to canonical keys/units', () async {
+    test('writeNutritionEntry forwards a typed request keyed by storageName',
+        () async {
+      // The NutritionRecord field mapping now lives in the native reader; the
+      // data source forwards nutrient values keyed by NutritionNutrient.storageName.
       final api = FakeHostApi();
       await _source(api).writeNutritionEntry(
         NutritionWriteRequest(
@@ -517,14 +529,14 @@ void main() {
           },
         ),
       );
-      final record = api.inserted.single;
-      expect(record['recordType'], 'Nutrition');
-      expect(record['name'], 'Lunch');
-      expect(record['energyKcal'], 500.0);
-      expect(record['protein'], 30.0);
-      expect(record['totalCarbohydrate'], 60.0);
-      expect(record['fiber'], 8.0);
-      expect(record['caffeine'], 0.05);
+      final req = api.nutritionWriteRequest!;
+      expect(req.name, 'Lunch');
+      expect(req.timeEpochMs, _ms(2026, 1, 2, 12));
+      expect(req.nutrientValues['ENERGY'], 500.0);
+      expect(req.nutrientValues['PROTEIN'], 30.0);
+      expect(req.nutrientValues['TOTAL_CARBOHYDRATE'], 60.0);
+      expect(req.nutrientValues['DIETARY_FIBER'], 8.0);
+      expect(req.nutrientValues['CAFFEINE'], 0.05);
     });
 
     test('writeActivityEntry builds an ExerciseSession with the HC type + segments',

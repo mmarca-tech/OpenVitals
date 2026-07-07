@@ -448,6 +448,68 @@ class DailyHrvMsg {
   DailyHrvMsg(this.dateEpochMs, this.rmssdMs);
 }
 
+// ── Nutrition (Phase 6) ──────────────────────────────────────────────────────
+
+enum CaloriesBurnedSourceMsg { noData, recordedTotal, estimatedActiveAndBmr }
+
+/// Nutrient maps are keyed by the `NutritionNutrient.storageName` strings
+/// (e.g. "ENERGY", "TOTAL_CARBOHYDRATE") — kcal for energy nutrients, grams for
+/// mass nutrients.
+class NutritionEntryMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final int mealType;
+  final String? name;
+  final String source;
+  final String id;
+  final String? clientRecordId;
+  final bool isOpenVitalsEntry;
+  final Map<String, double> nutrientValues;
+  NutritionEntryMsg(
+    this.startEpochMs,
+    this.endEpochMs,
+    this.mealType,
+    this.name,
+    this.source,
+    this.id,
+    this.clientRecordId,
+    this.isOpenVitalsEntry,
+    this.nutrientValues,
+  );
+}
+
+class DailyMacrosMsg {
+  final int dateEpochMs;
+  final Map<String, double> nutrientValues;
+  DailyMacrosMsg(this.dateEpochMs, this.nutrientValues);
+}
+
+class DailyNutritionMsg {
+  final int dateEpochMs;
+  final double hydrationLiters;
+  final double caloriesBurnedKcal;
+  final CaloriesBurnedSourceMsg caloriesBurnedSource;
+  DailyNutritionMsg(
+    this.dateEpochMs,
+    this.hydrationLiters,
+    this.caloriesBurnedKcal,
+    this.caloriesBurnedSource,
+  );
+}
+
+class NutritionWriteRequestMsg {
+  final int timeEpochMs;
+  final String? name;
+  final Map<String, double> nutrientValues;
+  final String? associatedHydrationClientRecordId;
+  NutritionWriteRequestMsg(
+    this.timeEpochMs,
+    this.name,
+    this.nutrientValues,
+    this.associatedHydrationClientRecordId,
+  );
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -715,4 +777,27 @@ abstract class HealthConnectHostApi {
   List<HrvSampleMsg> readHrvSamples(int startEpochMs, int endEpochMs);
   @async
   List<DailyHrvMsg> readDailyHRV(int startEpochMs, int endEpochMs);
+
+  // ── Nutrition (Phase 6) ────────────────────────────────────────────────────
+
+  @async
+  double? readCaloriesInKcal(int startEpochMs, int endEpochMs);
+  @async
+  List<DailyNutritionMsg> readDailyNutrition(
+    int startEpochMs,
+    int endEpochMs,
+    bool includeHydration,
+    bool includeCalories,
+    bool includeEstimatedCalories,
+  );
+  @async
+  List<DailyMacrosMsg> readDailyMacros(int startEpochMs, int endEpochMs);
+  @async
+  List<NutritionEntryMsg> readNutritionEntries(int startEpochMs, int endEpochMs);
+  @async
+  String writeNutritionEntry(NutritionWriteRequestMsg request);
+  @async
+  String? deleteNutritionEntry(String id);
+  @async
+  void deleteHydrationNutritionEntry(String hydrationClientRecordId);
 }

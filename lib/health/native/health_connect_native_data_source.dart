@@ -301,25 +301,75 @@ class HealthConnectNativeDataSource extends HealthDataSource {
 
   // ── Nutrition / hydration ─────────────────────────────────────────────────
 
-  @override
-  Future<double?> readCaloriesInKcal(LocalDate date) async {
-    final agg = await _aggregate(
-      const ['Nutrition.energy'],
-      _dayStart(date),
-      _dayEnd(date),
-    );
-    final kcal = agg['Nutrition.energy'];
-    return (kcal != null && kcal > 0) ? kcal : null;
+  // ── Nutrition (Phase 6) — typed via native NutritionHealthReader ────────────
+
+  /// Nutrient maps cross the bridge keyed by [NutritionNutrient.storageName];
+  /// unknown keys are dropped.
+  Map<NutritionNutrient, double> _nutrientMap(Map<String, double> raw) {
+    final out = <NutritionNutrient, double>{};
+    for (final e in raw.entries) {
+      final n = NutritionNutrient.fromStorage(e.key);
+      if (n != null) out[n] = e.value;
+    }
+    return out;
   }
+
+  Map<String, double> _nutrientMsg(Map<NutritionNutrient, double> values) => {
+        for (final e in values.entries) e.key.storageName: e.value,
+      };
+
+  CaloriesBurnedSource _caloriesSource(CaloriesBurnedSourceMsg m) =>
+      switch (m) {
+        CaloriesBurnedSourceMsg.noData => CaloriesBurnedSource.noData,
+        CaloriesBurnedSourceMsg.recordedTotal =>
+          CaloriesBurnedSource.recordedTotal,
+        CaloriesBurnedSourceMsg.estimatedActiveAndBmr =>
+          CaloriesBurnedSource.estimatedActiveAndBmr,
+      };
+
+  @override
+  Future<double?> readCaloriesInKcal(LocalDate date) => _catch(
+        () => _api.readCaloriesInKcal(
+          _dayStart(date).millisecondsSinceEpoch,
+          _dayEnd(date).millisecondsSinceEpoch,
+        ),
+        null,
+      );
 
   @override
   Future<List<NutritionEntry>> readNutritionEntries(
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('Nutrition', start, end);
+    final msgs = await _catch(
+      () => _api.readNutritionEntries(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <NutritionEntryMsg>[],
+    );
     return [
-      for (final m in maps) HealthRecordJson.nutritionEntry(m, appPackageName),
+      for (final m in msgs)
+        () {
+          final nutrients = _nutrientMap(m.nutrientValues);
+          return NutritionEntry(
+            time: _fromMs(m.startEpochMs),
+            endTime: _fromMs(m.endEpochMs),
+            mealType: m.mealType,
+            name: m.name,
+            energyKcal: nutrients[NutritionNutrient.energy],
+            proteinGrams: nutrients[NutritionNutrient.protein],
+            carbsGrams: nutrients[NutritionNutrient.totalCarbohydrate],
+            fatGrams: nutrients[NutritionNutrient.totalFat],
+            fiberGrams: nutrients[NutritionNutrient.dietaryFiber],
+            sugarGrams: nutrients[NutritionNutrient.sugar],
+            source: m.source,
+            nutrientValues: nutrients,
+            id: m.id,
+            clientRecordId: m.clientRecordId,
+            isOpenVitalsEntry: m.isOpenVitalsEntry,
+          );
+        }(),
     ];
   }
 
@@ -328,20 +378,47 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate startDate,
     LocalDate endDate,
   ) async {
-    final entries =
-        await readNutritionEntries(_dayStart(startDate), _dayEnd(endDate));
-    final byDate = <LocalDate, Map<NutritionNutrient, double>>{};
-    for (final entry in entries) {
-      final date = LocalDate.fromDateTime(entry.time.toLocal());
-      final bucket = byDate.putIfAbsent(date, () => <NutritionNutrient, double>{});
-      entry.nutrientValues.forEach((nutrient, value) {
-        bucket[nutrient] = (bucket[nutrient] ?? 0) + value;
-      });
-    }
-    final dates = byDate.keys.toList()..sort();
+    final msgs = await _catch(
+      () => _api.readDailyMacros(
+        _dayStart(startDate).millisecondsSinceEpoch,
+        _dayEnd(endDate).millisecondsSinceEpoch,
+      ),
+      const <DailyMacrosMsg>[],
+    );
     return [
-      for (final date in dates)
-        DailyMacros(date: date, nutrientValues: byDate[date]!),
+      for (final m in msgs)
+        DailyMacros(
+          date: LocalDate.fromDateTime(_fromMs(m.dateEpochMs)),
+          nutrientValues: _nutrientMap(m.nutrientValues),
+        ),
+    ];
+  }
+
+  @override
+  Future<List<DailyNutrition>> readDailyNutrition(
+    LocalDate startDate,
+    LocalDate endDate, {
+    bool includeHydration = true,
+    bool includeEstimatedCalories = false,
+  }) async {
+    final msgs = await _catch(
+      () => _api.readDailyNutrition(
+        _dayStart(startDate).millisecondsSinceEpoch,
+        _dayEnd(endDate).millisecondsSinceEpoch,
+        includeHydration,
+        true, // includeCalories (always on, matching the reference default)
+        includeEstimatedCalories,
+      ),
+      const <DailyNutritionMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        DailyNutrition(
+          date: LocalDate.fromDateTime(_fromMs(m.dateEpochMs)),
+          hydrationLiters: m.hydrationLiters,
+          caloriesBurnedKcal: m.caloriesBurnedKcal,
+          caloriesBurnedSource: _caloriesSource(m.caloriesBurnedSource),
+        ),
     ];
   }
 
@@ -1449,28 +1526,24 @@ class HealthConnectNativeDataSource extends HealthDataSource {
       _api.deleteVitalsMeasurementEntry(_vitalsTypeMsg(type), id);
 
   @override
-  Future<String> writeNutritionEntry(NutritionWriteRequest request) async {
-    final clientRecordId =
-        'openvitals_nutrition_${request.time.millisecondsSinceEpoch}_${_newId()}';
-    await _insert(
-      HealthRecordJson.nutritionRecord(
-        time: request.time,
-        name: request.name,
-        nutrientValues: request.nutrientValues,
-        clientRecordId: clientRecordId,
-      ),
-    );
-    return clientRecordId;
-  }
+  Future<String> writeNutritionEntry(NutritionWriteRequest request) =>
+      _api.writeNutritionEntry(
+        NutritionWriteRequestMsg(
+          timeEpochMs: request.time.millisecondsSinceEpoch,
+          name: request.name,
+          nutrientValues: _nutrientMsg(request.nutrientValues),
+          associatedHydrationClientRecordId:
+              request.associatedHydrationClientRecordId,
+        ),
+      );
 
   @override
-  Future<String?> deleteNutritionEntry(String id) async {
-    await _catch(
-      () => _api.deleteRecordsByIds('Nutrition', [id]),
-      null,
-    );
-    return id;
-  }
+  Future<String?> deleteNutritionEntry(String id) =>
+      _catch(() => _api.deleteNutritionEntry(id), null);
+
+  @override
+  Future<void> deleteHydrationNutritionEntry(String hydrationClientRecordId) =>
+      _api.deleteHydrationNutritionEntry(hydrationClientRecordId);
 
   @override
   Future<String> writeActivityEntry(ActivityWriteRequest request) async {

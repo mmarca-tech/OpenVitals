@@ -71,6 +71,7 @@ class HealthConnectNativePlugin :
   private var vitalsReader: VitalsHealthReader? = null
   private var cycleReader: CycleHealthReader? = null
   private var heartReader: HeartHealthReader? = null
+  private var nutritionReader: NutritionHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
@@ -89,6 +90,9 @@ class HealthConnectNativePlugin :
 
   private fun requireHeartReader(): HeartHealthReader =
     heartReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireNutritionReader(): NutritionHealthReader =
+    nutritionReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -129,6 +133,7 @@ class HealthConnectNativePlugin :
     vitalsReader = VitalsHealthReader(support, context.packageName)
     cycleReader = CycleHealthReader(support)
     heartReader = HeartHealthReader(support)
+    nutritionReader = NutritionHealthReader(support, context.packageName)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -144,6 +149,7 @@ class HealthConnectNativePlugin :
     vitalsReader = null
     cycleReader = null
     heartReader = null
+    nutritionReader = null
     scope.cancel()
   }
 
@@ -708,6 +714,68 @@ class HealthConnectNativePlugin :
     callback: (Result<List<DailyHrvMsg>>) -> Unit,
   ) = launchCatching(callback) {
     requireHeartReader().readDailyHRV(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Nutrition (Phase 6)
+  // ---------------------------------------------------------------------------
+
+  override fun readCaloriesInKcal(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<Double?>) -> Unit,
+  ) = launchCatching(callback) {
+    requireNutritionReader().readCaloriesInKcal(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readDailyNutrition(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    includeHydration: Boolean,
+    includeCalories: Boolean,
+    includeEstimatedCalories: Boolean,
+    callback: (Result<List<DailyNutritionMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireNutritionReader().readDailyNutrition(
+      instant(startEpochMs),
+      instant(endEpochMs),
+      includeHydration,
+      includeCalories,
+      includeEstimatedCalories,
+    )
+  }
+
+  override fun readDailyMacros(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<DailyMacrosMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireNutritionReader().readDailyMacros(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readNutritionEntries(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<NutritionEntryMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireNutritionReader().readNutritionEntries(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun writeNutritionEntry(
+    request: NutritionWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireNutritionReader().writeNutritionEntry(request) }
+
+  override fun deleteNutritionEntry(
+    id: String,
+    callback: (Result<String?>) -> Unit,
+  ) = launchCatching(callback) { requireNutritionReader().deleteNutritionEntry(id) }
+
+  override fun deleteHydrationNutritionEntry(
+    hydrationClientRecordId: String,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) {
+    requireNutritionReader().deleteHydrationNutritionEntry(hydrationClientRecordId)
   }
 
   override fun getGrantedPermissions(

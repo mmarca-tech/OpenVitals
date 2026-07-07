@@ -217,6 +217,18 @@ enum class VitalsMeasurementTypeMsg(val raw: Int) {
   }
 }
 
+enum class CaloriesBurnedSourceMsg(val raw: Int) {
+  NO_DATA(0),
+  RECORDED_TOTAL(1),
+  ESTIMATED_ACTIVE_AND_BMR(2);
+
+  companion object {
+    fun ofRaw(raw: Int): CaloriesBurnedSourceMsg? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /**
  * Raw Health Connect availability signals, mapped to the Dart
  * `HealthConnectAvailability` enum on the Flutter side. Kept as separate
@@ -2013,6 +2025,220 @@ data class DailyHrvMsg (
     return "DailyHrvMsg(dateEpochMs=$dateEpochMs, rmssdMs=$rmssdMs)"
   }
 }
+
+/**
+ * Nutrient maps are keyed by the `NutritionNutrient.storageName` strings
+ * (e.g. "ENERGY", "TOTAL_CARBOHYDRATE") — kcal for energy nutrients, grams for
+ * mass nutrients.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class NutritionEntryMsg (
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val mealType: Long,
+  val name: String? = null,
+  val source: String,
+  val id: String,
+  val clientRecordId: String? = null,
+  val isOpenVitalsEntry: Boolean,
+  val nutrientValues: Map<String, Double>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): NutritionEntryMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val endEpochMs = pigeonVar_list[1] as Long
+      val mealType = pigeonVar_list[2] as Long
+      val name = pigeonVar_list[3] as String?
+      val source = pigeonVar_list[4] as String
+      val id = pigeonVar_list[5] as String
+      val clientRecordId = pigeonVar_list[6] as String?
+      val isOpenVitalsEntry = pigeonVar_list[7] as Boolean
+      val nutrientValues = pigeonVar_list[8] as Map<String, Double>
+      return NutritionEntryMsg(startEpochMs, endEpochMs, mealType, name, source, id, clientRecordId, isOpenVitalsEntry, nutrientValues)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      endEpochMs,
+      mealType,
+      name,
+      source,
+      id,
+      clientRecordId,
+      isOpenVitalsEntry,
+      nutrientValues,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as NutritionEntryMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.mealType, other.mealType) && MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.source, other.source) && MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.clientRecordId, other.clientRecordId) && MessagesPigeonUtils.deepEquals(this.isOpenVitalsEntry, other.isOpenVitalsEntry) && MessagesPigeonUtils.deepEquals(this.nutrientValues, other.nutrientValues)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.mealType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.name)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.clientRecordId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.isOpenVitalsEntry)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.nutrientValues)
+    return result
+  }
+  override fun toString(): String {
+    return "NutritionEntryMsg(startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, mealType=$mealType, name=$name, source=$source, id=$id, clientRecordId=$clientRecordId, isOpenVitalsEntry=$isOpenVitalsEntry, nutrientValues=$nutrientValues)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DailyMacrosMsg (
+  val dateEpochMs: Long,
+  val nutrientValues: Map<String, Double>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DailyMacrosMsg {
+      val dateEpochMs = pigeonVar_list[0] as Long
+      val nutrientValues = pigeonVar_list[1] as Map<String, Double>
+      return DailyMacrosMsg(dateEpochMs, nutrientValues)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dateEpochMs,
+      nutrientValues,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DailyMacrosMsg
+    return MessagesPigeonUtils.deepEquals(this.dateEpochMs, other.dateEpochMs) && MessagesPigeonUtils.deepEquals(this.nutrientValues, other.nutrientValues)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dateEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.nutrientValues)
+    return result
+  }
+  override fun toString(): String {
+    return "DailyMacrosMsg(dateEpochMs=$dateEpochMs, nutrientValues=$nutrientValues)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DailyNutritionMsg (
+  val dateEpochMs: Long,
+  val hydrationLiters: Double,
+  val caloriesBurnedKcal: Double,
+  val caloriesBurnedSource: CaloriesBurnedSourceMsg
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DailyNutritionMsg {
+      val dateEpochMs = pigeonVar_list[0] as Long
+      val hydrationLiters = pigeonVar_list[1] as Double
+      val caloriesBurnedKcal = pigeonVar_list[2] as Double
+      val caloriesBurnedSource = pigeonVar_list[3] as CaloriesBurnedSourceMsg
+      return DailyNutritionMsg(dateEpochMs, hydrationLiters, caloriesBurnedKcal, caloriesBurnedSource)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dateEpochMs,
+      hydrationLiters,
+      caloriesBurnedKcal,
+      caloriesBurnedSource,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DailyNutritionMsg
+    return MessagesPigeonUtils.deepEquals(this.dateEpochMs, other.dateEpochMs) && MessagesPigeonUtils.deepEquals(this.hydrationLiters, other.hydrationLiters) && MessagesPigeonUtils.deepEquals(this.caloriesBurnedKcal, other.caloriesBurnedKcal) && MessagesPigeonUtils.deepEquals(this.caloriesBurnedSource, other.caloriesBurnedSource)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dateEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.hydrationLiters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.caloriesBurnedKcal)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.caloriesBurnedSource)
+    return result
+  }
+  override fun toString(): String {
+    return "DailyNutritionMsg(dateEpochMs=$dateEpochMs, hydrationLiters=$hydrationLiters, caloriesBurnedKcal=$caloriesBurnedKcal, caloriesBurnedSource=$caloriesBurnedSource)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class NutritionWriteRequestMsg (
+  val timeEpochMs: Long,
+  val name: String? = null,
+  val nutrientValues: Map<String, Double>,
+  val associatedHydrationClientRecordId: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): NutritionWriteRequestMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val name = pigeonVar_list[1] as String?
+      val nutrientValues = pigeonVar_list[2] as Map<String, Double>
+      val associatedHydrationClientRecordId = pigeonVar_list[3] as String?
+      return NutritionWriteRequestMsg(timeEpochMs, name, nutrientValues, associatedHydrationClientRecordId)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      name,
+      nutrientValues,
+      associatedHydrationClientRecordId,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as NutritionWriteRequestMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.name, other.name) && MessagesPigeonUtils.deepEquals(this.nutrientValues, other.nutrientValues) && MessagesPigeonUtils.deepEquals(this.associatedHydrationClientRecordId, other.associatedHydrationClientRecordId)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.name)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.nutrientValues)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.associatedHydrationClientRecordId)
+    return result
+  }
+  override fun toString(): String {
+    return "NutritionWriteRequestMsg(timeEpochMs=$timeEpochMs, name=$name, nutrientValues=$nutrientValues, associatedHydrationClientRecordId=$associatedHydrationClientRecordId)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -2027,183 +2253,208 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          HealthConnectAvailabilityDetail.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          CaloriesBurnedSourceMsg.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          WeightEntryMsg.fromList(it)
+          HealthConnectAvailabilityDetail.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeightEntryMsg.fromList(it)
+          WeightEntryMsg.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyFatEntryMsg.fromList(it)
+          HeightEntryMsg.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMassEntryMsg.fromList(it)
+          BodyFatEntryMsg.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BmrEntryMsg.fromList(it)
+          BodyMassEntryMsg.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementEntryMsg.fromList(it)
+          BmrEntryMsg.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementWriteRequestMsg.fromList(it)
+          BodyMeasurementEntryMsg.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationEntryMsg.fromList(it)
+          BodyMeasurementWriteRequestMsg.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyHydrationMsg.fromList(it)
+          HydrationEntryMsg.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationWriteRequestMsg.fromList(it)
+          DailyHydrationMsg.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionMsg.fromList(it)
+          HydrationWriteRequestMsg.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionWriteRequestMsg.fromList(it)
+          MindfulnessSessionMsg.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodPressureEntryMsg.fromList(it)
+          MindfulnessSessionWriteRequestMsg.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpO2EntryMsg.fromList(it)
+          BloodPressureEntryMsg.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RespiratoryRateEntryMsg.fromList(it)
+          SpO2EntryMsg.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyTempEntryMsg.fromList(it)
+          RespiratoryRateEntryMsg.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Vo2MaxEntryMsg.fromList(it)
+          BodyTempEntryMsg.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodGlucoseEntryMsg.fromList(it)
+          Vo2MaxEntryMsg.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SkinTemperatureEntryMsg.fromList(it)
+          BloodGlucoseEntryMsg.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementEntryMsg.fromList(it)
+          SkinTemperatureEntryMsg.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementWriteRequestMsg.fromList(it)
+          VitalsMeasurementEntryMsg.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationFlowEntryMsg.fromList(it)
+          VitalsMeasurementWriteRequestMsg.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationPeriodEntryMsg.fromList(it)
+          MenstruationFlowEntryMsg.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          OvulationTestEntryMsg.fromList(it)
+          MenstruationPeriodEntryMsg.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CervicalMucusEntryMsg.fromList(it)
+          OvulationTestEntryMsg.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BasalBodyTemperatureEntryMsg.fromList(it)
+          CervicalMucusEntryMsg.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          IntermenstrualBleedingEntryMsg.fromList(it)
+          BasalBodyTemperatureEntryMsg.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SexualActivityEntryMsg.fromList(it)
+          IntermenstrualBleedingEntryMsg.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSampleMsg.fromList(it)
+          SexualActivityEntryMsg.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateAggBucketMsg.fromList(it)
+          HeartRateSampleMsg.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSummaryMsg.fromList(it)
+          HeartRateAggBucketMsg.fromList(it)
         }
       }
       163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RestingHeartRateSampleMsg.fromList(it)
+          HeartRateSummaryMsg.fromList(it)
         }
       }
       164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyRestingHRMsg.fromList(it)
+          RestingHeartRateSampleMsg.fromList(it)
         }
       }
       165.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HrvSampleMsg.fromList(it)
+          DailyRestingHRMsg.fromList(it)
         }
       }
       166.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
+          HrvSampleMsg.fromList(it)
+        }
+      }
+      167.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
           DailyHrvMsg.fromList(it)
+        }
+      }
+      168.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          NutritionEntryMsg.fromList(it)
+        }
+      }
+      169.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DailyMacrosMsg.fromList(it)
+        }
+      }
+      170.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DailyNutritionMsg.fromList(it)
+        }
+      }
+      171.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          NutritionWriteRequestMsg.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -2219,148 +2470,168 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is HealthConnectAvailabilityDetail -> {
+      is CaloriesBurnedSourceMsg -> {
         stream.write(131)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is WeightEntryMsg -> {
+      is HealthConnectAvailabilityDetail -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is HeightEntryMsg -> {
+      is WeightEntryMsg -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is BodyFatEntryMsg -> {
+      is HeightEntryMsg -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is BodyMassEntryMsg -> {
+      is BodyFatEntryMsg -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is BmrEntryMsg -> {
+      is BodyMassEntryMsg -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementEntryMsg -> {
+      is BmrEntryMsg -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementWriteRequestMsg -> {
+      is BodyMeasurementEntryMsg -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is HydrationEntryMsg -> {
+      is BodyMeasurementWriteRequestMsg -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is DailyHydrationMsg -> {
+      is HydrationEntryMsg -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is HydrationWriteRequestMsg -> {
+      is DailyHydrationMsg -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionMsg -> {
+      is HydrationWriteRequestMsg -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionWriteRequestMsg -> {
+      is MindfulnessSessionMsg -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is BloodPressureEntryMsg -> {
+      is MindfulnessSessionWriteRequestMsg -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is SpO2EntryMsg -> {
+      is BloodPressureEntryMsg -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is RespiratoryRateEntryMsg -> {
+      is SpO2EntryMsg -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is BodyTempEntryMsg -> {
+      is RespiratoryRateEntryMsg -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is Vo2MaxEntryMsg -> {
+      is BodyTempEntryMsg -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is BloodGlucoseEntryMsg -> {
+      is Vo2MaxEntryMsg -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is SkinTemperatureEntryMsg -> {
+      is BloodGlucoseEntryMsg -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementEntryMsg -> {
+      is SkinTemperatureEntryMsg -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementWriteRequestMsg -> {
+      is VitalsMeasurementEntryMsg -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is MenstruationFlowEntryMsg -> {
+      is VitalsMeasurementWriteRequestMsg -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is MenstruationPeriodEntryMsg -> {
+      is MenstruationFlowEntryMsg -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is OvulationTestEntryMsg -> {
+      is MenstruationPeriodEntryMsg -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is CervicalMucusEntryMsg -> {
+      is OvulationTestEntryMsg -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is BasalBodyTemperatureEntryMsg -> {
+      is CervicalMucusEntryMsg -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is IntermenstrualBleedingEntryMsg -> {
+      is BasalBodyTemperatureEntryMsg -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is SexualActivityEntryMsg -> {
+      is IntermenstrualBleedingEntryMsg -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is HeartRateSampleMsg -> {
+      is SexualActivityEntryMsg -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is HeartRateAggBucketMsg -> {
+      is HeartRateSampleMsg -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is HeartRateSummaryMsg -> {
+      is HeartRateAggBucketMsg -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is RestingHeartRateSampleMsg -> {
+      is HeartRateSummaryMsg -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is DailyRestingHRMsg -> {
+      is RestingHeartRateSampleMsg -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is HrvSampleMsg -> {
+      is DailyRestingHRMsg -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is DailyHrvMsg -> {
+      is HrvSampleMsg -> {
         stream.write(166)
+        writeValue(stream, value.toList())
+      }
+      is DailyHrvMsg -> {
+        stream.write(167)
+        writeValue(stream, value.toList())
+      }
+      is NutritionEntryMsg -> {
+        stream.write(168)
+        writeValue(stream, value.toList())
+      }
+      is DailyMacrosMsg -> {
+        stream.write(169)
+        writeValue(stream, value.toList())
+      }
+      is DailyNutritionMsg -> {
+        stream.write(170)
+        writeValue(stream, value.toList())
+      }
+      is NutritionWriteRequestMsg -> {
+        stream.write(171)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2518,6 +2789,13 @@ interface HealthConnectHostApi {
   fun readDailyRestingHR(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<DailyRestingHRMsg>>) -> Unit)
   fun readHrvSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<HrvSampleMsg>>) -> Unit)
   fun readDailyHRV(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<DailyHrvMsg>>) -> Unit)
+  fun readCaloriesInKcal(startEpochMs: Long, endEpochMs: Long, callback: (Result<Double?>) -> Unit)
+  fun readDailyNutrition(startEpochMs: Long, endEpochMs: Long, includeHydration: Boolean, includeCalories: Boolean, includeEstimatedCalories: Boolean, callback: (Result<List<DailyNutritionMsg>>) -> Unit)
+  fun readDailyMacros(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<DailyMacrosMsg>>) -> Unit)
+  fun readNutritionEntries(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<NutritionEntryMsg>>) -> Unit)
+  fun writeNutritionEntry(request: NutritionWriteRequestMsg, callback: (Result<String>) -> Unit)
+  fun deleteNutritionEntry(id: String, callback: (Result<String?>) -> Unit)
+  fun deleteHydrationNutritionEntry(hydrationClientRecordId: String, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by HealthConnectHostApi. */
@@ -4078,6 +4356,152 @@ interface HealthConnectHostApi {
               } else {
                 val data = result.getOrNull()
                 reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readCaloriesInKcal$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readCaloriesInKcal(startEpochMsArg, endEpochMsArg) { result: Result<Double?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyNutrition$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            val includeHydrationArg = args[2] as Boolean
+            val includeCaloriesArg = args[3] as Boolean
+            val includeEstimatedCaloriesArg = args[4] as Boolean
+            api.readDailyNutrition(startEpochMsArg, endEpochMsArg, includeHydrationArg, includeCaloriesArg, includeEstimatedCaloriesArg) { result: Result<List<DailyNutritionMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readDailyMacros$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readDailyMacros(startEpochMsArg, endEpochMsArg) { result: Result<List<DailyMacrosMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readNutritionEntries$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readNutritionEntries(startEpochMsArg, endEpochMsArg) { result: Result<List<NutritionEntryMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writeNutritionEntry$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as NutritionWriteRequestMsg
+            api.writeNutritionEntry(requestArg) { result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteNutritionEntry$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val idArg = args[0] as String
+            api.deleteNutritionEntry(idArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteHydrationNutritionEntry$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val hydrationClientRecordIdArg = args[0] as String
+            api.deleteHydrationNutritionEntry(hydrationClientRecordIdArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
               }
             }
           }
