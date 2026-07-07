@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -46,6 +47,13 @@ import '../features/imports/applehealth/apple_health_import_report_store.dart';
 import '../features/imports/applehealth/apple_health_import_service.dart';
 import '../domain/usecase/load_heart_period_use_case.dart';
 import '../domain/usecase/load_sleep_period_use_case.dart';
+import '../features/activity/maps/offline_map_import_controller.dart';
+import '../features/activity/maps/offline_map_metadata_store.dart';
+import '../features/homewidgets/home_widget_service.dart';
+import '../features/hydration/reminders/hydration_reminder_controller.dart';
+import '../features/hydration/reminders/hydration_reminder_device.dart';
+import '../features/mindfulness/reminders/mindfulness_reminder_controller.dart';
+import '../features/mindfulness/reminders/mindfulness_reminder_device.dart';
 import '../health/health_data_source.dart';
 import '../health/health_data_source_impl.dart';
 
@@ -223,3 +231,70 @@ final loadSleepPeriodUseCaseProvider = Provider<LoadSleepPeriodUseCase>(
     ref.watch(heartRepositoryProvider),
   ),
 );
+
+// ── Reminders (hydration / mindfulness) ───────────────────────────────────
+
+/// Shared local-notifications plugin instance. `initialize(...)` and timezone
+/// setup (`tz.initializeTimeZones()`) are device bootstrap left for on-device.
+final flutterLocalNotificationsProvider =
+    Provider<FlutterLocalNotificationsPlugin>(
+  (ref) => FlutterLocalNotificationsPlugin(),
+);
+
+final hydrationReminderDeviceProvider = Provider<HydrationReminderDevice>(
+  (ref) => HydrationReminderDevice(
+    ref.watch(flutterLocalNotificationsProvider),
+  ),
+);
+
+final hydrationReminderControllerProvider =
+    Provider<HydrationReminderController>((ref) {
+  final device = ref.watch(hydrationReminderDeviceProvider);
+  return HydrationReminderController(
+    preferences: ref.watch(preferencesRepositoryProvider),
+    hydrationRepository: ref.watch(hydrationRepositoryProvider),
+    notifier: device,
+    scheduler: device,
+  );
+});
+
+final mindfulnessReminderDeviceProvider = Provider<MindfulnessReminderDevice>(
+  (ref) => MindfulnessReminderDevice(
+    ref.watch(flutterLocalNotificationsProvider),
+  ),
+);
+
+final mindfulnessReminderControllerProvider =
+    Provider<MindfulnessReminderController>((ref) {
+  final device = ref.watch(mindfulnessReminderDeviceProvider);
+  return MindfulnessReminderController(
+    preferences: ref.watch(preferencesRepositoryProvider),
+    mindfulnessRepository: ref.watch(mindfulnessRepositoryProvider),
+    notifier: device,
+    scheduler: device,
+  );
+});
+
+// ── Home-screen widgets ───────────────────────────────────────────────────
+
+final homeWidgetServiceProvider = Provider<HomeWidgetService>(
+  (ref) => const HomeWidgetService(),
+);
+
+// ── Offline maps ──────────────────────────────────────────────────────────
+
+/// Import controller for offline map packs. Async because it resolves the
+/// app's private maps directory; the metadata is persisted in SharedPreferences.
+final offlineMapImportControllerProvider =
+    FutureProvider<OfflineMapImportController>((ref) async {
+  final documentsDir = await getApplicationDocumentsDirectory();
+  final mapsDirectoryPath = p.join(documentsDir.path, 'offline_maps');
+  final metadataStore = OfflineMapMetadataStore.sharedPreferences(
+    ref.watch(sharedPreferencesProvider),
+    mapsDirectoryPath,
+  );
+  return OfflineMapImportController(
+    metadataStore: metadataStore,
+    mapsDirectoryPath: mapsDirectoryPath,
+  );
+});

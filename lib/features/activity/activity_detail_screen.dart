@@ -13,6 +13,8 @@ import '../../ui/components/ov_card.dart';
 import '../../ui/theme/app_colors.dart';
 import 'activity_detail_notifier.dart';
 import 'exercise_labels.dart';
+import 'maps/route_geometry.dart';
+import 'maps/route_map_view.dart';
 
 final DateFormat _dateTimeFormat = DateFormat('EEE d MMM yyyy · HH:mm');
 
@@ -78,10 +80,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           if (state.heartRateSamples.isNotEmpty)
             _padded(_HeartRateCard(samples: state.heartRateSamples)),
           _padded(_SessionDetailsCard(workout: workout)),
-          // TODO(phase6-maps): render the workout GPS route on a MapLibre map
-          // here (Kotlin `RouteCard` / `OfflineRouteMapOrPreview`). Deferred
-          // with the rest of `features/activity/maps/*`.
-          _padded(const _RouteMapPlaceholderCard()),
+          if (workout.route.status == ExerciseRouteStatus.data &&
+              workout.route.points.isNotEmpty)
+            _padded(_RouteMapCard(route: workout.route)),
           const SizedBox(height: 16),
         ],
       ),
@@ -268,27 +269,42 @@ class _SessionDetailsCard extends StatelessWidget {
   }
 }
 
-/// The deferred GPS-route map placeholder (see phase6-maps TODO above).
-class _RouteMapPlaceholderCard extends StatelessWidget {
-  const _RouteMapPlaceholderCard();
+/// The workout GPS route rendered on a [RouteMapView] (Kotlin `RouteCard` /
+/// `OfflineRouteMapOrPreview`). The online raster base map is the default;
+/// offline vector packs plug in inside [RouteMapView] (see its TODO).
+class _RouteMapCard extends StatelessWidget {
+  const _RouteMapCard({required this.route});
+
+  final ExerciseRouteData route;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final distanceMeters = routeTotalDistanceMeters(route.points);
     return OpenVitalsCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.map_outlined, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Route map coming soon',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
+            Row(
+              children: [
+                Icon(Icons.map_outlined,
+                    color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Text('Route', style: theme.textTheme.titleMedium),
+                const Spacer(),
+                if (distanceMeters > 0)
+                  Text(
+                    '${(distanceMeters / 1000).toStringAsFixed(2)} km',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
+            const SizedBox(height: 12),
+            RouteMapView(points: route.points),
           ],
         ),
       ),
