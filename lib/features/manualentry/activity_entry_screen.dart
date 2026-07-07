@@ -6,7 +6,8 @@ import '../../ui/components/placeholder_screen.dart';
 /// Activity manual-entry / recording screen pushed over the shell. Backs the
 /// new-entry route (with optional [mode]/[planId]/[activityTypeId] query args)
 /// and the edit route (carries [activityEntryId]).
-// TODO(phase5): replace with the real activity recording + manual-entry UI.
+// TODO(phase6d): replace with the real activity recording + manual-entry UI
+// (ActivityEntryViewModel with GPS recording is a later batch).
 class ActivityEntryScreen extends StatelessWidget {
   const ActivityEntryScreen({
     super.key,
