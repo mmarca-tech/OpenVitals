@@ -201,7 +201,7 @@ class _DashboardQuickActions extends StatelessWidget {
       children: [
         Expanded(
           child: FilledButton.tonalIcon(
-            onPressed: () => context.go(AppRoutes.manualEntry),
+            onPressed: () => context.push(AppRoutes.manualEntry),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
               shape: const StadiumBorder(),
@@ -281,7 +281,7 @@ class _MetricCarousel extends StatefulWidget {
   static const int _columns = 2;
   static const int _rowsPerPage = 3;
   static const int _perPage = _columns * _rowsPerPage;
-  static const double _tileHeight = 76;
+  static const double _tileHeight = 92;
   static const double _gap = 12;
 
   @override

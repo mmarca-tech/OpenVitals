@@ -1,8 +1,9 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../di/providers.dart';
+import '../l10n/app_localizations.dart';
 import '../features/achievements/achievements_screen.dart';
 import '../features/activity/activities_screen.dart';
 import '../features/activity/activity_detail_screen.dart';
@@ -49,10 +50,6 @@ import '../ui/components/adaptive_scaffold.dart';
 import 'app_routes.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final _dashboardNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'dashboard');
-final _activityNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'activity');
-final _addEntryNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'addEntry');
-final _settingsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 
 /// The app's [GoRouter], built once and cached by Riverpod so its navigation
 /// state survives theme/locale rebuilds of `MaterialApp.router`.
@@ -83,56 +80,50 @@ List<RouteBase> _buildRoutes(Ref ref) => [
         ),
       ),
 
-      // Top-level nav-suite destinations rendered inside the adaptive scaffold.
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            OpenVitalsAdaptiveScaffold(navigationShell: navigationShell),
-        branches: [
-          StatefulShellBranch(
-            navigatorKey: _dashboardNavigatorKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.dashboard,
-                builder: (context, state) => const DashboardScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: _activityNavigatorKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.activity,
-                builder: (context, state) => const ActivitiesScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: _addEntryNavigatorKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.manualEntry,
-                builder: (context, state) => const ManualEntryScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: _settingsNavigatorKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.settings,
-                builder: (context, state) => const SettingsScreen(),
-              ),
-            ],
-          ),
-        ],
+      // Home: the dashboard, wrapped in the top-bar-only home scaffold. Like the
+      // Kotlin app there is NO bottom navigation — every other destination is
+      // pushed over this route (with its own back-enabled app bar).
+      GoRoute(
+        path: AppRoutes.dashboard,
+        builder: (context, state) =>
+            const OpenVitalsHomeScaffold(child: DashboardScreen()),
       ),
 
-      // ── Detail / entry routes pushed over the shell (root navigator) ────────
+      // Top-level sections, now pushed from the top bar / dashboard rather than a
+      // bottom nav. ActivitiesScreen brings its own MetricDetailScaffold (app bar
+      // + back); the hub + settings screens are wrapped in a titled scaffold.
+      GoRoute(
+        path: AppRoutes.activity,
+        builder: (context, state) => const ActivitiesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.manualEntry,
+        builder: (context, state) => _titledScreen(
+          AppLocalizations.of(context).screenManualEntry,
+          const ManualEntryScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => _titledScreen(
+          AppLocalizations.of(context).screenSettings,
+          const SettingsScreen(),
+        ),
+      ),
+
+      // ── Detail / entry routes pushed over the home route (root navigator) ───
       ..._readinessRoutes(),
       ..._metricSectionRoutes(),
       ..._manualEntryRoutes(),
       ..._settingsSectionRoutes(),
     ];
+
+/// Wraps a self-less screen (no Scaffold of its own) in a titled, back-enabled
+/// scaffold so it works as a pushed route.
+Widget _titledScreen(String title, Widget child) => Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: child,
+    );
 
 List<RouteBase> _readinessRoutes() => [
       GoRoute(
