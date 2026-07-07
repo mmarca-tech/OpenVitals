@@ -5,6 +5,7 @@ package tech.mmarca.openvitals.health_connect_native
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
@@ -189,29 +190,44 @@ class HealthConnectNativePlugin :
   }
 
   override fun openHealthConnectSettings(callback: (Result<Boolean>) -> Unit) {
-    val launchContext: Context? = activity ?: applicationContext
-    if (launchContext == null) {
+    val launchContext: Context = activity ?: applicationContext ?: run {
       callback(Result.success(false))
       return
     }
     val packageName = launchContext.packageName
-    // Prefer the app-specific Health Connect permission page (Android 14+), then
-    // the standalone Health Connect settings action (Android 13-), then a plain
-    // Health Connect settings launch.
-    val candidates = listOf(
+    val onAndroid14Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+    // Ordered candidates, mirroring the Kotlin app's HealthConnectIntents:
+    //   1. app-specific HC permission page (may be system-only -> SecurityException,
+    //      which is caught and skipped),
+    //   2. HC settings home (PLATFORM action on Android 14+, standalone-app action
+    //      below — the platform one is what resolves on Android 14+),
+    //   3. HC manage-data page,
+    //   4. plain launch of the Health Connect app.
+    val candidates = listOfNotNull(
       Intent(ACTION_MANAGE_HEALTH_PERMISSIONS)
         .putExtra(Intent.EXTRA_PACKAGE_NAME, packageName),
-      Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS),
+      Intent(
+        if (onAndroid14Plus) {
+          ACTION_HEALTH_HOME_SETTINGS
+        } else {
+          HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS
+        },
+      ),
+      Intent(
+        if (onAndroid14Plus) ACTION_MANAGE_HEALTH_DATA else ACTION_MANAGE_HEALTH_DATA_APK,
+      ),
+      launchContext.packageManager.getLaunchIntentForPackage(HEALTH_CONNECT_PACKAGE),
     )
     for (intent in candidates) {
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
       if (activity == null) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       try {
         launchContext.startActivity(intent)
-        Log.i(TAG, "openHealthConnectSettings: launched ${intent.action}")
+        Log.i(TAG, "openHealthConnectSettings: launched ${intent.action ?: intent.component}")
         callback(Result.success(true))
         return
       } catch (e: Throwable) {
-        Log.w(TAG, "openHealthConnectSettings: ${intent.action} not resolvable", e)
+        Log.w(TAG, "openHealthConnectSettings: ${intent.action} not launchable: ${e.message}")
       }
     }
     callback(Result.success(false))
@@ -524,9 +540,24 @@ class HealthConnectNativePlugin :
     /**
      * System action to open a specific app's Health Connect permission page on
      * Android 14+ (Health Connect as an OS module). Passed the target app's
-     * package via [Intent.EXTRA_PACKAGE_NAME].
+     * package via [Intent.EXTRA_PACKAGE_NAME]. May be system-only on some
+     * devices (third-party launch throws SecurityException).
      */
     private const val ACTION_MANAGE_HEALTH_PERMISSIONS =
       "android.health.connect.action.MANAGE_HEALTH_PERMISSIONS"
+
+    /** Health Connect settings home — platform action (Android 14+). */
+    private const val ACTION_HEALTH_HOME_SETTINGS =
+      "android.health.connect.action.HEALTH_HOME_SETTINGS"
+
+    /** Health Connect manage-data page — platform action (Android 14+). */
+    private const val ACTION_MANAGE_HEALTH_DATA =
+      "android.health.connect.action.MANAGE_HEALTH_DATA"
+
+    /** Health Connect manage-data page — standalone-app action (Android 13-). */
+    private const val ACTION_MANAGE_HEALTH_DATA_APK =
+      "androidx.health.ACTION_MANAGE_HEALTH_DATA"
+
+    private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
   }
 }
