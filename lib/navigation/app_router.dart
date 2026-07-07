@@ -28,6 +28,8 @@ import '../features/manualentry/manual_entry_screen.dart';
 import '../features/manualentry/mindfulness_entry_screen.dart';
 import '../features/manualentry/vitals_measurement_entry_screen.dart';
 import '../features/mindfulness/mindfulness_screen.dart';
+import '../features/nutrition/nutrition_metric.dart';
+import '../features/nutrition/nutrition_metric_screen.dart';
 import '../features/nutrition/nutrition_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/readiness/daily_readiness_screen.dart';
@@ -363,6 +365,13 @@ Widget _metricScreen(String? raw) {
   // (Kotlin `toBodyMetricOrNull`); this also claims BMR from `_caloriesMetrics`.
   final bodyMetric = BodyMetric.fromRouteName(raw);
   if (bodyMetric != null) return BodyMetricScreen(metric: bodyMetric);
+  // The four keyed nutrition metrics (calories-in / protein / carbs / fat)
+  // share the parametric nutrition metric-detail screen (Kotlin
+  // `NutritionMetricScreen`); the overview lives on the `/nutrition` route.
+  final nutritionMetric = NutritionMetric.fromRouteName(raw);
+  if (nutritionMetric != null) {
+    return NutritionMetricScreen(metric: nutritionMetric);
+  }
   if (_nutritionMetrics.contains(id)) return const NutritionScreen();
   if (_bodyMetrics.contains(id)) return const BodyScreen();
   if (_caloriesMetrics.contains(id)) return const CaloriesScreen();
