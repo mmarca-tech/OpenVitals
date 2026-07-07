@@ -16,6 +16,7 @@ import '../features/caffeine/caffeine_screen.dart';
 import '../features/cycle/cycle_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/dashboard/metric_screen.dart';
+import '../features/heart/heart_metric.dart';
 import '../features/heart/heart_metric_screen.dart';
 import '../features/hydration/hydration_screen.dart';
 import '../features/manualentry/activity_entry_screen.dart';
@@ -313,18 +314,7 @@ List<RouteBase> _settingsSectionRoutes() {
 }
 
 // Metric-id classification, mirroring the Kotlin `MetricRouteContent` dispatch.
-const Set<DashboardMetricId> _heartMetrics = {
-  DashboardMetricId.avgHeartRate,
-  DashboardMetricId.restingHeartRate,
-  DashboardMetricId.hrv,
-  DashboardMetricId.bloodPressure,
-  DashboardMetricId.spo2,
-  DashboardMetricId.vo2Max,
-  DashboardMetricId.respiratoryRate,
-  DashboardMetricId.bodyTemperature,
-  DashboardMetricId.bloodGlucose,
-  DashboardMetricId.skinTemperature,
-};
+// (The ten heart + vitals ids are classified by [HeartMetric.fromRouteName].)
 const Set<DashboardMetricId> _nutritionMetrics = {
   DashboardMetricId.caloriesIn,
   DashboardMetricId.protein,
@@ -362,7 +352,11 @@ Widget _metricScreen(String? raw) {
   if (activityMetric != null) {
     return ActivityMetricScreen(metric: activityMetric);
   }
-  if (_heartMetrics.contains(id)) return HeartMetricScreen(metricId: raw!);
+  // The ten heart + vitals metrics (avg/resting HR, HRV, blood pressure, SpO2,
+  // VO2 max, respiratory rate, body/skin temperature, blood glucose) share the
+  // parametric heart/vitals detail screen (Kotlin `MetricRouteContent`).
+  final heartMetric = HeartMetric.fromRouteName(raw);
+  if (heartMetric != null) return HeartMetricScreen(metric: heartMetric);
   if (_nutritionMetrics.contains(id)) return const NutritionScreen();
   if (_bodyMetrics.contains(id)) return const BodyScreen();
   if (_caloriesMetrics.contains(id)) return const CaloriesScreen();
