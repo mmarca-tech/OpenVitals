@@ -107,6 +107,18 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         id: 'cycle_tracking',
         permissions: repo.cyclePermissions,
       ),
+      // Access past data (history) + access data in the background can be
+      // requested directly via the dialog; exercise-route access needs the
+      // "Always" toggle in Health Connect settings (opened via the fallback).
+      // Mirrors the Kotlin OnboardingViewModel's additionalDataAccess +
+      // routePermissions category.
+      OnboardingPermissionCategory(
+        id: 'additional_data_access',
+        permissions: {
+          ...repo.additionalDataAccessPermissions,
+          ...repo.routePermissions,
+        },
+      ),
     ].where((category) => category.permissions.isNotEmpty).toList();
   }
 

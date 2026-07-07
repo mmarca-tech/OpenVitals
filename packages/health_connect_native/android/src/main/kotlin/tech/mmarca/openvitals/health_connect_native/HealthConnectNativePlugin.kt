@@ -226,6 +226,10 @@ class HealthConnectNativePlugin :
         "SKIN_TEMPERATURE" -> HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
         "MINDFULNESS_SESSION" -> HealthConnectFeatures.FEATURE_MINDFULNESS_SESSION
         "PLANNED_EXERCISE" -> HealthConnectFeatures.FEATURE_PLANNED_EXERCISE
+        "READ_HEALTH_DATA_HISTORY" ->
+          HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+        "READ_HEALTH_DATA_IN_BACKGROUND" ->
+          HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
         else -> null
       } ?: return@launchCatching false
       val status = withContext(Dispatchers.IO) {

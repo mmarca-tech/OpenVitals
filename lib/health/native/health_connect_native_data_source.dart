@@ -126,6 +126,8 @@ class HealthConnectNativeDataSource extends HealthDataSource {
       skinTemperatureAvailable: await feature('SKIN_TEMPERATURE'),
       mindfulnessAvailable: await feature('MINDFULNESS_SESSION'),
       plannedExerciseAvailable: await feature('PLANNED_EXERCISE'),
+      healthDataHistoryAvailable: await feature('READ_HEALTH_DATA_HISTORY'),
+      backgroundReadAvailable: await feature('READ_HEALTH_DATA_IN_BACKGROUND'),
     );
     featureFlags = flags;
     return flags;

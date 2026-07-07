@@ -374,6 +374,8 @@ String _categoryTitle(AppLocalizations l10n, String id) {
       return l10n.onboardingCategoryMindfulness;
     case 'cycle_tracking':
       return l10n.onboardingCategoryCycleTracking;
+    case 'additional_data_access':
+      return l10n.onboardingCategoryAdditionalDataAccess;
     default:
       return id;
   }
@@ -407,6 +409,8 @@ String _categoryDescription(
       return l10n.onboardingCategoryMindfulnessDesc;
     case 'cycle_tracking':
       return l10n.onboardingCategoryCycleTrackingDesc;
+    case 'additional_data_access':
+      return l10n.onboardingCategoryAdditionalDataAccessDesc;
     default:
       return '';
   }
