@@ -526,6 +526,127 @@ class SleepDeviceDataMsg {
   SleepDeviceDataMsg(this.type, this.manufacturer, this.model);
 }
 
+// ── Activity / Exercise (Phase 8) ────────────────────────────────────────────
+
+enum ExerciseRouteStatusMsg { data, consentRequired, noData }
+
+class ExerciseDeviceDataMsg {
+  final int type;
+  final String? manufacturer;
+  final String? model;
+  ExerciseDeviceDataMsg(this.type, this.manufacturer, this.model);
+}
+
+class ExerciseSegmentMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final int segmentType;
+  final int repetitions;
+  final int? setIndex;
+  ExerciseSegmentMsg(
+    this.startEpochMs,
+    this.endEpochMs,
+    this.segmentType,
+    this.repetitions,
+    this.setIndex,
+  );
+}
+
+class ExerciseLapMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final double? lengthMeters;
+  ExerciseLapMsg(this.startEpochMs, this.endEpochMs, this.lengthMeters);
+}
+
+class ExerciseRoutePointMsg {
+  final int timeEpochMs;
+  final double latitude;
+  final double longitude;
+  final double? altitudeMeters;
+  final double? horizontalAccuracyMeters;
+  final double? verticalAccuracyMeters;
+  ExerciseRoutePointMsg(
+    this.timeEpochMs,
+    this.latitude,
+    this.longitude,
+    this.altitudeMeters,
+    this.horizontalAccuracyMeters,
+    this.verticalAccuracyMeters,
+  );
+}
+
+class ExerciseRouteMsg {
+  final ExerciseRouteStatusMsg status;
+  final List<ExerciseRoutePointMsg> points;
+  ExerciseRouteMsg(this.status, this.points);
+}
+
+/// Intrinsic exercise-session fields (aggregate-derived metrics are resolved on
+/// the Dart side / left null, matching the current data source).
+class ExerciseDataMsg {
+  final String id;
+  final String? title;
+  final int exerciseType;
+  final int startEpochMs;
+  final int endEpochMs;
+  final String source;
+  final String? notes;
+  final String? clientRecordId;
+  final String? plannedExerciseSessionId;
+  final ExerciseDeviceDataMsg? device;
+  final List<ExerciseSegmentMsg> segments;
+  final List<ExerciseLapMsg> laps;
+  final ExerciseRouteMsg route;
+  final bool isOpenVitalsEntry;
+  ExerciseDataMsg(
+    this.id,
+    this.title,
+    this.exerciseType,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.source,
+    this.notes,
+    this.clientRecordId,
+    this.plannedExerciseSessionId,
+    this.device,
+    this.segments,
+    this.laps,
+    this.route,
+    this.isOpenVitalsEntry,
+  );
+}
+
+class SpeedSampleMsg {
+  final int timeEpochMs;
+  final double metersPerSecond;
+  final String source;
+  SpeedSampleMsg(this.timeEpochMs, this.metersPerSecond, this.source);
+}
+
+class ActivityWriteRequestMsg {
+  final int exerciseType;
+  final int startEpochMs;
+  final int endEpochMs;
+  final String? title;
+  final String? notes;
+  final String? plannedExerciseSessionId;
+  final List<ExerciseSegmentMsg> segments;
+  final List<ExerciseLapMsg> laps;
+  final List<ExerciseRoutePointMsg> routePoints;
+  ActivityWriteRequestMsg(
+    this.exerciseType,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.title,
+    this.notes,
+    this.plannedExerciseSessionId,
+    this.segments,
+    this.laps,
+    this.routePoints,
+  );
+}
+
 /// Raw (unmerged) sleep session; merging + range selection happen on the Dart
 /// side. `durationMs` is recomputed from stages by the Dart mapper.
 class SleepDataMsg {
@@ -848,4 +969,19 @@ abstract class HealthConnectHostApi {
   List<SleepDataMsg> readSleepSessionsRaw(int startEpochMs, int endEpochMs);
   @async
   SleepDataMsg? readSleepSessionById(String id);
+
+  // ── Activity / Exercise (Phase 8) ──────────────────────────────────────────
+
+  @async
+  List<ExerciseDataMsg> readExerciseSessions(int startEpochMs, int endEpochMs);
+  @async
+  ExerciseDataMsg? readExerciseSessionById(String id);
+  @async
+  List<SpeedSampleMsg> readSpeedSamples(int startEpochMs, int endEpochMs);
+  @async
+  String writeActivityEntry(ActivityWriteRequestMsg request);
+  @async
+  void updateActivityEntry(String id, ActivityWriteRequestMsg request);
+  @async
+  void deleteActivityEntry(String id);
 }

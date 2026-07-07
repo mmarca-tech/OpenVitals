@@ -175,6 +175,29 @@ class FakeHostApi extends HealthConnectHostApi {
     nutritionWriteRequest = request;
     return 'openvitals_nutrition_written';
   }
+
+  // ── Activity (Phase 8) typed fakes ────────────────────────────────────────
+  ActivityWriteRequestMsg? activityWriteRequest;
+  final List<String> deletedActivityIds = [];
+  List<ExerciseDataMsg> exerciseSessions = const [];
+
+  @override
+  Future<List<ExerciseDataMsg>> readExerciseSessions(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      exerciseSessions;
+
+  @override
+  Future<String> writeActivityEntry(ActivityWriteRequestMsg request) async {
+    activityWriteRequest = request;
+    return 'openvitals_activity_written';
+  }
+
+  @override
+  Future<void> deleteActivityEntry(String id) async {
+    deletedActivityIds.add(id);
+  }
 }
 
 HealthConnectNativeDataSource _source(FakeHostApi api) =>
@@ -237,47 +260,53 @@ void main() {
   });
 
   group('reads', () {
-    test('ExerciseSession JSON maps to ExerciseData with segments/laps/route',
+    test('ExerciseSession msg maps to ExerciseData with segments/laps/route',
         () async {
-      final api = FakeHostApi();
-      api.records['ExerciseSession'] = [
-        jsonEncode({
-          'recordType': 'ExerciseSession',
-          'id': 'ex-1',
-          'clientRecordId': 'openvitals_activity_1',
-          'dataOriginPackage': _appPackage,
-          'startEpochMs': _ms(2026, 1, 2, 8),
-          'endEpochMs': _ms(2026, 1, 2, 9),
-          'exerciseType': 56,
-          'title': 'Morning run',
-          'notes': 'felt good',
-          'segments': [
-            {
-              'startEpochMs': _ms(2026, 1, 2, 8),
-              'endEpochMs': _ms(2026, 1, 2, 8, 30),
-              'segmentType': 42,
-              'repetitions': 12,
-            },
-          ],
-          'laps': [
-            {
-              'startEpochMs': _ms(2026, 1, 2, 8),
-              'endEpochMs': _ms(2026, 1, 2, 8, 15),
-              'lengthMeters': 1000.0,
-            },
-          ],
-          'route': {
-            'points': [
-              {
-                'timeEpochMs': _ms(2026, 1, 2, 8),
-                'latitude': 51.5,
-                'longitude': -0.12,
-                'altitudeMeters': 10.0,
-              },
+      final api = FakeHostApi()
+        ..exerciseSessions = [
+          ExerciseDataMsg(
+            id: 'ex-1',
+            title: 'Morning run',
+            exerciseType: 56,
+            startEpochMs: _ms(2026, 1, 2, 8),
+            endEpochMs: _ms(2026, 1, 2, 9),
+            source: _appPackage,
+            notes: 'felt good',
+            clientRecordId: 'openvitals_activity_1',
+            plannedExerciseSessionId: null,
+            device: null,
+            segments: [
+              ExerciseSegmentMsg(
+                startEpochMs: _ms(2026, 1, 2, 8),
+                endEpochMs: _ms(2026, 1, 2, 8, 30),
+                segmentType: 42,
+                repetitions: 12,
+                setIndex: null,
+              ),
             ],
-          },
-        }),
-      ];
+            laps: [
+              ExerciseLapMsg(
+                startEpochMs: _ms(2026, 1, 2, 8),
+                endEpochMs: _ms(2026, 1, 2, 8, 15),
+                lengthMeters: 1000.0,
+              ),
+            ],
+            route: ExerciseRouteMsg(
+              status: ExerciseRouteStatusMsg.data,
+              points: [
+                ExerciseRoutePointMsg(
+                  timeEpochMs: _ms(2026, 1, 2, 8),
+                  latitude: 51.5,
+                  longitude: -0.12,
+                  altitudeMeters: 10.0,
+                  horizontalAccuracyMeters: null,
+                  verticalAccuracyMeters: null,
+                ),
+              ],
+            ),
+            isOpenVitalsEntry: true,
+          ),
+        ];
       final sessions = await _source(api).readExerciseSessions(
         DateTime.utc(2026, 1, 2),
         DateTime.utc(2026, 1, 3),
@@ -545,8 +574,10 @@ void main() {
       expect(req.nutrientValues['CAFFEINE'], 0.05);
     });
 
-    test('writeActivityEntry builds an ExerciseSession with the HC type + segments',
+    test('writeActivityEntry forwards a typed ExerciseSession request',
         () async {
+      // The ExerciseSession build now lives in the native ActivityHealthReader;
+      // the data source forwards a typed request.
       final api = FakeHostApi();
       final id = await _source(api).writeActivityEntry(
         ActivityWriteRequest(
@@ -565,19 +596,18 @@ void main() {
         ),
       );
       expect(id, startsWith('openvitals_activity_'));
-      final record = api.inserted.single;
-      expect(record['recordType'], 'ExerciseSession');
-      expect(record['exerciseType'], 56);
-      expect(record['title'], 'Run');
-      expect((record['segments'] as List), hasLength(1));
-      expect((record['segments'] as List).first['repetitions'], 10);
+      final req = api.activityWriteRequest!;
+      expect(req.exerciseType, 56);
+      expect(req.title, 'Run');
+      expect(req.segments, hasLength(1));
+      expect(req.segments.first.segmentType, 42);
+      expect(req.segments.first.repetitions, 10);
     });
 
-    test('deleteActivityEntry deletes the ExerciseSession by id', () async {
+    test('deleteActivityEntry delegates by id', () async {
       final api = FakeHostApi();
       await _source(api).deleteActivityEntry('ex-9');
-      expect(api.deletedByIds.single.type, 'ExerciseSession');
-      expect(api.deletedByIds.single.ids, ['ex-9']);
+      expect(api.deletedActivityIds, ['ex-9']);
     });
   });
 

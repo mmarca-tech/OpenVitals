@@ -73,6 +73,7 @@ class HealthConnectNativePlugin :
   private var heartReader: HeartHealthReader? = null
   private var nutritionReader: NutritionHealthReader? = null
   private var sleepReader: SleepHealthReader? = null
+  private var activityReader: ActivityHealthReader? = null
 
   private fun requireBodyReader(): BodyHealthReader =
     bodyReader ?: throw IllegalStateException("Plugin not attached to an engine")
@@ -97,6 +98,9 @@ class HealthConnectNativePlugin :
 
   private fun requireSleepReader(): SleepHealthReader =
     sleepReader ?: throw IllegalStateException("Plugin not attached to an engine")
+
+  private fun requireActivityReader(): ActivityHealthReader =
+    activityReader ?: throw IllegalStateException("Plugin not attached to an engine")
 
   /** Pending Health Connect permission request state (single in-flight request). */
   private var pendingPermissionCallback: ((Result<Boolean>) -> Unit)? = null
@@ -139,6 +143,7 @@ class HealthConnectNativePlugin :
     heartReader = HeartHealthReader(support)
     nutritionReader = NutritionHealthReader(support, context.packageName)
     sleepReader = SleepHealthReader(support)
+    activityReader = ActivityHealthReader(support, context.packageName)
     HealthConnectHostApi.setUp(binding.binaryMessenger, this)
   }
 
@@ -156,6 +161,7 @@ class HealthConnectNativePlugin :
     heartReader = null
     nutritionReader = null
     sleepReader = null
+    activityReader = null
     scope.cancel()
   }
 
@@ -800,6 +806,47 @@ class HealthConnectNativePlugin :
     id: String,
     callback: (Result<SleepDataMsg?>) -> Unit,
   ) = launchCatching(callback) { requireSleepReader().readSleepSessionById(id) }
+
+  // ---------------------------------------------------------------------------
+  // Activity / Exercise (Phase 8)
+  // ---------------------------------------------------------------------------
+
+  override fun readExerciseSessions(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<ExerciseDataMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireActivityReader().readExerciseSessions(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readExerciseSessionById(
+    id: String,
+    callback: (Result<ExerciseDataMsg?>) -> Unit,
+  ) = launchCatching(callback) { requireActivityReader().readExerciseSessionById(id) }
+
+  override fun readSpeedSamples(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<SpeedSampleMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireActivityReader().readSpeedSamples(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun writeActivityEntry(
+    request: ActivityWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireActivityReader().writeActivityEntry(request) }
+
+  override fun updateActivityEntry(
+    id: String,
+    request: ActivityWriteRequestMsg,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireActivityReader().updateActivityEntry(id, request) }
+
+  override fun deleteActivityEntry(
+    id: String,
+    callback: (Result<Unit>) -> Unit,
+  ) = launchCatching(callback) { requireActivityReader().deleteActivityEntry(id) }
 
   override fun getGrantedPermissions(
     permissions: List<String>,

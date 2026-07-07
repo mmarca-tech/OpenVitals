@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:health_connect_native/health_connect_native.dart';
 
@@ -43,8 +42,6 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   }) : _api = hostApi ?? HealthConnectHostApi();
 
   final HealthConnectHostApi _api;
-  final math.Random _random = math.Random();
-
   // ── Time helpers (device-local day boundaries, as in the Kotlin readers) ──
   DateTime _dayStart(LocalDate date) => DateTime(date.year, date.month, date.day);
   DateTime _dayEnd(LocalDate date) => _dayStart(date.plusDays(1));
@@ -58,39 +55,6 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     } catch (_) {
       return fallback;
     }
-  }
-
-  String _newId() {
-    final millis = DateTime.now().millisecondsSinceEpoch;
-    final rand = _random.nextInt(1 << 32).toRadixString(16);
-    return '${millis}_$rand';
-  }
-
-  Future<List<Map<String, dynamic>>> _read(
-    String recordType,
-    DateTime start,
-    DateTime end,
-  ) async {
-    final raw = await _catch(
-      () => _api.readRecordsJson(
-        recordType,
-        start.millisecondsSinceEpoch,
-        end.millisecondsSinceEpoch,
-        null,
-      ),
-      const <String>[],
-    );
-    return [
-      for (final json in raw) jsonDecode(json) as Map<String, dynamic>,
-    ];
-  }
-
-  Future<Map<String, dynamic>?> _readOne(String recordType, String id) async {
-    final json = await _catch(
-      () => _api.readRecordJson(recordType, id),
-      null,
-    );
-    return json == null ? null : jsonDecode(json) as Map<String, dynamic>;
   }
 
   Future<Map<String, double?>> _aggregate(
@@ -255,22 +219,126 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     return result;
   }
 
+  // ── Activity / Exercise (Phase 8) — typed via native ActivityHealthReader ───
+
+  ExerciseRouteStatus _routeStatus(ExerciseRouteStatusMsg s) => switch (s) {
+        ExerciseRouteStatusMsg.data => ExerciseRouteStatus.data,
+        ExerciseRouteStatusMsg.consentRequired =>
+          ExerciseRouteStatus.consentRequired,
+        ExerciseRouteStatusMsg.noData => ExerciseRouteStatus.noData,
+      };
+
+  ExerciseData _exerciseData(ExerciseDataMsg m) => ExerciseData(
+        id: m.id,
+        title: m.title,
+        exerciseType: m.exerciseType,
+        startTime: _fromMs(m.startEpochMs),
+        endTime: _fromMs(m.endEpochMs),
+        durationMs: m.endEpochMs - m.startEpochMs,
+        source: m.source,
+        notes: m.notes,
+        clientRecordId: m.clientRecordId,
+        plannedExerciseSessionId: m.plannedExerciseSessionId,
+        device: m.device == null
+            ? null
+            : ExerciseDeviceData(
+                type: m.device!.type,
+                manufacturer: m.device!.manufacturer,
+                model: m.device!.model,
+              ),
+        segments: [
+          for (final s in m.segments)
+            ExerciseSegmentData(
+              startTime: _fromMs(s.startEpochMs),
+              endTime: _fromMs(s.endEpochMs),
+              segmentType: s.segmentType,
+              repetitions: s.repetitions,
+              setIndex: s.setIndex,
+            ),
+        ],
+        laps: [
+          for (final l in m.laps)
+            ExerciseLapData(
+              startTime: _fromMs(l.startEpochMs),
+              endTime: _fromMs(l.endEpochMs),
+              lengthMeters: l.lengthMeters,
+            ),
+        ],
+        route: ExerciseRouteData(
+          status: _routeStatus(m.route.status),
+          points: [
+            for (final p in m.route.points)
+              ExerciseRoutePoint(
+                time: _fromMs(p.timeEpochMs),
+                latitude: p.latitude,
+                longitude: p.longitude,
+                altitudeMeters: p.altitudeMeters,
+                horizontalAccuracyMeters: p.horizontalAccuracyMeters,
+                verticalAccuracyMeters: p.verticalAccuracyMeters,
+              ),
+          ],
+        ),
+        isOpenVitalsEntry: m.isOpenVitalsEntry,
+      );
+
+  ActivityWriteRequestMsg _activityWriteMsg(ActivityWriteRequest request) =>
+      ActivityWriteRequestMsg(
+        exerciseType: request.exerciseType,
+        startEpochMs: request.startTime.millisecondsSinceEpoch,
+        endEpochMs: request.endTime.millisecondsSinceEpoch,
+        title: request.title,
+        notes: request.notes,
+        plannedExerciseSessionId: request.plannedExerciseSessionId,
+        segments: [
+          for (final s in request.exerciseSegments)
+            ExerciseSegmentMsg(
+              startEpochMs: s.startTime.millisecondsSinceEpoch,
+              endEpochMs: s.endTime.millisecondsSinceEpoch,
+              segmentType: s.segmentType,
+              repetitions: s.repetitions,
+              setIndex: s.setIndex,
+            ),
+        ],
+        laps: [
+          for (final l in request.laps)
+            ExerciseLapMsg(
+              startEpochMs: l.startTime.millisecondsSinceEpoch,
+              endEpochMs: l.endTime.millisecondsSinceEpoch,
+              lengthMeters: l.lengthMeters,
+            ),
+        ],
+        routePoints: [
+          for (final p in request.routePoints)
+            ExerciseRoutePointMsg(
+              timeEpochMs: p.time.millisecondsSinceEpoch,
+              latitude: p.latitude,
+              longitude: p.longitude,
+              altitudeMeters: p.altitudeMeters,
+              horizontalAccuracyMeters: p.horizontalAccuracyMeters,
+              verticalAccuracyMeters: p.verticalAccuracyMeters,
+            ),
+        ],
+      );
+
   @override
   Future<List<ExerciseData>> readExerciseSessions(
     DateTime start,
     DateTime end,
   ) async {
-    final maps = await _read('ExerciseSession', start, end);
-    final sessions = [
-      for (final m in maps) HealthRecordJson.exercise(m, appPackageName),
-    ];
-    return deduplicateExerciseSessions(sessions);
+    final msgs = await _catch(
+      () => _api.readExerciseSessions(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <ExerciseDataMsg>[],
+    );
+    return deduplicateExerciseSessions([for (final m in msgs) _exerciseData(m)]);
   }
 
   @override
   Future<ExerciseData?> readExerciseSession(String id) async {
-    final map = await _readOne('ExerciseSession', id);
-    return map == null ? null : HealthRecordJson.exercise(map, appPackageName);
+    final m = await _catch(() => _api.readExerciseSessionById(id), null);
+    return m == null ? null : _exerciseData(m);
   }
 
   @override
@@ -293,9 +361,20 @@ class HealthConnectNativeDataSource extends HealthDataSource {
 
   @override
   Future<List<SpeedSample>> readSpeedSamples(DateTime start, DateTime end) async {
-    final maps = await _read('Speed', start, end);
+    final msgs = await _catch(
+      () => _api.readSpeedSamples(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <SpeedSampleMsg>[],
+    );
     return [
-      for (final m in maps) ...HealthRecordJson.speedSamples(m),
+      for (final m in msgs)
+        SpeedSample(
+          time: _fromMs(m.timeEpochMs),
+          metersPerSecond: m.metersPerSecond,
+          source: m.source,
+        ),
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
@@ -1360,13 +1439,6 @@ class HealthConnectNativeDataSource extends HealthDataSource {
 
   // ── Writes ────────────────────────────────────────────────────────────────
 
-  Future<void> _insert(Map<String, dynamic> record) async {
-    await _catch(
-      () => _api.insertRecordsJson([jsonEncode(record)]),
-      const <String>[],
-    );
-  }
-
   @override
   Future<String> writeHydrationEntry(HydrationWriteRequest request) =>
       _api.writeHydrationEntry(
@@ -1581,70 +1653,16 @@ class HealthConnectNativeDataSource extends HealthDataSource {
       _api.deleteHydrationNutritionEntry(hydrationClientRecordId);
 
   @override
-  Future<String> writeActivityEntry(ActivityWriteRequest request) async {
-    final clientRecordId =
-        'openvitals_activity_${request.startTime.millisecondsSinceEpoch}_${_newId()}';
-    final fields = <String, dynamic>{
-      'exerciseType': request.exerciseType,
-      if (request.title != null) 'title': request.title,
-      if (request.notes != null) 'notes': request.notes,
-      if (request.plannedExerciseSessionId != null)
-        'plannedExerciseSessionId': request.plannedExerciseSessionId,
-      if (request.exerciseSegments.isNotEmpty)
-        'segments': [
-          for (final s in request.exerciseSegments)
-            {
-              'startEpochMs': s.startTime.millisecondsSinceEpoch,
-              'endEpochMs': s.endTime.millisecondsSinceEpoch,
-              'segmentType': s.segmentType,
-              'repetitions': s.repetitions,
-            },
-        ],
-      if (request.laps.isNotEmpty)
-        'laps': [
-          for (final l in request.laps)
-            {
-              'startEpochMs': l.startTime.millisecondsSinceEpoch,
-              'endEpochMs': l.endTime.millisecondsSinceEpoch,
-              if (l.lengthMeters != null) 'lengthMeters': l.lengthMeters,
-            },
-        ],
-      if (request.routePoints.isNotEmpty)
-        'route': {
-          'points': [
-            for (final p in request.routePoints)
-              {
-                'timeEpochMs': p.time.millisecondsSinceEpoch,
-                'latitude': p.latitude,
-                'longitude': p.longitude,
-                if (p.altitudeMeters != null) 'altitudeMeters': p.altitudeMeters,
-                if (p.horizontalAccuracyMeters != null)
-                  'horizontalAccuracyMeters': p.horizontalAccuracyMeters,
-                if (p.verticalAccuracyMeters != null)
-                  'verticalAccuracyMeters': p.verticalAccuracyMeters,
-              },
-          ],
-        },
-    };
-    await _insert(
-      HealthRecordJson.intervalRecord(
-        'ExerciseSession',
-        request.startTime,
-        request.endTime,
-        clientRecordId,
-        fields: fields,
-      ),
-    );
-    return clientRecordId;
-  }
+  Future<String> writeActivityEntry(ActivityWriteRequest request) =>
+      _api.writeActivityEntry(_activityWriteMsg(request));
 
   @override
-  Future<void> deleteActivityEntry(String id) async {
-    await _catch(
-      () => _api.deleteRecordsByIds('ExerciseSession', [id]),
-      null,
-    );
-  }
+  Future<void> updateActivityEntry(String id, ActivityWriteRequest request) =>
+      _api.updateActivityEntry(id, _activityWriteMsg(request));
+
+  @override
+  Future<void> deleteActivityEntry(String id) =>
+      _api.deleteActivityEntry(id);
 
   // ── Apple Health import ────────────────────────────────────────────────────
 

@@ -116,6 +116,12 @@ enum CaloriesBurnedSourceMsg {
   estimatedActiveAndBmr,
 }
 
+enum ExerciseRouteStatusMsg {
+  data,
+  consentRequired,
+  noData,
+}
+
 /// Raw Health Connect availability signals, mapped to the Dart
 /// `HealthConnectAvailability` enum on the Flutter side. Kept as separate
 /// signals (rather than a native enum) so the enum stays a single source of
@@ -2662,6 +2668,553 @@ class SleepDeviceDataMsg {
   }
 }
 
+class ExerciseDeviceDataMsg {
+  ExerciseDeviceDataMsg({
+    required this.type,
+    this.manufacturer,
+    this.model,
+  });
+
+  int type;
+
+  String? manufacturer;
+
+  String? model;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      type,
+      manufacturer,
+      model,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseDeviceDataMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseDeviceDataMsg(
+      type: result[0]! as int,
+      manufacturer: result[1] as String?,
+      model: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseDeviceDataMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(type, other.type) && _deepEquals(manufacturer, other.manufacturer) && _deepEquals(model, other.model);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseDeviceDataMsg(type: $type, manufacturer: $manufacturer, model: $model)';
+  }
+}
+
+class ExerciseSegmentMsg {
+  ExerciseSegmentMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.segmentType,
+    required this.repetitions,
+    this.setIndex,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  int segmentType;
+
+  int repetitions;
+
+  int? setIndex;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      segmentType,
+      repetitions,
+      setIndex,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseSegmentMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseSegmentMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      segmentType: result[2]! as int,
+      repetitions: result[3]! as int,
+      setIndex: result[4] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseSegmentMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(segmentType, other.segmentType) && _deepEquals(repetitions, other.repetitions) && _deepEquals(setIndex, other.setIndex);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseSegmentMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, segmentType: $segmentType, repetitions: $repetitions, setIndex: $setIndex)';
+  }
+}
+
+class ExerciseLapMsg {
+  ExerciseLapMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    this.lengthMeters,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  double? lengthMeters;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      lengthMeters,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseLapMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseLapMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      lengthMeters: result[2] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseLapMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(lengthMeters, other.lengthMeters);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseLapMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, lengthMeters: $lengthMeters)';
+  }
+}
+
+class ExerciseRoutePointMsg {
+  ExerciseRoutePointMsg({
+    required this.timeEpochMs,
+    required this.latitude,
+    required this.longitude,
+    this.altitudeMeters,
+    this.horizontalAccuracyMeters,
+    this.verticalAccuracyMeters,
+  });
+
+  int timeEpochMs;
+
+  double latitude;
+
+  double longitude;
+
+  double? altitudeMeters;
+
+  double? horizontalAccuracyMeters;
+
+  double? verticalAccuracyMeters;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      latitude,
+      longitude,
+      altitudeMeters,
+      horizontalAccuracyMeters,
+      verticalAccuracyMeters,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseRoutePointMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseRoutePointMsg(
+      timeEpochMs: result[0]! as int,
+      latitude: result[1]! as double,
+      longitude: result[2]! as double,
+      altitudeMeters: result[3] as double?,
+      horizontalAccuracyMeters: result[4] as double?,
+      verticalAccuracyMeters: result[5] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseRoutePointMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(latitude, other.latitude) && _deepEquals(longitude, other.longitude) && _deepEquals(altitudeMeters, other.altitudeMeters) && _deepEquals(horizontalAccuracyMeters, other.horizontalAccuracyMeters) && _deepEquals(verticalAccuracyMeters, other.verticalAccuracyMeters);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseRoutePointMsg(timeEpochMs: $timeEpochMs, latitude: $latitude, longitude: $longitude, altitudeMeters: $altitudeMeters, horizontalAccuracyMeters: $horizontalAccuracyMeters, verticalAccuracyMeters: $verticalAccuracyMeters)';
+  }
+}
+
+class ExerciseRouteMsg {
+  ExerciseRouteMsg({
+    required this.status,
+    required this.points,
+  });
+
+  ExerciseRouteStatusMsg status;
+
+  List<ExerciseRoutePointMsg> points;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      status,
+      points,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseRouteMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseRouteMsg(
+      status: result[0]! as ExerciseRouteStatusMsg,
+      points: (result[1]! as List<Object?>).cast<ExerciseRoutePointMsg>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseRouteMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(status, other.status) && _deepEquals(points, other.points);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseRouteMsg(status: $status, points: $points)';
+  }
+}
+
+/// Intrinsic exercise-session fields (aggregate-derived metrics are resolved on
+/// the Dart side / left null, matching the current data source).
+class ExerciseDataMsg {
+  ExerciseDataMsg({
+    required this.id,
+    this.title,
+    required this.exerciseType,
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.source,
+    this.notes,
+    this.clientRecordId,
+    this.plannedExerciseSessionId,
+    this.device,
+    required this.segments,
+    required this.laps,
+    required this.route,
+    required this.isOpenVitalsEntry,
+  });
+
+  String id;
+
+  String? title;
+
+  int exerciseType;
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  String source;
+
+  String? notes;
+
+  String? clientRecordId;
+
+  String? plannedExerciseSessionId;
+
+  ExerciseDeviceDataMsg? device;
+
+  List<ExerciseSegmentMsg> segments;
+
+  List<ExerciseLapMsg> laps;
+
+  ExerciseRouteMsg route;
+
+  bool isOpenVitalsEntry;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      title,
+      exerciseType,
+      startEpochMs,
+      endEpochMs,
+      source,
+      notes,
+      clientRecordId,
+      plannedExerciseSessionId,
+      device,
+      segments,
+      laps,
+      route,
+      isOpenVitalsEntry,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ExerciseDataMsg decode(Object result) {
+    result as List<Object?>;
+    return ExerciseDataMsg(
+      id: result[0]! as String,
+      title: result[1] as String?,
+      exerciseType: result[2]! as int,
+      startEpochMs: result[3]! as int,
+      endEpochMs: result[4]! as int,
+      source: result[5]! as String,
+      notes: result[6] as String?,
+      clientRecordId: result[7] as String?,
+      plannedExerciseSessionId: result[8] as String?,
+      device: result[9] as ExerciseDeviceDataMsg?,
+      segments: (result[10]! as List<Object?>).cast<ExerciseSegmentMsg>(),
+      laps: (result[11]! as List<Object?>).cast<ExerciseLapMsg>(),
+      route: result[12]! as ExerciseRouteMsg,
+      isOpenVitalsEntry: result[13]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ExerciseDataMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(exerciseType, other.exerciseType) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(source, other.source) && _deepEquals(notes, other.notes) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(plannedExerciseSessionId, other.plannedExerciseSessionId) && _deepEquals(device, other.device) && _deepEquals(segments, other.segments) && _deepEquals(laps, other.laps) && _deepEquals(route, other.route) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ExerciseDataMsg(id: $id, title: $title, exerciseType: $exerciseType, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, source: $source, notes: $notes, clientRecordId: $clientRecordId, plannedExerciseSessionId: $plannedExerciseSessionId, device: $device, segments: $segments, laps: $laps, route: $route, isOpenVitalsEntry: $isOpenVitalsEntry)';
+  }
+}
+
+class SpeedSampleMsg {
+  SpeedSampleMsg({
+    required this.timeEpochMs,
+    required this.metersPerSecond,
+    required this.source,
+  });
+
+  int timeEpochMs;
+
+  double metersPerSecond;
+
+  String source;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      timeEpochMs,
+      metersPerSecond,
+      source,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SpeedSampleMsg decode(Object result) {
+    result as List<Object?>;
+    return SpeedSampleMsg(
+      timeEpochMs: result[0]! as int,
+      metersPerSecond: result[1]! as double,
+      source: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SpeedSampleMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeEpochMs, other.timeEpochMs) && _deepEquals(metersPerSecond, other.metersPerSecond) && _deepEquals(source, other.source);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SpeedSampleMsg(timeEpochMs: $timeEpochMs, metersPerSecond: $metersPerSecond, source: $source)';
+  }
+}
+
+class ActivityWriteRequestMsg {
+  ActivityWriteRequestMsg({
+    required this.exerciseType,
+    required this.startEpochMs,
+    required this.endEpochMs,
+    this.title,
+    this.notes,
+    this.plannedExerciseSessionId,
+    required this.segments,
+    required this.laps,
+    required this.routePoints,
+  });
+
+  int exerciseType;
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  String? title;
+
+  String? notes;
+
+  String? plannedExerciseSessionId;
+
+  List<ExerciseSegmentMsg> segments;
+
+  List<ExerciseLapMsg> laps;
+
+  List<ExerciseRoutePointMsg> routePoints;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      exerciseType,
+      startEpochMs,
+      endEpochMs,
+      title,
+      notes,
+      plannedExerciseSessionId,
+      segments,
+      laps,
+      routePoints,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ActivityWriteRequestMsg decode(Object result) {
+    result as List<Object?>;
+    return ActivityWriteRequestMsg(
+      exerciseType: result[0]! as int,
+      startEpochMs: result[1]! as int,
+      endEpochMs: result[2]! as int,
+      title: result[3] as String?,
+      notes: result[4] as String?,
+      plannedExerciseSessionId: result[5] as String?,
+      segments: (result[6]! as List<Object?>).cast<ExerciseSegmentMsg>(),
+      laps: (result[7]! as List<Object?>).cast<ExerciseLapMsg>(),
+      routePoints: (result[8]! as List<Object?>).cast<ExerciseRoutePointMsg>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ActivityWriteRequestMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(exerciseType, other.exerciseType) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(title, other.title) && _deepEquals(notes, other.notes) && _deepEquals(plannedExerciseSessionId, other.plannedExerciseSessionId) && _deepEquals(segments, other.segments) && _deepEquals(laps, other.laps) && _deepEquals(routePoints, other.routePoints);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ActivityWriteRequestMsg(exerciseType: $exerciseType, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, title: $title, notes: $notes, plannedExerciseSessionId: $plannedExerciseSessionId, segments: $segments, laps: $laps, routePoints: $routePoints)';
+  }
+}
+
 /// Raw (unmerged) sleep session; merging + range selection happen on the Dart
 /// side. `durationMs` is recomputed from stages by the Dart mapper.
 class SleepDataMsg {
@@ -2766,134 +3319,161 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is CaloriesBurnedSourceMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is HealthConnectAvailabilityDetail) {
+    }    else if (value is ExerciseRouteStatusMsg) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    }    else if (value is WeightEntryMsg) {
+      writeValue(buffer, value.index);
+    }    else if (value is HealthConnectAvailabilityDetail) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is HeightEntryMsg) {
+    }    else if (value is WeightEntryMsg) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyFatEntryMsg) {
+    }    else if (value is HeightEntryMsg) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMassEntryMsg) {
+    }    else if (value is BodyFatEntryMsg) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is BmrEntryMsg) {
+    }    else if (value is BodyMassEntryMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementEntryMsg) {
+    }    else if (value is BmrEntryMsg) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementWriteRequestMsg) {
+    }    else if (value is BodyMeasurementEntryMsg) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationEntryMsg) {
+    }    else if (value is BodyMeasurementWriteRequestMsg) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyHydrationMsg) {
+    }    else if (value is HydrationEntryMsg) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationWriteRequestMsg) {
+    }    else if (value is DailyHydrationMsg) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionMsg) {
+    }    else if (value is HydrationWriteRequestMsg) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionWriteRequestMsg) {
+    }    else if (value is MindfulnessSessionMsg) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is BloodPressureEntryMsg) {
+    }    else if (value is MindfulnessSessionWriteRequestMsg) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is SpO2EntryMsg) {
+    }    else if (value is BloodPressureEntryMsg) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is RespiratoryRateEntryMsg) {
+    }    else if (value is SpO2EntryMsg) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyTempEntryMsg) {
+    }    else if (value is RespiratoryRateEntryMsg) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is Vo2MaxEntryMsg) {
+    }    else if (value is BodyTempEntryMsg) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is BloodGlucoseEntryMsg) {
+    }    else if (value is Vo2MaxEntryMsg) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is SkinTemperatureEntryMsg) {
+    }    else if (value is BloodGlucoseEntryMsg) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is VitalsMeasurementEntryMsg) {
+    }    else if (value is SkinTemperatureEntryMsg) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is VitalsMeasurementWriteRequestMsg) {
+    }    else if (value is VitalsMeasurementEntryMsg) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is MenstruationFlowEntryMsg) {
+    }    else if (value is VitalsMeasurementWriteRequestMsg) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is MenstruationPeriodEntryMsg) {
+    }    else if (value is MenstruationFlowEntryMsg) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    }    else if (value is OvulationTestEntryMsg) {
+    }    else if (value is MenstruationPeriodEntryMsg) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    }    else if (value is CervicalMucusEntryMsg) {
+    }    else if (value is OvulationTestEntryMsg) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    }    else if (value is BasalBodyTemperatureEntryMsg) {
+    }    else if (value is CervicalMucusEntryMsg) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    }    else if (value is IntermenstrualBleedingEntryMsg) {
+    }    else if (value is BasalBodyTemperatureEntryMsg) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    }    else if (value is SexualActivityEntryMsg) {
+    }    else if (value is IntermenstrualBleedingEntryMsg) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateSampleMsg) {
+    }    else if (value is SexualActivityEntryMsg) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateAggBucketMsg) {
+    }    else if (value is HeartRateSampleMsg) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateSummaryMsg) {
+    }    else if (value is HeartRateAggBucketMsg) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    }    else if (value is RestingHeartRateSampleMsg) {
+    }    else if (value is HeartRateSummaryMsg) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyRestingHRMsg) {
+    }    else if (value is RestingHeartRateSampleMsg) {
       buffer.putUint8(165);
       writeValue(buffer, value.encode());
-    }    else if (value is HrvSampleMsg) {
+    }    else if (value is DailyRestingHRMsg) {
       buffer.putUint8(166);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyHrvMsg) {
+    }    else if (value is HrvSampleMsg) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
-    }    else if (value is NutritionEntryMsg) {
+    }    else if (value is DailyHrvMsg) {
       buffer.putUint8(168);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyMacrosMsg) {
+    }    else if (value is NutritionEntryMsg) {
       buffer.putUint8(169);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyNutritionMsg) {
+    }    else if (value is DailyMacrosMsg) {
       buffer.putUint8(170);
       writeValue(buffer, value.encode());
-    }    else if (value is NutritionWriteRequestMsg) {
+    }    else if (value is DailyNutritionMsg) {
       buffer.putUint8(171);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepStageMsg) {
+    }    else if (value is NutritionWriteRequestMsg) {
       buffer.putUint8(172);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepDeviceDataMsg) {
+    }    else if (value is SleepStageMsg) {
       buffer.putUint8(173);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepDataMsg) {
+    }    else if (value is SleepDeviceDataMsg) {
       buffer.putUint8(174);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseDeviceDataMsg) {
+      buffer.putUint8(175);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseSegmentMsg) {
+      buffer.putUint8(176);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseLapMsg) {
+      buffer.putUint8(177);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseRoutePointMsg) {
+      buffer.putUint8(178);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseRouteMsg) {
+      buffer.putUint8(179);
+      writeValue(buffer, value.encode());
+    }    else if (value is ExerciseDataMsg) {
+      buffer.putUint8(180);
+      writeValue(buffer, value.encode());
+    }    else if (value is SpeedSampleMsg) {
+      buffer.putUint8(181);
+      writeValue(buffer, value.encode());
+    }    else if (value is ActivityWriteRequestMsg) {
+      buffer.putUint8(182);
+      writeValue(buffer, value.encode());
+    }    else if (value is SleepDataMsg) {
+      buffer.putUint8(183);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -2913,90 +3493,109 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : CaloriesBurnedSourceMsg.values[value];
       case 132:
-        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : ExerciseRouteStatusMsg.values[value];
       case 133:
-        return WeightEntryMsg.decode(readValue(buffer)!);
+        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
       case 134:
-        return HeightEntryMsg.decode(readValue(buffer)!);
+        return WeightEntryMsg.decode(readValue(buffer)!);
       case 135:
-        return BodyFatEntryMsg.decode(readValue(buffer)!);
+        return HeightEntryMsg.decode(readValue(buffer)!);
       case 136:
-        return BodyMassEntryMsg.decode(readValue(buffer)!);
+        return BodyFatEntryMsg.decode(readValue(buffer)!);
       case 137:
-        return BmrEntryMsg.decode(readValue(buffer)!);
+        return BodyMassEntryMsg.decode(readValue(buffer)!);
       case 138:
-        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
+        return BmrEntryMsg.decode(readValue(buffer)!);
       case 139:
-        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
       case 140:
-        return HydrationEntryMsg.decode(readValue(buffer)!);
+        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       case 141:
-        return DailyHydrationMsg.decode(readValue(buffer)!);
+        return HydrationEntryMsg.decode(readValue(buffer)!);
       case 142:
-        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
+        return DailyHydrationMsg.decode(readValue(buffer)!);
       case 143:
-        return MindfulnessSessionMsg.decode(readValue(buffer)!);
+        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
       case 144:
-        return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
+        return MindfulnessSessionMsg.decode(readValue(buffer)!);
       case 145:
-        return BloodPressureEntryMsg.decode(readValue(buffer)!);
+        return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
       case 146:
-        return SpO2EntryMsg.decode(readValue(buffer)!);
+        return BloodPressureEntryMsg.decode(readValue(buffer)!);
       case 147:
-        return RespiratoryRateEntryMsg.decode(readValue(buffer)!);
+        return SpO2EntryMsg.decode(readValue(buffer)!);
       case 148:
-        return BodyTempEntryMsg.decode(readValue(buffer)!);
+        return RespiratoryRateEntryMsg.decode(readValue(buffer)!);
       case 149:
-        return Vo2MaxEntryMsg.decode(readValue(buffer)!);
+        return BodyTempEntryMsg.decode(readValue(buffer)!);
       case 150:
-        return BloodGlucoseEntryMsg.decode(readValue(buffer)!);
+        return Vo2MaxEntryMsg.decode(readValue(buffer)!);
       case 151:
-        return SkinTemperatureEntryMsg.decode(readValue(buffer)!);
+        return BloodGlucoseEntryMsg.decode(readValue(buffer)!);
       case 152:
-        return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
+        return SkinTemperatureEntryMsg.decode(readValue(buffer)!);
       case 153:
-        return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+        return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
       case 154:
-        return MenstruationFlowEntryMsg.decode(readValue(buffer)!);
+        return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       case 155:
-        return MenstruationPeriodEntryMsg.decode(readValue(buffer)!);
+        return MenstruationFlowEntryMsg.decode(readValue(buffer)!);
       case 156:
-        return OvulationTestEntryMsg.decode(readValue(buffer)!);
+        return MenstruationPeriodEntryMsg.decode(readValue(buffer)!);
       case 157:
-        return CervicalMucusEntryMsg.decode(readValue(buffer)!);
+        return OvulationTestEntryMsg.decode(readValue(buffer)!);
       case 158:
-        return BasalBodyTemperatureEntryMsg.decode(readValue(buffer)!);
+        return CervicalMucusEntryMsg.decode(readValue(buffer)!);
       case 159:
-        return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
+        return BasalBodyTemperatureEntryMsg.decode(readValue(buffer)!);
       case 160:
-        return SexualActivityEntryMsg.decode(readValue(buffer)!);
+        return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
       case 161:
-        return HeartRateSampleMsg.decode(readValue(buffer)!);
+        return SexualActivityEntryMsg.decode(readValue(buffer)!);
       case 162:
-        return HeartRateAggBucketMsg.decode(readValue(buffer)!);
+        return HeartRateSampleMsg.decode(readValue(buffer)!);
       case 163:
-        return HeartRateSummaryMsg.decode(readValue(buffer)!);
+        return HeartRateAggBucketMsg.decode(readValue(buffer)!);
       case 164:
-        return RestingHeartRateSampleMsg.decode(readValue(buffer)!);
+        return HeartRateSummaryMsg.decode(readValue(buffer)!);
       case 165:
-        return DailyRestingHRMsg.decode(readValue(buffer)!);
+        return RestingHeartRateSampleMsg.decode(readValue(buffer)!);
       case 166:
-        return HrvSampleMsg.decode(readValue(buffer)!);
+        return DailyRestingHRMsg.decode(readValue(buffer)!);
       case 167:
-        return DailyHrvMsg.decode(readValue(buffer)!);
+        return HrvSampleMsg.decode(readValue(buffer)!);
       case 168:
-        return NutritionEntryMsg.decode(readValue(buffer)!);
+        return DailyHrvMsg.decode(readValue(buffer)!);
       case 169:
-        return DailyMacrosMsg.decode(readValue(buffer)!);
+        return NutritionEntryMsg.decode(readValue(buffer)!);
       case 170:
-        return DailyNutritionMsg.decode(readValue(buffer)!);
+        return DailyMacrosMsg.decode(readValue(buffer)!);
       case 171:
-        return NutritionWriteRequestMsg.decode(readValue(buffer)!);
+        return DailyNutritionMsg.decode(readValue(buffer)!);
       case 172:
-        return SleepStageMsg.decode(readValue(buffer)!);
+        return NutritionWriteRequestMsg.decode(readValue(buffer)!);
       case 173:
-        return SleepDeviceDataMsg.decode(readValue(buffer)!);
+        return SleepStageMsg.decode(readValue(buffer)!);
       case 174:
+        return SleepDeviceDataMsg.decode(readValue(buffer)!);
+      case 175:
+        return ExerciseDeviceDataMsg.decode(readValue(buffer)!);
+      case 176:
+        return ExerciseSegmentMsg.decode(readValue(buffer)!);
+      case 177:
+        return ExerciseLapMsg.decode(readValue(buffer)!);
+      case 178:
+        return ExerciseRoutePointMsg.decode(readValue(buffer)!);
+      case 179:
+        return ExerciseRouteMsg.decode(readValue(buffer)!);
+      case 180:
+        return ExerciseDataMsg.decode(readValue(buffer)!);
+      case 181:
+        return SpeedSampleMsg.decode(readValue(buffer)!);
+      case 182:
+        return ActivityWriteRequestMsg.decode(readValue(buffer)!);
+      case 183:
         return SleepDataMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -4681,5 +5280,117 @@ class HealthConnectHostApi {
     )
     ;
     return pigeonVar_replyValue as SleepDataMsg?;
+  }
+
+  Future<List<ExerciseDataMsg>> readExerciseSessions(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readExerciseSessions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<ExerciseDataMsg>();
+  }
+
+  Future<ExerciseDataMsg?> readExerciseSessionById(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readExerciseSessionById$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as ExerciseDataMsg?;
+  }
+
+  Future<List<SpeedSampleMsg>> readSpeedSamples(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSpeedSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<SpeedSampleMsg>();
+  }
+
+  Future<String> writeActivityEntry(ActivityWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writeActivityEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> updateActivityEntry(String id, ActivityWriteRequestMsg request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.updateActivityEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id, request]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> deleteActivityEntry(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.deleteActivityEntry$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }
