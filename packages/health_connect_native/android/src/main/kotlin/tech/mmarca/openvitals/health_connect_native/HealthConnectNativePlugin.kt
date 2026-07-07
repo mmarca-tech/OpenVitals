@@ -5,6 +5,7 @@ package tech.mmarca.openvitals.health_connect_native
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
@@ -60,10 +61,11 @@ class HealthConnectNativePlugin :
    * with whether every requested permission ended up granted.
    */
   private val activityResultListener =
-    PluginRegistry.ActivityResultListener { requestCode: Int, _: Int, _: Intent? ->
+    PluginRegistry.ActivityResultListener { requestCode: Int, resultCode: Int, _: Intent? ->
       if (requestCode != PERMISSION_REQUEST_CODE) {
         false
       } else {
+        Log.i(TAG, "onActivityResult: permission contract returned resultCode=$resultCode")
         val callback = pendingPermissionCallback
         val requested = pendingPermissions
         pendingPermissionCallback = null
@@ -109,6 +111,7 @@ class HealthConnectNativePlugin :
     activityBinding = binding
     activity = binding.activity
     binding.addActivityResultListener(activityResultListener)
+    Log.i(TAG, "onAttachedToActivity: ${binding.activity}")
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
@@ -152,7 +155,9 @@ class HealthConnectNativePlugin :
     callback: (Result<Boolean>) -> Unit,
   ) {
     val currentActivity = activity
+    Log.i(TAG, "requestPermissions: ${permissions.size} perms, activity=$currentActivity")
     if (currentActivity == null) {
+      Log.w(TAG, "requestPermissions: no activity attached; cannot launch contract")
       callback(Result.success(false))
       return
     }
@@ -166,8 +171,10 @@ class HealthConnectNativePlugin :
       val intent = PermissionController
         .createRequestPermissionResultContract()
         .createIntent(currentActivity, permissions.toSet())
+      Log.i(TAG, "requestPermissions: launching intent action=${intent.action} pkg=${intent.`package`}")
       currentActivity.startActivityForResult(intent, PERMISSION_REQUEST_CODE)
     } catch (e: Throwable) {
+      Log.e(TAG, "requestPermissions: failed to launch permission contract", e)
       pendingPermissionCallback = null
       pendingPermissions = emptyList()
       callback(Result.failure(e))
@@ -471,6 +478,7 @@ class HealthConnectNativePlugin :
   }
 
   private companion object {
+    private const val TAG = "HealthConnectNative"
     private const val PERMISSION_REQUEST_CODE = 0xB1A2
     private const val READ_PAGE_SIZE = 1000
   }
