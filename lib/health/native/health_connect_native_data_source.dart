@@ -122,12 +122,21 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   Future<HealthConnectFeatureFlags> resolveFeatureFlags() async {
     Future<bool> feature(String name) =>
         _catch(() => _api.isFeatureAvailable(name), false);
+    // Resolve the feature checks concurrently rather than sequentially so
+    // onboarding startup does one round-trip's worth of latency, not five.
+    final results = await Future.wait(<Future<bool>>[
+      feature('SKIN_TEMPERATURE'),
+      feature('MINDFULNESS_SESSION'),
+      feature('PLANNED_EXERCISE'),
+      feature('READ_HEALTH_DATA_HISTORY'),
+      feature('READ_HEALTH_DATA_IN_BACKGROUND'),
+    ]);
     final flags = HealthConnectFeatureFlags(
-      skinTemperatureAvailable: await feature('SKIN_TEMPERATURE'),
-      mindfulnessAvailable: await feature('MINDFULNESS_SESSION'),
-      plannedExerciseAvailable: await feature('PLANNED_EXERCISE'),
-      healthDataHistoryAvailable: await feature('READ_HEALTH_DATA_HISTORY'),
-      backgroundReadAvailable: await feature('READ_HEALTH_DATA_IN_BACKGROUND'),
+      skinTemperatureAvailable: results[0],
+      mindfulnessAvailable: results[1],
+      plannedExerciseAvailable: results[2],
+      healthDataHistoryAvailable: results[3],
+      backgroundReadAvailable: results[4],
     );
     featureFlags = flags;
     return flags;
