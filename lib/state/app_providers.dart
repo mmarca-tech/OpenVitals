@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/presentation/unit_formatter.dart';
 import '../di/providers.dart';
 import '../domain/preferences/app_language.dart';
 import '../domain/preferences/app_theme_mode.dart';
@@ -42,6 +43,15 @@ final appLanguageProvider = Provider<AppLanguage>((ref) {
 final unitSystemProvider = Provider<UnitSystem>((ref) {
   final repo = ref.watch(preferencesRepositoryProvider);
   return _watchListenable(ref, repo.unitSystemListenable);
+});
+
+/// A [UnitFormatter] bound to the current [unitSystemProvider]. Rebuilds (and so
+/// re-formats every consuming widget) when the unit-system preference changes.
+/// The Kotlin app injects a single `UnitFormatter`; here it is a derived
+/// provider so feature screens can `ref.watch` it instead of threading it down.
+final unitFormatterProvider = Provider<UnitFormatter>((ref) {
+  final unitSystem = ref.watch(unitSystemProvider);
+  return UnitFormatter(unitSystemProvider: () => unitSystem);
 });
 
 /// Whether onboarding has been completed. Read once to pick the start

@@ -51,7 +51,8 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.text('Get started'), findsOneWidget);
+    // The onboarding flow leads with the app name header.
+    expect(find.text('OpenVitals'), findsWidgets);
   });
 
   testWidgets('renders dashboard start screen when onboarding complete',
