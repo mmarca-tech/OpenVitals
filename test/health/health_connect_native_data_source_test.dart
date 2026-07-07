@@ -132,6 +132,12 @@ class FakeHostApi extends HealthConnectHostApi {
     return 'openvitals_hydration_written';
   }
 
+  // ── Sleep (Phase 7) typed fakes ───────────────────────────────────────────
+  final Map<String, SleepDataMsg> sleepById = {};
+
+  @override
+  Future<SleepDataMsg?> readSleepSessionById(String id) async => sleepById[id];
+
   // ── Heart (Phase 5) typed fakes ───────────────────────────────────────────
   List<HeartRateSampleMsg> rawHeartRateSamples = const [];
 
@@ -381,30 +387,30 @@ void main() {
       expect(daily.single.activeCaloriesKcal, 220.0);
     });
 
-    test('single Sleep record maps stages via readRecordJson', () async {
-      final api = FakeHostApi();
-      api.singleRecords['Sleep'] = {
-        'sleep-1': jsonEncode({
-          'recordType': 'Sleep',
-          'id': 'sleep-1',
-          'dataOriginPackage': 'com.watch',
-          'startEpochMs': _ms(2026, 1, 2, 23),
-          'endEpochMs': _ms(2026, 1, 3, 6),
-          'title': 'Night',
-          'stages': [
-            {
-              'startEpochMs': _ms(2026, 1, 2, 23),
-              'endEpochMs': _ms(2026, 1, 3, 1),
-              'stage': 4,
-            },
-            {
-              'startEpochMs': _ms(2026, 1, 3, 1),
-              'endEpochMs': _ms(2026, 1, 3, 6),
-              'stage': 5,
-            },
+    test('single Sleep session maps stages from a typed msg', () async {
+      final api = FakeHostApi()
+        ..sleepById['sleep-1'] = SleepDataMsg(
+          id: 'sleep-1',
+          startEpochMs: _ms(2026, 1, 2, 23),
+          endEpochMs: _ms(2026, 1, 3, 6),
+          source: 'com.watch',
+          title: 'Night',
+          notes: null,
+          clientRecordId: null,
+          device: null,
+          stages: [
+            SleepStageMsg(
+              startEpochMs: _ms(2026, 1, 2, 23),
+              endEpochMs: _ms(2026, 1, 3, 1),
+              stageType: 4,
+            ),
+            SleepStageMsg(
+              startEpochMs: _ms(2026, 1, 3, 1),
+              endEpochMs: _ms(2026, 1, 3, 6),
+              stageType: 5,
+            ),
           ],
-        }),
-      };
+        );
       final session = await _source(api).readSleepSession('sleep-1');
       expect(session, isNotNull);
       expect(session!.id, 'sleep-1');

@@ -510,6 +510,47 @@ class NutritionWriteRequestMsg {
   );
 }
 
+// ── Sleep (Phase 7) ──────────────────────────────────────────────────────────
+
+class SleepStageMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  final int stageType;
+  SleepStageMsg(this.startEpochMs, this.endEpochMs, this.stageType);
+}
+
+class SleepDeviceDataMsg {
+  final int type;
+  final String? manufacturer;
+  final String? model;
+  SleepDeviceDataMsg(this.type, this.manufacturer, this.model);
+}
+
+/// Raw (unmerged) sleep session; merging + range selection happen on the Dart
+/// side. `durationMs` is recomputed from stages by the Dart mapper.
+class SleepDataMsg {
+  final String id;
+  final int startEpochMs;
+  final int endEpochMs;
+  final String source;
+  final String? title;
+  final String? notes;
+  final String? clientRecordId;
+  final SleepDeviceDataMsg? device;
+  final List<SleepStageMsg> stages;
+  SleepDataMsg(
+    this.id,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.source,
+    this.title,
+    this.notes,
+    this.clientRecordId,
+    this.device,
+    this.stages,
+  );
+}
+
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
@@ -800,4 +841,11 @@ abstract class HealthConnectHostApi {
   String? deleteNutritionEntry(String id);
   @async
   void deleteHydrationNutritionEntry(String hydrationClientRecordId);
+
+  // ── Sleep (Phase 7) ────────────────────────────────────────────────────────
+
+  @async
+  List<SleepDataMsg> readSleepSessionsRaw(int startEpochMs, int endEpochMs);
+  @async
+  SleepDataMsg? readSleepSessionById(String id);
 }

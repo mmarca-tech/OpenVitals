@@ -2239,6 +2239,170 @@ data class NutritionWriteRequestMsg (
     return "NutritionWriteRequestMsg(timeEpochMs=$timeEpochMs, name=$name, nutrientValues=$nutrientValues, associatedHydrationClientRecordId=$associatedHydrationClientRecordId)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class SleepStageMsg (
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val stageType: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SleepStageMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val endEpochMs = pigeonVar_list[1] as Long
+      val stageType = pigeonVar_list[2] as Long
+      return SleepStageMsg(startEpochMs, endEpochMs, stageType)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      endEpochMs,
+      stageType,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SleepStageMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.stageType, other.stageType)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stageType)
+    return result
+  }
+  override fun toString(): String {
+    return "SleepStageMsg(startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, stageType=$stageType)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class SleepDeviceDataMsg (
+  val type: Long,
+  val manufacturer: String? = null,
+  val model: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SleepDeviceDataMsg {
+      val type = pigeonVar_list[0] as Long
+      val manufacturer = pigeonVar_list[1] as String?
+      val model = pigeonVar_list[2] as String?
+      return SleepDeviceDataMsg(type, manufacturer, model)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      type,
+      manufacturer,
+      model,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SleepDeviceDataMsg
+    return MessagesPigeonUtils.deepEquals(this.type, other.type) && MessagesPigeonUtils.deepEquals(this.manufacturer, other.manufacturer) && MessagesPigeonUtils.deepEquals(this.model, other.model)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.type)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.manufacturer)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.model)
+    return result
+  }
+  override fun toString(): String {
+    return "SleepDeviceDataMsg(type=$type, manufacturer=$manufacturer, model=$model)"
+  }
+}
+
+/**
+ * Raw (unmerged) sleep session; merging + range selection happen on the Dart
+ * side. `durationMs` is recomputed from stages by the Dart mapper.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SleepDataMsg (
+  val id: String,
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val source: String,
+  val title: String? = null,
+  val notes: String? = null,
+  val clientRecordId: String? = null,
+  val device: SleepDeviceDataMsg? = null,
+  val stages: List<SleepStageMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SleepDataMsg {
+      val id = pigeonVar_list[0] as String
+      val startEpochMs = pigeonVar_list[1] as Long
+      val endEpochMs = pigeonVar_list[2] as Long
+      val source = pigeonVar_list[3] as String
+      val title = pigeonVar_list[4] as String?
+      val notes = pigeonVar_list[5] as String?
+      val clientRecordId = pigeonVar_list[6] as String?
+      val device = pigeonVar_list[7] as SleepDeviceDataMsg?
+      val stages = pigeonVar_list[8] as List<SleepStageMsg>
+      return SleepDataMsg(id, startEpochMs, endEpochMs, source, title, notes, clientRecordId, device, stages)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      startEpochMs,
+      endEpochMs,
+      source,
+      title,
+      notes,
+      clientRecordId,
+      device,
+      stages,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SleepDataMsg
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.source, other.source) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.clientRecordId, other.clientRecordId) && MessagesPigeonUtils.deepEquals(this.device, other.device) && MessagesPigeonUtils.deepEquals(this.stages, other.stages)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.title)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.notes)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.clientRecordId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.device)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stages)
+    return result
+  }
+  override fun toString(): String {
+    return "SleepDataMsg(id=$id, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, source=$source, title=$title, notes=$notes, clientRecordId=$clientRecordId, device=$device, stages=$stages)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -2457,6 +2621,21 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           NutritionWriteRequestMsg.fromList(it)
         }
       }
+      172.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SleepStageMsg.fromList(it)
+        }
+      }
+      173.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SleepDeviceDataMsg.fromList(it)
+        }
+      }
+      174.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SleepDataMsg.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -2634,6 +2813,18 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(171)
         writeValue(stream, value.toList())
       }
+      is SleepStageMsg -> {
+        stream.write(172)
+        writeValue(stream, value.toList())
+      }
+      is SleepDeviceDataMsg -> {
+        stream.write(173)
+        writeValue(stream, value.toList())
+      }
+      is SleepDataMsg -> {
+        stream.write(174)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -2796,6 +2987,8 @@ interface HealthConnectHostApi {
   fun writeNutritionEntry(request: NutritionWriteRequestMsg, callback: (Result<String>) -> Unit)
   fun deleteNutritionEntry(id: String, callback: (Result<String?>) -> Unit)
   fun deleteHydrationNutritionEntry(hydrationClientRecordId: String, callback: (Result<Unit>) -> Unit)
+  fun readSleepSessionsRaw(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SleepDataMsg>>) -> Unit)
+  fun readSleepSessionById(id: String, callback: (Result<SleepDataMsg?>) -> Unit)
 
   companion object {
     /** The codec used by HealthConnectHostApi. */
@@ -4502,6 +4695,47 @@ interface HealthConnectHostApi {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
               } else {
                 reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSleepSessionsRaw$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readSleepSessionsRaw(startEpochMsArg, endEpochMsArg) { result: Result<List<SleepDataMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSleepSessionById$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val idArg = args[0] as String
+            api.readSleepSessionById(idArg) { result: Result<SleepDataMsg?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
               }
             }
           }

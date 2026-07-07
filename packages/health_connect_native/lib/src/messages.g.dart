@@ -2552,6 +2552,203 @@ class NutritionWriteRequestMsg {
   }
 }
 
+class SleepStageMsg {
+  SleepStageMsg({
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.stageType,
+  });
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  int stageType;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startEpochMs,
+      endEpochMs,
+      stageType,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SleepStageMsg decode(Object result) {
+    result as List<Object?>;
+    return SleepStageMsg(
+      startEpochMs: result[0]! as int,
+      endEpochMs: result[1]! as int,
+      stageType: result[2]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SleepStageMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(stageType, other.stageType);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SleepStageMsg(startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, stageType: $stageType)';
+  }
+}
+
+class SleepDeviceDataMsg {
+  SleepDeviceDataMsg({
+    required this.type,
+    this.manufacturer,
+    this.model,
+  });
+
+  int type;
+
+  String? manufacturer;
+
+  String? model;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      type,
+      manufacturer,
+      model,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SleepDeviceDataMsg decode(Object result) {
+    result as List<Object?>;
+    return SleepDeviceDataMsg(
+      type: result[0]! as int,
+      manufacturer: result[1] as String?,
+      model: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SleepDeviceDataMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(type, other.type) && _deepEquals(manufacturer, other.manufacturer) && _deepEquals(model, other.model);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SleepDeviceDataMsg(type: $type, manufacturer: $manufacturer, model: $model)';
+  }
+}
+
+/// Raw (unmerged) sleep session; merging + range selection happen on the Dart
+/// side. `durationMs` is recomputed from stages by the Dart mapper.
+class SleepDataMsg {
+  SleepDataMsg({
+    required this.id,
+    required this.startEpochMs,
+    required this.endEpochMs,
+    required this.source,
+    this.title,
+    this.notes,
+    this.clientRecordId,
+    this.device,
+    required this.stages,
+  });
+
+  String id;
+
+  int startEpochMs;
+
+  int endEpochMs;
+
+  String source;
+
+  String? title;
+
+  String? notes;
+
+  String? clientRecordId;
+
+  SleepDeviceDataMsg? device;
+
+  List<SleepStageMsg> stages;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      startEpochMs,
+      endEpochMs,
+      source,
+      title,
+      notes,
+      clientRecordId,
+      device,
+      stages,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SleepDataMsg decode(Object result) {
+    result as List<Object?>;
+    return SleepDataMsg(
+      id: result[0]! as String,
+      startEpochMs: result[1]! as int,
+      endEpochMs: result[2]! as int,
+      source: result[3]! as String,
+      title: result[4] as String?,
+      notes: result[5] as String?,
+      clientRecordId: result[6] as String?,
+      device: result[7] as SleepDeviceDataMsg?,
+      stages: (result[8]! as List<Object?>).cast<SleepStageMsg>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SleepDataMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(source, other.source) && _deepEquals(title, other.title) && _deepEquals(notes, other.notes) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(device, other.device) && _deepEquals(stages, other.stages);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SleepDataMsg(id: $id, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, source: $source, title: $title, notes: $notes, clientRecordId: $clientRecordId, device: $device, stages: $stages)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -2689,6 +2886,15 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is NutritionWriteRequestMsg) {
       buffer.putUint8(171);
       writeValue(buffer, value.encode());
+    }    else if (value is SleepStageMsg) {
+      buffer.putUint8(172);
+      writeValue(buffer, value.encode());
+    }    else if (value is SleepDeviceDataMsg) {
+      buffer.putUint8(173);
+      writeValue(buffer, value.encode());
+    }    else if (value is SleepDataMsg) {
+      buffer.putUint8(174);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -2786,6 +2992,12 @@ class _PigeonCodec extends StandardMessageCodec {
         return DailyNutritionMsg.decode(readValue(buffer)!);
       case 171:
         return NutritionWriteRequestMsg.decode(readValue(buffer)!);
+      case 172:
+        return SleepStageMsg.decode(readValue(buffer)!);
+      case 173:
+        return SleepDeviceDataMsg.decode(readValue(buffer)!);
+      case 174:
+        return SleepDataMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -4431,5 +4643,43 @@ class HealthConnectHostApi {
         isNullValid: true,
     )
     ;
+  }
+
+  Future<List<SleepDataMsg>> readSleepSessionsRaw(int startEpochMs, int endEpochMs) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSleepSessionsRaw$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<SleepDataMsg>();
+  }
+
+  Future<SleepDataMsg?> readSleepSessionById(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readSleepSessionById$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as SleepDataMsg?;
   }
 }

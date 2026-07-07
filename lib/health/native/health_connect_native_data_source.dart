@@ -1123,21 +1123,56 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     ]..sort((a, b) => a.time.compareTo(b.time));
   }
 
-  // ── Sleep ─────────────────────────────────────────────────────────────────
+  // ── Sleep (Phase 7) — typed via native SleepHealthReader; merge in Dart ─────
+
+  SleepData _sleepData(SleepDataMsg m) {
+    final stages = [
+      for (final s in m.stages)
+        SleepStage(
+          startTime: _fromMs(s.startEpochMs),
+          endTime: _fromMs(s.endEpochMs),
+          stageType: s.stageType,
+        ),
+    ];
+    final spanMs = m.endEpochMs - m.startEpochMs;
+    return SleepData(
+      id: m.id,
+      startTime: _fromMs(m.startEpochMs),
+      endTime: _fromMs(m.endEpochMs),
+      durationMs: sleepDurationMsFromStages(stages, spanMs),
+      source: m.source,
+      title: m.title,
+      notes: m.notes,
+      clientRecordId: m.clientRecordId,
+      device: m.device == null
+          ? null
+          : SleepDeviceData(
+              type: m.device!.type,
+              manufacturer: m.device!.manufacturer,
+              model: m.device!.model,
+            ),
+      stages: stages,
+    );
+  }
 
   @override
   Future<List<SleepData>> readSleepSessions(DateTime start, DateTime end) async {
-    final maps = await _read('Sleep', start, end);
-    final sessions = [
-      for (final m in maps) HealthRecordJson.sleepData(m),
-    ]..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final msgs = await _catch(
+      () => _api.readSleepSessionsRaw(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <SleepDataMsg>[],
+    );
+    final sessions = [for (final m in msgs) _sleepData(m)]
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
     return mergeSleepSessions(sessions);
   }
 
   @override
   Future<SleepData?> readSleepSession(String id) async {
-    final map = await _readOne('Sleep', id);
-    return map == null ? null : HealthRecordJson.sleepData(map);
+    final m = await _catch(() => _api.readSleepSessionById(id), null);
+    return m == null ? null : _sleepData(m);
   }
 
   @override
