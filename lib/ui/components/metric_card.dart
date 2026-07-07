@@ -277,7 +277,7 @@ class _TimeRangeSegment extends StatelessWidget {
     return Material(
       color: selected ? scheme.primaryContainer : scheme.surfaceContainer,
       borderRadius: const BorderRadius.all(Radius.circular(16)),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: InkWell(
         onTap: () => onSelect(range),
         child: Padding(

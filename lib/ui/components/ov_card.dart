@@ -24,7 +24,12 @@ class OpenVitalsCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       elevation: 0,
       color: color ?? scheme.surfaceContainer,
-      clipBehavior: Clip.antiAlias,
+      // Avoid the antialiased clip (an offscreen saveLayer re-rasterized every
+      // frame while scrolling — a major scroll-jank source since this card is
+      // used app-wide). The Card already paints its own rounded, filled shape;
+      // non-interactive cards need no child clip at all, and interactive ones
+      // only need a cheap hard-edge clip to keep the ink ripple in the corners.
+      clipBehavior: onTap == null ? Clip.none : Clip.hardEdge,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(12)),
       ),

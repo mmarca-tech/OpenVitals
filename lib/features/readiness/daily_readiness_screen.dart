@@ -298,7 +298,7 @@ class _ScoreTile extends StatelessWidget {
     return Material(
       color: color.withValues(alpha: 0.14),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: InkWell(
         onTap: onTap,
         child: Padding(
