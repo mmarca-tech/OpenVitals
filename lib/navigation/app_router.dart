@@ -38,6 +38,7 @@ import '../features/readiness/training_readiness_details_screen.dart';
 import '../features/recovery/sleep_efficiency_detail_screen.dart';
 import '../features/recovery/sleep_score_detail_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/settings/settings_section.dart';
 import '../features/settings/settings_section_screen.dart';
 import '../features/sleep/sleep_detail_screen.dart';
 import '../features/sleep/sleep_screen.dart';
@@ -294,27 +295,17 @@ List<RouteBase> _manualEntryRoutes() => [
       ),
     ];
 
-List<RouteBase> _settingsSectionRoutes() {
-  RouteBase section(String path, String title) => GoRoute(
-        path: path,
-        builder: (context, state) => SettingsSectionScreen(title: title),
-      );
-  return [
-    section(AppRoutes.settingsDisplay, 'Display'),
-    section(AppRoutes.settingsActivities, 'Activities'),
-    section(AppRoutes.settingsSensors, 'Sensors'),
-    section(AppRoutes.settingsNutrition, 'Nutrition'),
-    section(AppRoutes.settingsCalories, 'Calories'),
-    section(AppRoutes.settingsCaffeine, 'Caffeine'),
-    section(AppRoutes.settingsRecovery, 'Recovery'),
-    section(AppRoutes.settingsSleep, 'Sleep'),
-    section(AppRoutes.settingsBodyEnergy, 'Body energy'),
-    section(AppRoutes.settingsDataImport, 'Data import'),
-    section(AppRoutes.settingsHealthConnect, 'Health Connect'),
-    section(AppRoutes.settingsPermissions, 'Permissions'),
-    section(AppRoutes.settingsDebugDiagnostics, 'Diagnostics'),
-  ];
-}
+/// One pushed route per [SettingsSection] (Display, Activities, Sensors,
+/// Nutrition, Recovery, Data import, Health Connect). The BLE Sensors and Data
+/// Import sections configure Phase-6 subsystems and render a "coming soon" body.
+List<RouteBase> _settingsSectionRoutes() => [
+      for (final section in SettingsSection.values)
+        GoRoute(
+          path: section.route,
+          builder: (context, state) =>
+              SettingsSectionScreen(section: section),
+        ),
+    ];
 
 // Metric-id classification, mirroring the Kotlin `MetricRouteContent` dispatch.
 // (The ten heart + vitals ids are classified by [HeartMetric.fromRouteName].)
