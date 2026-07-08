@@ -44,6 +44,14 @@ class HealthConnectAvailabilityDetail {
   );
 }
 
+/// Tri-state result of `HealthConnectFeatures.getFeatureStatus(feature)`, mapped
+/// to the Dart `FeatureStatus` enum on the Flutter side. Because the app builds
+/// against the latest connect-client alpha, the SDK exposes feature constants
+/// that the *installed* Health Connect provider may lag behind on — [unknown]
+/// means the provider is too old to even report the feature's status, which the
+/// gating logic treats the same as [unavailable].
+enum FeatureStatusMsg { unknown, available, unavailable }
+
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPED DOMAIN MODELS
 //
@@ -762,6 +770,14 @@ abstract class HealthConnectHostApi {
   @async
   List<String> getGrantedPermissions(List<String> permissions);
 
+  /// Returns the subset of [permissions] the installed Health Connect provider
+  /// actually recognizes. Because the app builds against a newer connect-client
+  /// than the on-device provider, some permission strings (e.g. newer record
+  /// types like STEPS_CADENCE) are undefined on this device and can never be
+  /// granted; filtering them keeps the permission taxonomy honest.
+  @async
+  List<String> filterSupportedPermissions(List<String> permissions);
+
   /// Launches the Health Connect permission contract via the Activity and
   /// resolves to whether every requested permission ended up granted.
   @async
@@ -775,10 +791,13 @@ abstract class HealthConnectHostApi {
   @async
   bool openHealthConnectSettings();
 
-  /// Whether an optional Health Connect feature is available on this device,
-  /// e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
+  /// Tri-state availability of an optional Health Connect feature on this device
+  /// via `HealthConnectFeatures.getFeatureStatus`, e.g. `"SKIN_TEMPERATURE"`,
+  /// `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`,
+  /// `"READ_HEALTH_DATA_HISTORY"`, `"READ_HEALTH_DATA_IN_BACKGROUND"`.
+  /// Unrecognized keys resolve to [FeatureStatusMsg.unknown].
   @async
-  bool isFeatureAvailable(String feature);
+  FeatureStatusMsg getFeatureStatus(String feature);
 
   /// Runs an aggregation over [aggregateMetrics] in the given window, returning
   /// a metric-key -> value map (value is `null` when Health Connect has no data

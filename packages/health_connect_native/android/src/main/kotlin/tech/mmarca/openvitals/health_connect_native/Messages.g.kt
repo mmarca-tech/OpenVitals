@@ -192,6 +192,26 @@ class FlutterError (
   val details: Any? = null
 ) : RuntimeException()
 
+/**
+ * Tri-state result of `HealthConnectFeatures.getFeatureStatus(feature)`, mapped
+ * to the Dart `FeatureStatus` enum on the Flutter side. Because the app builds
+ * against the latest connect-client alpha, the SDK exposes feature constants
+ * that the *installed* Health Connect provider may lag behind on — [unknown]
+ * means the provider is too old to even report the feature's status, which the
+ * gating logic treats the same as [unavailable].
+ */
+enum class FeatureStatusMsg(val raw: Int) {
+  UNKNOWN(0),
+  AVAILABLE(1),
+  UNAVAILABLE(2);
+
+  companion object {
+    fun ofRaw(raw: Int): FeatureStatusMsg? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class BodyMeasurementTypeMsg(val raw: Int) {
   WEIGHT(0),
   HEIGHT(1),
@@ -3044,290 +3064,295 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
     return when (type) {
       129.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          BodyMeasurementTypeMsg.ofRaw(it.toInt())
+          FeatureStatusMsg.ofRaw(it.toInt())
         }
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          VitalsMeasurementTypeMsg.ofRaw(it.toInt())
+          BodyMeasurementTypeMsg.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          CaloriesBurnedSourceMsg.ofRaw(it.toInt())
+          VitalsMeasurementTypeMsg.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          ExerciseRouteStatusMsg.ofRaw(it.toInt())
+          CaloriesBurnedSourceMsg.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          HealthConnectAvailabilityDetail.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          ExerciseRouteStatusMsg.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          WeightEntryMsg.fromList(it)
+          HealthConnectAvailabilityDetail.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeightEntryMsg.fromList(it)
+          WeightEntryMsg.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyFatEntryMsg.fromList(it)
+          HeightEntryMsg.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMassEntryMsg.fromList(it)
+          BodyFatEntryMsg.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BmrEntryMsg.fromList(it)
+          BodyMassEntryMsg.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementEntryMsg.fromList(it)
+          BmrEntryMsg.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementWriteRequestMsg.fromList(it)
+          BodyMeasurementEntryMsg.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationEntryMsg.fromList(it)
+          BodyMeasurementWriteRequestMsg.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyHydrationMsg.fromList(it)
+          HydrationEntryMsg.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationWriteRequestMsg.fromList(it)
+          DailyHydrationMsg.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionMsg.fromList(it)
+          HydrationWriteRequestMsg.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionWriteRequestMsg.fromList(it)
+          MindfulnessSessionMsg.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodPressureEntryMsg.fromList(it)
+          MindfulnessSessionWriteRequestMsg.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpO2EntryMsg.fromList(it)
+          BloodPressureEntryMsg.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RespiratoryRateEntryMsg.fromList(it)
+          SpO2EntryMsg.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyTempEntryMsg.fromList(it)
+          RespiratoryRateEntryMsg.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Vo2MaxEntryMsg.fromList(it)
+          BodyTempEntryMsg.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodGlucoseEntryMsg.fromList(it)
+          Vo2MaxEntryMsg.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SkinTemperatureEntryMsg.fromList(it)
+          BloodGlucoseEntryMsg.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementEntryMsg.fromList(it)
+          SkinTemperatureEntryMsg.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementWriteRequestMsg.fromList(it)
+          VitalsMeasurementEntryMsg.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationFlowEntryMsg.fromList(it)
+          VitalsMeasurementWriteRequestMsg.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationPeriodEntryMsg.fromList(it)
+          MenstruationFlowEntryMsg.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          OvulationTestEntryMsg.fromList(it)
+          MenstruationPeriodEntryMsg.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CervicalMucusEntryMsg.fromList(it)
+          OvulationTestEntryMsg.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BasalBodyTemperatureEntryMsg.fromList(it)
+          CervicalMucusEntryMsg.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          IntermenstrualBleedingEntryMsg.fromList(it)
+          BasalBodyTemperatureEntryMsg.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SexualActivityEntryMsg.fromList(it)
+          IntermenstrualBleedingEntryMsg.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSampleMsg.fromList(it)
+          SexualActivityEntryMsg.fromList(it)
         }
       }
       163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateAggBucketMsg.fromList(it)
+          HeartRateSampleMsg.fromList(it)
         }
       }
       164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSummaryMsg.fromList(it)
+          HeartRateAggBucketMsg.fromList(it)
         }
       }
       165.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RestingHeartRateSampleMsg.fromList(it)
+          HeartRateSummaryMsg.fromList(it)
         }
       }
       166.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyRestingHRMsg.fromList(it)
+          RestingHeartRateSampleMsg.fromList(it)
         }
       }
       167.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HrvSampleMsg.fromList(it)
+          DailyRestingHRMsg.fromList(it)
         }
       }
       168.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyHrvMsg.fromList(it)
+          HrvSampleMsg.fromList(it)
         }
       }
       169.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          NutritionEntryMsg.fromList(it)
+          DailyHrvMsg.fromList(it)
         }
       }
       170.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyMacrosMsg.fromList(it)
+          NutritionEntryMsg.fromList(it)
         }
       }
       171.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyNutritionMsg.fromList(it)
+          DailyMacrosMsg.fromList(it)
         }
       }
       172.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          NutritionWriteRequestMsg.fromList(it)
+          DailyNutritionMsg.fromList(it)
         }
       }
       173.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SleepStageMsg.fromList(it)
+          NutritionWriteRequestMsg.fromList(it)
         }
       }
       174.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SleepDeviceDataMsg.fromList(it)
+          SleepStageMsg.fromList(it)
         }
       }
       175.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseDeviceDataMsg.fromList(it)
+          SleepDeviceDataMsg.fromList(it)
         }
       }
       176.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseSegmentMsg.fromList(it)
+          ExerciseDeviceDataMsg.fromList(it)
         }
       }
       177.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseLapMsg.fromList(it)
+          ExerciseSegmentMsg.fromList(it)
         }
       }
       178.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseRoutePointMsg.fromList(it)
+          ExerciseLapMsg.fromList(it)
         }
       }
       179.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseRouteMsg.fromList(it)
+          ExerciseRoutePointMsg.fromList(it)
         }
       }
       180.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseDataMsg.fromList(it)
+          ExerciseRouteMsg.fromList(it)
         }
       }
       181.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpeedSampleMsg.fromList(it)
+          ExerciseDataMsg.fromList(it)
         }
       }
       182.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportSampleMsg.fromList(it)
+          SpeedSampleMsg.fromList(it)
         }
       }
       183.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportSleepStageMsg.fromList(it)
+          ImportSampleMsg.fromList(it)
         }
       }
       184.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportRecordMsg.fromList(it)
+          ImportSleepStageMsg.fromList(it)
         }
       }
       185.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ActivityWriteRequestMsg.fromList(it)
+          ImportRecordMsg.fromList(it)
         }
       }
       186.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ActivityWriteRequestMsg.fromList(it)
+        }
+      }
+      187.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           SleepDataMsg.fromList(it)
         }
@@ -3337,236 +3362,240 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
   }
   override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
     when (value) {
-      is BodyMeasurementTypeMsg -> {
+      is FeatureStatusMsg -> {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is VitalsMeasurementTypeMsg -> {
+      is BodyMeasurementTypeMsg -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is CaloriesBurnedSourceMsg -> {
+      is VitalsMeasurementTypeMsg -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is ExerciseRouteStatusMsg -> {
+      is CaloriesBurnedSourceMsg -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is HealthConnectAvailabilityDetail -> {
+      is ExerciseRouteStatusMsg -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is WeightEntryMsg -> {
+      is HealthConnectAvailabilityDetail -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is HeightEntryMsg -> {
+      is WeightEntryMsg -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is BodyFatEntryMsg -> {
+      is HeightEntryMsg -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is BodyMassEntryMsg -> {
+      is BodyFatEntryMsg -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is BmrEntryMsg -> {
+      is BodyMassEntryMsg -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementEntryMsg -> {
+      is BmrEntryMsg -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementWriteRequestMsg -> {
+      is BodyMeasurementEntryMsg -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is HydrationEntryMsg -> {
+      is BodyMeasurementWriteRequestMsg -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is DailyHydrationMsg -> {
+      is HydrationEntryMsg -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is HydrationWriteRequestMsg -> {
+      is DailyHydrationMsg -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionMsg -> {
+      is HydrationWriteRequestMsg -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionWriteRequestMsg -> {
+      is MindfulnessSessionMsg -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is BloodPressureEntryMsg -> {
+      is MindfulnessSessionWriteRequestMsg -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is SpO2EntryMsg -> {
+      is BloodPressureEntryMsg -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is RespiratoryRateEntryMsg -> {
+      is SpO2EntryMsg -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is BodyTempEntryMsg -> {
+      is RespiratoryRateEntryMsg -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is Vo2MaxEntryMsg -> {
+      is BodyTempEntryMsg -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is BloodGlucoseEntryMsg -> {
+      is Vo2MaxEntryMsg -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is SkinTemperatureEntryMsg -> {
+      is BloodGlucoseEntryMsg -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementEntryMsg -> {
+      is SkinTemperatureEntryMsg -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementWriteRequestMsg -> {
+      is VitalsMeasurementEntryMsg -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is MenstruationFlowEntryMsg -> {
+      is VitalsMeasurementWriteRequestMsg -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is MenstruationPeriodEntryMsg -> {
+      is MenstruationFlowEntryMsg -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is OvulationTestEntryMsg -> {
+      is MenstruationPeriodEntryMsg -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is CervicalMucusEntryMsg -> {
+      is OvulationTestEntryMsg -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is BasalBodyTemperatureEntryMsg -> {
+      is CervicalMucusEntryMsg -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is IntermenstrualBleedingEntryMsg -> {
+      is BasalBodyTemperatureEntryMsg -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is SexualActivityEntryMsg -> {
+      is IntermenstrualBleedingEntryMsg -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is HeartRateSampleMsg -> {
+      is SexualActivityEntryMsg -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is HeartRateAggBucketMsg -> {
+      is HeartRateSampleMsg -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is HeartRateSummaryMsg -> {
+      is HeartRateAggBucketMsg -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is RestingHeartRateSampleMsg -> {
+      is HeartRateSummaryMsg -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is DailyRestingHRMsg -> {
+      is RestingHeartRateSampleMsg -> {
         stream.write(166)
         writeValue(stream, value.toList())
       }
-      is HrvSampleMsg -> {
+      is DailyRestingHRMsg -> {
         stream.write(167)
         writeValue(stream, value.toList())
       }
-      is DailyHrvMsg -> {
+      is HrvSampleMsg -> {
         stream.write(168)
         writeValue(stream, value.toList())
       }
-      is NutritionEntryMsg -> {
+      is DailyHrvMsg -> {
         stream.write(169)
         writeValue(stream, value.toList())
       }
-      is DailyMacrosMsg -> {
+      is NutritionEntryMsg -> {
         stream.write(170)
         writeValue(stream, value.toList())
       }
-      is DailyNutritionMsg -> {
+      is DailyMacrosMsg -> {
         stream.write(171)
         writeValue(stream, value.toList())
       }
-      is NutritionWriteRequestMsg -> {
+      is DailyNutritionMsg -> {
         stream.write(172)
         writeValue(stream, value.toList())
       }
-      is SleepStageMsg -> {
+      is NutritionWriteRequestMsg -> {
         stream.write(173)
         writeValue(stream, value.toList())
       }
-      is SleepDeviceDataMsg -> {
+      is SleepStageMsg -> {
         stream.write(174)
         writeValue(stream, value.toList())
       }
-      is ExerciseDeviceDataMsg -> {
+      is SleepDeviceDataMsg -> {
         stream.write(175)
         writeValue(stream, value.toList())
       }
-      is ExerciseSegmentMsg -> {
+      is ExerciseDeviceDataMsg -> {
         stream.write(176)
         writeValue(stream, value.toList())
       }
-      is ExerciseLapMsg -> {
+      is ExerciseSegmentMsg -> {
         stream.write(177)
         writeValue(stream, value.toList())
       }
-      is ExerciseRoutePointMsg -> {
+      is ExerciseLapMsg -> {
         stream.write(178)
         writeValue(stream, value.toList())
       }
-      is ExerciseRouteMsg -> {
+      is ExerciseRoutePointMsg -> {
         stream.write(179)
         writeValue(stream, value.toList())
       }
-      is ExerciseDataMsg -> {
+      is ExerciseRouteMsg -> {
         stream.write(180)
         writeValue(stream, value.toList())
       }
-      is SpeedSampleMsg -> {
+      is ExerciseDataMsg -> {
         stream.write(181)
         writeValue(stream, value.toList())
       }
-      is ImportSampleMsg -> {
+      is SpeedSampleMsg -> {
         stream.write(182)
         writeValue(stream, value.toList())
       }
-      is ImportSleepStageMsg -> {
+      is ImportSampleMsg -> {
         stream.write(183)
         writeValue(stream, value.toList())
       }
-      is ImportRecordMsg -> {
+      is ImportSleepStageMsg -> {
         stream.write(184)
         writeValue(stream, value.toList())
       }
-      is ActivityWriteRequestMsg -> {
+      is ImportRecordMsg -> {
         stream.write(185)
         writeValue(stream, value.toList())
       }
-      is SleepDataMsg -> {
+      is ActivityWriteRequestMsg -> {
         stream.write(186)
+        writeValue(stream, value.toList())
+      }
+      is SleepDataMsg -> {
+        stream.write(187)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -3608,6 +3637,14 @@ interface HealthConnectHostApi {
   /** Returns the subset of [permissions] currently granted. */
   fun getGrantedPermissions(permissions: List<String>, callback: (Result<List<String>>) -> Unit)
   /**
+   * Returns the subset of [permissions] the installed Health Connect provider
+   * actually recognizes. Because the app builds against a newer connect-client
+   * than the on-device provider, some permission strings (e.g. newer record
+   * types like STEPS_CADENCE) are undefined on this device and can never be
+   * granted; filtering them keeps the permission taxonomy honest.
+   */
+  fun filterSupportedPermissions(permissions: List<String>, callback: (Result<List<String>>) -> Unit)
+  /**
    * Launches the Health Connect permission contract via the Activity and
    * resolves to whether every requested permission ended up granted.
    */
@@ -3621,10 +3658,13 @@ interface HealthConnectHostApi {
    */
   fun openHealthConnectSettings(callback: (Result<Boolean>) -> Unit)
   /**
-   * Whether an optional Health Connect feature is available on this device,
-   * e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
+   * Tri-state availability of an optional Health Connect feature on this device
+   * via `HealthConnectFeatures.getFeatureStatus`, e.g. `"SKIN_TEMPERATURE"`,
+   * `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`,
+   * `"READ_HEALTH_DATA_HISTORY"`, `"READ_HEALTH_DATA_IN_BACKGROUND"`.
+   * Unrecognized keys resolve to [FeatureStatusMsg.unknown].
    */
-  fun isFeatureAvailable(feature: String, callback: (Result<Boolean>) -> Unit)
+  fun getFeatureStatus(feature: String, callback: (Result<FeatureStatusMsg>) -> Unit)
   /**
    * Runs an aggregation over [aggregateMetrics] in the given window, returning
    * a metric-key -> value map (value is `null` when Health Connect has no data
@@ -3814,6 +3854,26 @@ interface HealthConnectHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.filterSupportedPermissions$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val permissionsArg = args[0] as List<String>
+            api.filterSupportedPermissions(permissionsArg) { result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.requestPermissions$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -3852,12 +3912,12 @@ interface HealthConnectHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.isFeatureAvailable$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.getFeatureStatus$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val featureArg = args[0] as String
-            api.isFeatureAvailable(featureArg) { result: Result<Boolean> ->
+            api.getFeatureStatus(featureArg) { result: Result<FeatureStatusMsg> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

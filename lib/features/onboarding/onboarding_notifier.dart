@@ -32,12 +32,18 @@ class OnboardingPermissionCategory {
   const OnboardingPermissionCategory({
     required this.id,
     required this.permissions,
+    this.manualPermissions = const <String>{},
     this.isRequired = false,
     this.available = true,
   });
 
   final String id;
   final Set<String> permissions;
+
+  /// The subset of [permissions] that can't be granted through the runtime
+  /// dialog and must be toggled manually in Health Connect settings (Kotlin
+  /// `OnboardingPermissionCategory.manualPermissions`, e.g. exercise routes).
+  final Set<String> manualPermissions;
   final bool isRequired;
   final bool available;
 }
@@ -99,25 +105,34 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         permissions: repo.nutritionHydrationPermissions,
       ),
       OnboardingPermissionCategory(
+        id: 'manual_entry_write',
+        permissions: repo.requestableWritePermissions,
+      ),
+      OnboardingPermissionCategory(
+        id: 'data_import_write',
+        permissions: repo.dataImportWritePermissions,
+      ),
+      OnboardingPermissionCategory(
         id: 'mindfulness',
         permissions: repo.mindfulnessPermissions,
         available: state.mindfulnessAvailable,
-      ),
-      OnboardingPermissionCategory(
-        id: 'cycle_tracking',
-        permissions: repo.cyclePermissions,
       ),
       // Access past data (history) + access data in the background can be
       // requested directly via the dialog; exercise-route access needs the
       // "Always" toggle in Health Connect settings (opened via the fallback).
       // Mirrors the Kotlin OnboardingViewModel's additionalDataAccess +
-      // routePermissions category.
+      // routePermissions category, with routes flagged as manual-only.
       OnboardingPermissionCategory(
         id: 'additional_data_access',
         permissions: {
           ...repo.additionalDataAccessPermissions,
           ...repo.routePermissions,
         },
+        manualPermissions: repo.routePermissions,
+      ),
+      OnboardingPermissionCategory(
+        id: 'cycle_tracking',
+        permissions: repo.cyclePermissions,
       ),
     ].where((category) => category.permissions.isNotEmpty).toList();
   }

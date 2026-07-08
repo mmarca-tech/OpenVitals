@@ -272,6 +272,21 @@ class _PermissionCategoryRow extends StatelessWidget {
     final grantedCount = category.permissions.where(granted.contains).length;
     final fullyGranted = category.available && grantedCount == total;
     final partial = category.available && grantedCount > 0 && !fullyGranted;
+
+    // When a manual-only permission (e.g. exercise routes) is still missing,
+    // append the "open Health Connect settings" note to the description, mirror-
+    // ing the Kotlin row's `manualPermissions`/`missingManualCount` handling.
+    final baseDescription = _categoryDescription(
+      l10n,
+      category.id,
+      available: category.available,
+    );
+    final missingManual = category.manualPermissions
+        .intersection(category.permissions)
+        .difference(granted);
+    final description = category.available && missingManual.isNotEmpty
+        ? l10n.onboardingCategoryAdditionalDataAccessManualNote(baseDescription)
+        : baseDescription;
     final status = !category.available
         ? l10n.onboardingStatusNotSupported
         : fullyGranted
@@ -322,11 +337,7 @@ class _PermissionCategoryRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                _categoryDescription(
-                  l10n,
-                  category.id,
-                  available: category.available,
-                ),
+                description,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -398,6 +409,10 @@ String _categoryTitle(AppLocalizations l10n, String id) {
       return l10n.onboardingCategoryActivityExtras;
     case 'nutrition_hydration':
       return l10n.onboardingCategoryNutritionHydration;
+    case 'manual_entry_write':
+      return l10n.onboardingCategoryManualEntryWrite;
+    case 'data_import_write':
+      return l10n.onboardingCategoryDataImportWrite;
     case 'mindfulness':
       return l10n.onboardingCategoryMindfulness;
     case 'cycle_tracking':
@@ -433,6 +448,10 @@ String _categoryDescription(
       return l10n.onboardingCategoryActivityExtrasDesc;
     case 'nutrition_hydration':
       return l10n.onboardingCategoryNutritionHydrationDesc;
+    case 'manual_entry_write':
+      return l10n.onboardingCategoryManualEntryWriteDesc;
+    case 'data_import_write':
+      return l10n.onboardingCategoryDataImportWriteDesc;
     case 'mindfulness':
       return l10n.onboardingCategoryMindfulnessDesc;
     case 'cycle_tracking':

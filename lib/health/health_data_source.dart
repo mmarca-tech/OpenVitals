@@ -3,6 +3,7 @@ import '../domain/model/activity_models.dart';
 import '../domain/model/body_models.dart';
 import '../domain/model/cycle_models.dart';
 import '../domain/model/health_connect_availability.dart';
+import '../domain/model/health_connect_feature_status.dart';
 import '../domain/model/heart_models.dart';
 import '../domain/model/mindfulness_models.dart';
 import '../domain/model/nutrition_models.dart';
@@ -34,6 +35,8 @@ class HealthDataSource {
 
   HealthConnectFeatureFlags _featureFlags = const HealthConnectFeatureFlags();
 
+  Set<String> _unsupportedPermissions = const <String>{};
+
   /// The last availability resolved by [availability]. The Kotlin
   /// `HealthConnectManager.availability()` is synchronous; the `health`
   /// package's SDK-status check is async, so callers that need it synchronously
@@ -45,9 +48,14 @@ class HealthDataSource {
   /// The resolved permission taxonomy (feature-gated). Refreshed by
   /// [resolveFeatureFlags]; the base default assumes no optional features.
   HealthPermissionService get permissionService =>
-      HealthPermissionService(_featureFlags);
+      HealthPermissionService(_featureFlags, _unsupportedPermissions);
 
   set featureFlags(HealthConnectFeatureFlags flags) => _featureFlags = flags;
+
+  /// The permissions the installed provider does not recognize (resolved by
+  /// [resolveSupportedPermissions]); subtracted from every permission set.
+  set unsupportedPermissions(Set<String> permissions) =>
+      _unsupportedPermissions = permissions;
 
   // ── Availability / permissions ────────────────────────────────────────────
 
@@ -57,6 +65,20 @@ class HealthDataSource {
   /// Resolves optional-feature availability from the platform, caches it into
   /// [permissionService], and returns it.
   Future<HealthConnectFeatureFlags> resolveFeatureFlags() async => _featureFlags;
+
+  /// Tri-state availability of a Health Connect feature (e.g.
+  /// `"MINDFULNESS_SESSION"`, `"SKIN_TEMPERATURE"`, `"PLANNED_EXERCISE"`) via the
+  /// native `getFeatureStatus`. The base can't reach a provider, so it reports
+  /// [FeatureStatus.unavailable]; `HealthConnectNativeDataSource` overrides it.
+  Future<FeatureStatus> getFeatureStatus(String feature) async =>
+      FeatureStatus.unavailable;
+
+  /// Resolves which of the app's permissions the installed Health Connect
+  /// provider actually recognizes, caching the unsupported remainder into
+  /// [permissionService] so device-undefined permissions (the app's
+  /// connect-client is newer than the provider) drop out of every set. Base is a
+  /// no-op; `HealthConnectNativeDataSource` resolves it via the plugin.
+  Future<void> resolveSupportedPermissions() async {}
 
   bool isSkinTemperatureAvailable() => _featureFlags.skinTemperatureAvailable;
 

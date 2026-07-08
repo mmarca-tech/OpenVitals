@@ -8,6 +8,7 @@ import '../../domain/model/activity_session_deduplication.dart';
 import '../../domain/model/body_models.dart';
 import '../../domain/model/cycle_models.dart';
 import '../../domain/model/health_connect_availability.dart';
+import '../../domain/model/health_connect_feature_status.dart';
 import '../../domain/model/heart_models.dart';
 import '../../domain/model/heart_rate_aggregated_samples.dart';
 import '../../domain/model/mindfulness_models.dart';
@@ -89,17 +90,43 @@ class HealthConnectNativeDataSource extends HealthDataSource {
   }
 
   @override
+  Future<FeatureStatus> getFeatureStatus(String feature) => _catch(
+        () async => _mapFeatureStatus(await _api.getFeatureStatus(feature)),
+        FeatureStatus.unknown,
+      );
+
+  static FeatureStatus _mapFeatureStatus(FeatureStatusMsg status) =>
+      switch (status) {
+        FeatureStatusMsg.available => FeatureStatus.available,
+        FeatureStatusMsg.unavailable => FeatureStatus.unavailable,
+        FeatureStatusMsg.unknown => FeatureStatus.unknown,
+      };
+
+  @override
+  Future<void> resolveSupportedPermissions() async {
+    // Reset first so [permissionService] yields the full (unfiltered) universe
+    // of permissions the app might request under the current feature flags.
+    unsupportedPermissions = const <String>{};
+    final universe = permissionService.managedPermissions.toList();
+    final supported = await _catch(
+      () => _api.filterSupportedPermissions(universe),
+      universe,
+    );
+    unsupportedPermissions = universe.toSet().difference(supported.toSet());
+  }
+
+  @override
   Future<HealthConnectFeatureFlags> resolveFeatureFlags() async {
-    Future<bool> feature(String name) =>
-        _catch(() => _api.isFeatureAvailable(name), false);
+    Future<bool> available(String name) async =>
+        (await getFeatureStatus(name)).isAvailable;
     // Resolve the feature checks concurrently rather than sequentially so
     // onboarding startup does one round-trip's worth of latency, not five.
     final results = await Future.wait(<Future<bool>>[
-      feature('SKIN_TEMPERATURE'),
-      feature('MINDFULNESS_SESSION'),
-      feature('PLANNED_EXERCISE'),
-      feature('READ_HEALTH_DATA_HISTORY'),
-      feature('READ_HEALTH_DATA_IN_BACKGROUND'),
+      available('SKIN_TEMPERATURE'),
+      available('MINDFULNESS_SESSION'),
+      available('PLANNED_EXERCISE'),
+      available('READ_HEALTH_DATA_HISTORY'),
+      available('READ_HEALTH_DATA_IN_BACKGROUND'),
     ]);
     final flags = HealthConnectFeatureFlags(
       skinTemperatureAvailable: results[0],

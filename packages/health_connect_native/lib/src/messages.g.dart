@@ -97,6 +97,18 @@ int _deepHash(Object? value) {
 }
 
 
+/// Tri-state result of `HealthConnectFeatures.getFeatureStatus(feature)`, mapped
+/// to the Dart `FeatureStatus` enum on the Flutter side. Because the app builds
+/// against the latest connect-client alpha, the SDK exposes feature constants
+/// that the *installed* Health Connect provider may lag behind on — [unknown]
+/// means the provider is too old to even report the feature's status, which the
+/// gating logic treats the same as [unavailable].
+enum FeatureStatusMsg {
+  unknown,
+  available,
+  unavailable,
+}
+
 enum BodyMeasurementTypeMsg {
   weight,
   height,
@@ -3520,179 +3532,182 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is BodyMeasurementTypeMsg) {
+    }    else if (value is FeatureStatusMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is VitalsMeasurementTypeMsg) {
+    }    else if (value is BodyMeasurementTypeMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is CaloriesBurnedSourceMsg) {
+    }    else if (value is VitalsMeasurementTypeMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is ExerciseRouteStatusMsg) {
+    }    else if (value is CaloriesBurnedSourceMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is HealthConnectAvailabilityDetail) {
+    }    else if (value is ExerciseRouteStatusMsg) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is WeightEntryMsg) {
+      writeValue(buffer, value.index);
+    }    else if (value is HealthConnectAvailabilityDetail) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is HeightEntryMsg) {
+    }    else if (value is WeightEntryMsg) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyFatEntryMsg) {
+    }    else if (value is HeightEntryMsg) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMassEntryMsg) {
+    }    else if (value is BodyFatEntryMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is BmrEntryMsg) {
+    }    else if (value is BodyMassEntryMsg) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementEntryMsg) {
+    }    else if (value is BmrEntryMsg) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyMeasurementWriteRequestMsg) {
+    }    else if (value is BodyMeasurementEntryMsg) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationEntryMsg) {
+    }    else if (value is BodyMeasurementWriteRequestMsg) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyHydrationMsg) {
+    }    else if (value is HydrationEntryMsg) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is HydrationWriteRequestMsg) {
+    }    else if (value is DailyHydrationMsg) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionMsg) {
+    }    else if (value is HydrationWriteRequestMsg) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is MindfulnessSessionWriteRequestMsg) {
+    }    else if (value is MindfulnessSessionMsg) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is BloodPressureEntryMsg) {
+    }    else if (value is MindfulnessSessionWriteRequestMsg) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is SpO2EntryMsg) {
+    }    else if (value is BloodPressureEntryMsg) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is RespiratoryRateEntryMsg) {
+    }    else if (value is SpO2EntryMsg) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is BodyTempEntryMsg) {
+    }    else if (value is RespiratoryRateEntryMsg) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is Vo2MaxEntryMsg) {
+    }    else if (value is BodyTempEntryMsg) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is BloodGlucoseEntryMsg) {
+    }    else if (value is Vo2MaxEntryMsg) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is SkinTemperatureEntryMsg) {
+    }    else if (value is BloodGlucoseEntryMsg) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is VitalsMeasurementEntryMsg) {
+    }    else if (value is SkinTemperatureEntryMsg) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is VitalsMeasurementWriteRequestMsg) {
+    }    else if (value is VitalsMeasurementEntryMsg) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is MenstruationFlowEntryMsg) {
+    }    else if (value is VitalsMeasurementWriteRequestMsg) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    }    else if (value is MenstruationPeriodEntryMsg) {
+    }    else if (value is MenstruationFlowEntryMsg) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    }    else if (value is OvulationTestEntryMsg) {
+    }    else if (value is MenstruationPeriodEntryMsg) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    }    else if (value is CervicalMucusEntryMsg) {
+    }    else if (value is OvulationTestEntryMsg) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    }    else if (value is BasalBodyTemperatureEntryMsg) {
+    }    else if (value is CervicalMucusEntryMsg) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    }    else if (value is IntermenstrualBleedingEntryMsg) {
+    }    else if (value is BasalBodyTemperatureEntryMsg) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    }    else if (value is SexualActivityEntryMsg) {
+    }    else if (value is IntermenstrualBleedingEntryMsg) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateSampleMsg) {
+    }    else if (value is SexualActivityEntryMsg) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateAggBucketMsg) {
+    }    else if (value is HeartRateSampleMsg) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    }    else if (value is HeartRateSummaryMsg) {
+    }    else if (value is HeartRateAggBucketMsg) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    }    else if (value is RestingHeartRateSampleMsg) {
+    }    else if (value is HeartRateSummaryMsg) {
       buffer.putUint8(165);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyRestingHRMsg) {
+    }    else if (value is RestingHeartRateSampleMsg) {
       buffer.putUint8(166);
       writeValue(buffer, value.encode());
-    }    else if (value is HrvSampleMsg) {
+    }    else if (value is DailyRestingHRMsg) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyHrvMsg) {
+    }    else if (value is HrvSampleMsg) {
       buffer.putUint8(168);
       writeValue(buffer, value.encode());
-    }    else if (value is NutritionEntryMsg) {
+    }    else if (value is DailyHrvMsg) {
       buffer.putUint8(169);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyMacrosMsg) {
+    }    else if (value is NutritionEntryMsg) {
       buffer.putUint8(170);
       writeValue(buffer, value.encode());
-    }    else if (value is DailyNutritionMsg) {
+    }    else if (value is DailyMacrosMsg) {
       buffer.putUint8(171);
       writeValue(buffer, value.encode());
-    }    else if (value is NutritionWriteRequestMsg) {
+    }    else if (value is DailyNutritionMsg) {
       buffer.putUint8(172);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepStageMsg) {
+    }    else if (value is NutritionWriteRequestMsg) {
       buffer.putUint8(173);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepDeviceDataMsg) {
+    }    else if (value is SleepStageMsg) {
       buffer.putUint8(174);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseDeviceDataMsg) {
+    }    else if (value is SleepDeviceDataMsg) {
       buffer.putUint8(175);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseSegmentMsg) {
+    }    else if (value is ExerciseDeviceDataMsg) {
       buffer.putUint8(176);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseLapMsg) {
+    }    else if (value is ExerciseSegmentMsg) {
       buffer.putUint8(177);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseRoutePointMsg) {
+    }    else if (value is ExerciseLapMsg) {
       buffer.putUint8(178);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseRouteMsg) {
+    }    else if (value is ExerciseRoutePointMsg) {
       buffer.putUint8(179);
       writeValue(buffer, value.encode());
-    }    else if (value is ExerciseDataMsg) {
+    }    else if (value is ExerciseRouteMsg) {
       buffer.putUint8(180);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeedSampleMsg) {
+    }    else if (value is ExerciseDataMsg) {
       buffer.putUint8(181);
       writeValue(buffer, value.encode());
-    }    else if (value is ImportSampleMsg) {
+    }    else if (value is SpeedSampleMsg) {
       buffer.putUint8(182);
       writeValue(buffer, value.encode());
-    }    else if (value is ImportSleepStageMsg) {
+    }    else if (value is ImportSampleMsg) {
       buffer.putUint8(183);
       writeValue(buffer, value.encode());
-    }    else if (value is ImportRecordMsg) {
+    }    else if (value is ImportSleepStageMsg) {
       buffer.putUint8(184);
       writeValue(buffer, value.encode());
-    }    else if (value is ActivityWriteRequestMsg) {
+    }    else if (value is ImportRecordMsg) {
       buffer.putUint8(185);
       writeValue(buffer, value.encode());
-    }    else if (value is SleepDataMsg) {
+    }    else if (value is ActivityWriteRequestMsg) {
       buffer.putUint8(186);
+      writeValue(buffer, value.encode());
+    }    else if (value is SleepDataMsg) {
+      buffer.putUint8(187);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -3704,123 +3719,126 @@ class _PigeonCodec extends StandardMessageCodec {
     switch (type) {
       case 129:
         final value = readValue(buffer) as int?;
-        return value == null ? null : BodyMeasurementTypeMsg.values[value];
+        return value == null ? null : FeatureStatusMsg.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : VitalsMeasurementTypeMsg.values[value];
+        return value == null ? null : BodyMeasurementTypeMsg.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : CaloriesBurnedSourceMsg.values[value];
+        return value == null ? null : VitalsMeasurementTypeMsg.values[value];
       case 132:
         final value = readValue(buffer) as int?;
-        return value == null ? null : ExerciseRouteStatusMsg.values[value];
+        return value == null ? null : CaloriesBurnedSourceMsg.values[value];
       case 133:
-        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : ExerciseRouteStatusMsg.values[value];
       case 134:
-        return WeightEntryMsg.decode(readValue(buffer)!);
+        return HealthConnectAvailabilityDetail.decode(readValue(buffer)!);
       case 135:
-        return HeightEntryMsg.decode(readValue(buffer)!);
+        return WeightEntryMsg.decode(readValue(buffer)!);
       case 136:
-        return BodyFatEntryMsg.decode(readValue(buffer)!);
+        return HeightEntryMsg.decode(readValue(buffer)!);
       case 137:
-        return BodyMassEntryMsg.decode(readValue(buffer)!);
+        return BodyFatEntryMsg.decode(readValue(buffer)!);
       case 138:
-        return BmrEntryMsg.decode(readValue(buffer)!);
+        return BodyMassEntryMsg.decode(readValue(buffer)!);
       case 139:
-        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
+        return BmrEntryMsg.decode(readValue(buffer)!);
       case 140:
-        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+        return BodyMeasurementEntryMsg.decode(readValue(buffer)!);
       case 141:
-        return HydrationEntryMsg.decode(readValue(buffer)!);
+        return BodyMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       case 142:
-        return DailyHydrationMsg.decode(readValue(buffer)!);
+        return HydrationEntryMsg.decode(readValue(buffer)!);
       case 143:
-        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
+        return DailyHydrationMsg.decode(readValue(buffer)!);
       case 144:
-        return MindfulnessSessionMsg.decode(readValue(buffer)!);
+        return HydrationWriteRequestMsg.decode(readValue(buffer)!);
       case 145:
-        return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
+        return MindfulnessSessionMsg.decode(readValue(buffer)!);
       case 146:
-        return BloodPressureEntryMsg.decode(readValue(buffer)!);
+        return MindfulnessSessionWriteRequestMsg.decode(readValue(buffer)!);
       case 147:
-        return SpO2EntryMsg.decode(readValue(buffer)!);
+        return BloodPressureEntryMsg.decode(readValue(buffer)!);
       case 148:
-        return RespiratoryRateEntryMsg.decode(readValue(buffer)!);
+        return SpO2EntryMsg.decode(readValue(buffer)!);
       case 149:
-        return BodyTempEntryMsg.decode(readValue(buffer)!);
+        return RespiratoryRateEntryMsg.decode(readValue(buffer)!);
       case 150:
-        return Vo2MaxEntryMsg.decode(readValue(buffer)!);
+        return BodyTempEntryMsg.decode(readValue(buffer)!);
       case 151:
-        return BloodGlucoseEntryMsg.decode(readValue(buffer)!);
+        return Vo2MaxEntryMsg.decode(readValue(buffer)!);
       case 152:
-        return SkinTemperatureEntryMsg.decode(readValue(buffer)!);
+        return BloodGlucoseEntryMsg.decode(readValue(buffer)!);
       case 153:
-        return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
+        return SkinTemperatureEntryMsg.decode(readValue(buffer)!);
       case 154:
-        return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
+        return VitalsMeasurementEntryMsg.decode(readValue(buffer)!);
       case 155:
-        return MenstruationFlowEntryMsg.decode(readValue(buffer)!);
+        return VitalsMeasurementWriteRequestMsg.decode(readValue(buffer)!);
       case 156:
-        return MenstruationPeriodEntryMsg.decode(readValue(buffer)!);
+        return MenstruationFlowEntryMsg.decode(readValue(buffer)!);
       case 157:
-        return OvulationTestEntryMsg.decode(readValue(buffer)!);
+        return MenstruationPeriodEntryMsg.decode(readValue(buffer)!);
       case 158:
-        return CervicalMucusEntryMsg.decode(readValue(buffer)!);
+        return OvulationTestEntryMsg.decode(readValue(buffer)!);
       case 159:
-        return BasalBodyTemperatureEntryMsg.decode(readValue(buffer)!);
+        return CervicalMucusEntryMsg.decode(readValue(buffer)!);
       case 160:
-        return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
+        return BasalBodyTemperatureEntryMsg.decode(readValue(buffer)!);
       case 161:
-        return SexualActivityEntryMsg.decode(readValue(buffer)!);
+        return IntermenstrualBleedingEntryMsg.decode(readValue(buffer)!);
       case 162:
-        return HeartRateSampleMsg.decode(readValue(buffer)!);
+        return SexualActivityEntryMsg.decode(readValue(buffer)!);
       case 163:
-        return HeartRateAggBucketMsg.decode(readValue(buffer)!);
+        return HeartRateSampleMsg.decode(readValue(buffer)!);
       case 164:
-        return HeartRateSummaryMsg.decode(readValue(buffer)!);
+        return HeartRateAggBucketMsg.decode(readValue(buffer)!);
       case 165:
-        return RestingHeartRateSampleMsg.decode(readValue(buffer)!);
+        return HeartRateSummaryMsg.decode(readValue(buffer)!);
       case 166:
-        return DailyRestingHRMsg.decode(readValue(buffer)!);
+        return RestingHeartRateSampleMsg.decode(readValue(buffer)!);
       case 167:
-        return HrvSampleMsg.decode(readValue(buffer)!);
+        return DailyRestingHRMsg.decode(readValue(buffer)!);
       case 168:
-        return DailyHrvMsg.decode(readValue(buffer)!);
+        return HrvSampleMsg.decode(readValue(buffer)!);
       case 169:
-        return NutritionEntryMsg.decode(readValue(buffer)!);
+        return DailyHrvMsg.decode(readValue(buffer)!);
       case 170:
-        return DailyMacrosMsg.decode(readValue(buffer)!);
+        return NutritionEntryMsg.decode(readValue(buffer)!);
       case 171:
-        return DailyNutritionMsg.decode(readValue(buffer)!);
+        return DailyMacrosMsg.decode(readValue(buffer)!);
       case 172:
-        return NutritionWriteRequestMsg.decode(readValue(buffer)!);
+        return DailyNutritionMsg.decode(readValue(buffer)!);
       case 173:
-        return SleepStageMsg.decode(readValue(buffer)!);
+        return NutritionWriteRequestMsg.decode(readValue(buffer)!);
       case 174:
-        return SleepDeviceDataMsg.decode(readValue(buffer)!);
+        return SleepStageMsg.decode(readValue(buffer)!);
       case 175:
-        return ExerciseDeviceDataMsg.decode(readValue(buffer)!);
+        return SleepDeviceDataMsg.decode(readValue(buffer)!);
       case 176:
-        return ExerciseSegmentMsg.decode(readValue(buffer)!);
+        return ExerciseDeviceDataMsg.decode(readValue(buffer)!);
       case 177:
-        return ExerciseLapMsg.decode(readValue(buffer)!);
+        return ExerciseSegmentMsg.decode(readValue(buffer)!);
       case 178:
-        return ExerciseRoutePointMsg.decode(readValue(buffer)!);
+        return ExerciseLapMsg.decode(readValue(buffer)!);
       case 179:
-        return ExerciseRouteMsg.decode(readValue(buffer)!);
+        return ExerciseRoutePointMsg.decode(readValue(buffer)!);
       case 180:
-        return ExerciseDataMsg.decode(readValue(buffer)!);
+        return ExerciseRouteMsg.decode(readValue(buffer)!);
       case 181:
-        return SpeedSampleMsg.decode(readValue(buffer)!);
+        return ExerciseDataMsg.decode(readValue(buffer)!);
       case 182:
-        return ImportSampleMsg.decode(readValue(buffer)!);
+        return SpeedSampleMsg.decode(readValue(buffer)!);
       case 183:
-        return ImportSleepStageMsg.decode(readValue(buffer)!);
+        return ImportSampleMsg.decode(readValue(buffer)!);
       case 184:
-        return ImportRecordMsg.decode(readValue(buffer)!);
+        return ImportSleepStageMsg.decode(readValue(buffer)!);
       case 185:
-        return ActivityWriteRequestMsg.decode(readValue(buffer)!);
+        return ImportRecordMsg.decode(readValue(buffer)!);
       case 186:
+        return ActivityWriteRequestMsg.decode(readValue(buffer)!);
+      case 187:
         return SleepDataMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -3951,6 +3969,30 @@ class HealthConnectHostApi {
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
+  /// Returns the subset of [permissions] the installed Health Connect provider
+  /// actually recognizes. Because the app builds against a newer connect-client
+  /// than the on-device provider, some permission strings (e.g. newer record
+  /// types like STEPS_CADENCE) are undefined on this device and can never be
+  /// granted; filtering them keeps the permission taxonomy honest.
+  Future<List<String>> filterSupportedPermissions(List<String> permissions) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.filterSupportedPermissions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[permissions]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
+  }
+
   /// Launches the Health Connect permission contract via the Activity and
   /// resolves to whether every requested permission ended up granted.
   Future<bool> requestPermissions(List<String> permissions) async {
@@ -3996,10 +4038,13 @@ class HealthConnectHostApi {
     return pigeonVar_replyValue! as bool;
   }
 
-  /// Whether an optional Health Connect feature is available on this device,
-  /// e.g. `"SKIN_TEMPERATURE"`, `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`.
-  Future<bool> isFeatureAvailable(String feature) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.isFeatureAvailable$pigeonVar_messageChannelSuffix';
+  /// Tri-state availability of an optional Health Connect feature on this device
+  /// via `HealthConnectFeatures.getFeatureStatus`, e.g. `"SKIN_TEMPERATURE"`,
+  /// `"MINDFULNESS_SESSION"`, `"PLANNED_EXERCISE"`,
+  /// `"READ_HEALTH_DATA_HISTORY"`, `"READ_HEALTH_DATA_IN_BACKGROUND"`.
+  /// Unrecognized keys resolve to [FeatureStatusMsg.unknown].
+  Future<FeatureStatusMsg> getFeatureStatus(String feature) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.getFeatureStatus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -4014,7 +4059,7 @@ class HealthConnectHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as bool;
+    return pigeonVar_replyValue! as FeatureStatusMsg;
   }
 
   /// Runs an aggregation over [aggregateMetrics] in the given window, returning

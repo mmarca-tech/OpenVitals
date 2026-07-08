@@ -891,6 +891,27 @@ class HealthConnectNativePlugin :
     }
   }
 
+  override fun filterSupportedPermissions(
+    permissions: List<String>,
+    callback: (Result<List<String>>) -> Unit,
+  ) {
+    launchCatching(callback) {
+      val context = applicationContext
+        ?: throw IllegalStateException("Plugin not attached to an engine")
+      val packageManager = context.packageManager
+      withContext(Dispatchers.IO) {
+        // A permission the installed Health Connect provider doesn't define is
+        // not present on the device, so getPermissionInfo throws
+        // NameNotFoundException — that's our signal it can never be granted
+        // (e.g. newer record types the app's connect-client knows but the
+        // on-device provider does not).
+        permissions.filter { permission ->
+          runCatching { packageManager.getPermissionInfo(permission, 0) }.isSuccess
+        }
+      }
+    }
+  }
+
   override fun requestPermissions(
     permissions: List<String>,
     callback: (Result<Boolean>) -> Unit,
@@ -962,9 +983,9 @@ class HealthConnectNativePlugin :
     callback(Result.success(false))
   }
 
-  override fun isFeatureAvailable(
+  override fun getFeatureStatus(
     feature: String,
-    callback: (Result<Boolean>) -> Unit,
+    callback: (Result<FeatureStatusMsg>) -> Unit,
   ) {
     launchCatching(callback) {
       val featureConstant = when (feature) {
@@ -975,12 +996,18 @@ class HealthConnectNativePlugin :
           HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
         "READ_HEALTH_DATA_IN_BACKGROUND" ->
           HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+        // Unrecognized key: the caller asked about a feature we don't map, so we
+        // can't report on it — surface UNKNOWN (gating treats it as unavailable).
         else -> null
-      } ?: return@launchCatching false
+      } ?: return@launchCatching FeatureStatusMsg.UNKNOWN
       val status = withContext(Dispatchers.IO) {
         client().features.getFeatureStatus(featureConstant)
       }
-      status == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+      when (status) {
+        HealthConnectFeatures.FEATURE_STATUS_AVAILABLE -> FeatureStatusMsg.AVAILABLE
+        HealthConnectFeatures.FEATURE_STATUS_UNAVAILABLE -> FeatureStatusMsg.UNAVAILABLE
+        else -> FeatureStatusMsg.UNKNOWN
+      }
     }
   }
 

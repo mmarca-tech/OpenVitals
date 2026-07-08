@@ -18,6 +18,7 @@ class HealthRepositoryImpl implements HealthRepository {
     final availability = await _dataSource.availability();
     if (availability == HealthConnectAvailability.available) {
       await _dataSource.resolveFeatureFlags();
+      await _dataSource.resolveSupportedPermissions();
     }
     return availability;
   }

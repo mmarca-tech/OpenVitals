@@ -6,6 +6,7 @@ import 'package:openvitals/core/time/local_date.dart';
 import 'package:openvitals/domain/model/activity_models.dart';
 import 'package:openvitals/domain/model/body_models.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/domain/model/health_connect_feature_status.dart';
 import 'package:openvitals/domain/model/nutrition_models.dart';
 import 'package:openvitals/domain/model/vitals_models.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
@@ -20,6 +21,9 @@ class FakeHostApi extends HealthConnectHostApi {
 
   int sdkStatus = 3;
   Set<String> availableFeatures = {};
+
+  /// Features the provider is too old to even report on (→ [FeatureStatusMsg.unknown]).
+  Set<String> unknownFeatures = {};
   List<String> grantedPermissionsResult = const [];
   bool requestPermissionsResult = true;
 
@@ -36,13 +40,27 @@ class FakeHostApi extends HealthConnectHostApi {
   Future<List<String>> getGrantedPermissions(List<String> permissions) async =>
       grantedPermissionsResult;
 
+  /// Permissions the fake provider doesn't recognize (dropped by
+  /// `filterSupportedPermissions`).
+  Set<String> unsupportedPermissions = {};
+
+  @override
+  Future<List<String>> filterSupportedPermissions(
+    List<String> permissions,
+  ) async =>
+      permissions.where((p) => !unsupportedPermissions.contains(p)).toList();
+
   @override
   Future<bool> requestPermissions(List<String> permissions) async =>
       requestPermissionsResult;
 
   @override
-  Future<bool> isFeatureAvailable(String feature) async =>
-      availableFeatures.contains(feature);
+  Future<FeatureStatusMsg> getFeatureStatus(String feature) async {
+    if (unknownFeatures.contains(feature)) return FeatureStatusMsg.unknown;
+    return availableFeatures.contains(feature)
+        ? FeatureStatusMsg.available
+        : FeatureStatusMsg.unavailable;
+  }
 
   @override
   Future<Map<String, double?>> aggregate(
@@ -208,6 +226,68 @@ void main() {
       expect(flags.mindfulnessAvailable, isTrue);
       expect(flags.plannedExerciseAvailable, isFalse);
       expect(source.isSkinTemperatureAvailable(), isTrue);
+    });
+
+    test('getFeatureStatus surfaces the tri-state per feature', () async {
+      final api = FakeHostApi()
+        ..availableFeatures = {'SKIN_TEMPERATURE'}
+        ..unknownFeatures = {'PLANNED_EXERCISE'};
+      final source = _source(api);
+      expect(
+        await source.getFeatureStatus('SKIN_TEMPERATURE'),
+        FeatureStatus.available,
+      );
+      expect(
+        await source.getFeatureStatus('MINDFULNESS_SESSION'),
+        FeatureStatus.unavailable,
+      );
+      // Provider too old to report → UNKNOWN, and it must not gate a feature on.
+      final planned = await source.getFeatureStatus('PLANNED_EXERCISE');
+      expect(planned, FeatureStatus.unknown);
+      expect(planned.isAvailable, isFalse);
+    });
+
+    test('UNKNOWN feature status resolves the flag to unavailable', () async {
+      final api = FakeHostApi()..unknownFeatures = {'MINDFULNESS_SESSION'};
+      final source = _source(api);
+      final flags = await source.resolveFeatureFlags();
+      expect(flags.mindfulnessAvailable, isFalse);
+      expect(source.isMindfulnessSessionAvailable(), isFalse);
+    });
+
+    test(
+        'resolveSupportedPermissions drops permissions the provider does not '
+        'recognize from every set', () async {
+      const readStepsCadence = 'android.permission.health.READ_STEPS_CADENCE';
+      const writeStepsCadence = 'android.permission.health.WRITE_STEPS_CADENCE';
+      const readCyclingCadence =
+          'android.permission.health.READ_CYCLING_PEDALING_CADENCE';
+      const writeCyclingCadence =
+          'android.permission.health.WRITE_CYCLING_PEDALING_CADENCE';
+      final api = FakeHostApi()
+        ..unsupportedPermissions = {
+          readStepsCadence,
+          writeStepsCadence,
+          readCyclingCadence,
+          writeCyclingCadence,
+        };
+      final source = _source(api);
+      await source.resolveSupportedPermissions();
+      final svc = source.permissionService;
+
+      // The cadence reads/writes are gone from the leaf sets…
+      expect(svc.activityExtrasPermissions, isNot(contains(readStepsCadence)));
+      expect(
+          svc.activityExtrasPermissions, isNot(contains(readCyclingCadence)));
+      expect(svc.activityWritePermissions, isNot(contains(writeStepsCadence)));
+      // …and therefore from the composed onboarding/managed sets.
+      expect(svc.onboardingPermissions, isNot(contains(writeCyclingCadence)));
+      expect(svc.managedPermissions, isNot(contains(readStepsCadence)));
+      // Supported neighbours in the same groups are untouched.
+      expect(svc.activityExtrasPermissions,
+          contains('android.permission.health.READ_SPEED'));
+      expect(svc.activityWritePermissions,
+          contains('android.permission.health.WRITE_SPEED'));
     });
   });
 

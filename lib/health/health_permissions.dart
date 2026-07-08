@@ -97,13 +97,13 @@ class HealthConnectFeatureFlags {
     this.backgroundReadAvailable = false,
   });
 
-  /// Resolved from the native plugin's `isFeatureAvailable("MINDFULNESS_SESSION")`.
+  /// Resolved from the native plugin's `getFeatureStatus("MINDFULNESS_SESSION")`.
   final bool mindfulnessAvailable;
 
-  /// Resolved from `isFeatureAvailable("SKIN_TEMPERATURE")`.
+  /// Resolved from `getFeatureStatus("SKIN_TEMPERATURE")`.
   final bool skinTemperatureAvailable;
 
-  /// Resolved from `isFeatureAvailable("PLANNED_EXERCISE")`.
+  /// Resolved from `getFeatureStatus("PLANNED_EXERCISE")`.
   final bool plannedExerciseAvailable;
   final bool healthDataHistoryAvailable;
   final bool backgroundReadAvailable;
@@ -117,9 +117,23 @@ class HealthConnectFeatureFlags {
 class HealthPermissionService {
   const HealthPermissionService([
     this.flags = const HealthConnectFeatureFlags(),
+    this.unsupportedPermissions = const <String>{},
   ]);
 
   final HealthConnectFeatureFlags flags;
+
+  /// Permissions the installed Health Connect provider does not define — resolved
+  /// natively via `filterSupportedPermissions` — and therefore can never be
+  /// granted (the app's connect-client is newer than the on-device provider, so
+  /// it knows record types like STEPS_CADENCE the provider doesn't). Subtracted
+  /// from every permission set below via [_supported] so onboarding and gating
+  /// only ever deal with device-supported permissions.
+  final Set<String> unsupportedPermissions;
+
+  Set<String> _supported(Set<String> permissions) =>
+      unsupportedPermissions.isEmpty
+          ? permissions
+          : permissions.difference(unsupportedPermissions);
 
   /// Bump when requestable/managed permissions change so existing users see the
   /// new-permissions prompt. Mirrors the Kotlin constant.
@@ -136,16 +150,17 @@ class HealthPermissionService {
 
   // ── Base category sets (mirror the Kotlin `val`s) ─────────────────────────
 
-  Set<String> get corePermissions => {
+  Set<String> get corePermissions => _supported({
         _read('STEPS'),
         _read('DISTANCE'),
         _read('EXERCISE'),
         _read('SLEEP'),
-      };
+      });
 
-  Set<String> get routePermissions => {readExerciseRoutesPermission};
+  Set<String> get routePermissions =>
+      _supported({readExerciseRoutesPermission});
 
-  Set<String> get activityWritePermissions => {
+  Set<String> get activityWritePermissions => _supported({
         _write('EXERCISE'),
         _write('DISTANCE'),
         _write('ELEVATION_GAINED'),
@@ -157,19 +172,20 @@ class HealthPermissionService {
         _write('SPEED'),
         _write('CYCLING_PEDALING_CADENCE'),
         _write('STEPS_CADENCE'),
-      };
+      });
 
-  Set<String> get plannedExercisePermissions => flags.plannedExerciseAvailable
-      ? {_read('PLANNED_EXERCISE'), _write('PLANNED_EXERCISE')}
-      : <String>{};
+  Set<String> get plannedExercisePermissions =>
+      _supported(flags.plannedExerciseAvailable
+          ? {_read('PLANNED_EXERCISE'), _write('PLANNED_EXERCISE')}
+          : <String>{});
 
-  Set<String> get heartPermissions => {
+  Set<String> get heartPermissions => _supported({
         _read('HEART_RATE'),
         _read('RESTING_HEART_RATE'),
         _read('HEART_RATE_VARIABILITY'),
-      };
+      });
 
-  Set<String> get bodyPermissions => {
+  Set<String> get bodyPermissions => _supported({
         _read('WEIGHT'),
         _read('HEIGHT'),
         _read('BODY_FAT'),
@@ -177,9 +193,9 @@ class HealthPermissionService {
         _read('BASAL_METABOLIC_RATE'),
         _read('BONE_MASS'),
         _read('BODY_WATER_MASS'),
-      };
+      });
 
-  Set<String> get activityExtrasPermissions => {
+  Set<String> get activityExtrasPermissions => _supported({
         _read('FLOORS_CLIMBED'),
         _read('ACTIVE_CALORIES_BURNED'),
         _read('ELEVATION_GAINED'),
@@ -190,34 +206,37 @@ class HealthPermissionService {
         _read('STEPS_CADENCE'),
         _read('CYCLING_PEDALING_CADENCE'),
         ...plannedExercisePermissions,
-      };
+      });
 
-  Set<String> get nutritionHydrationPermissions => {
+  Set<String> get nutritionHydrationPermissions => _supported({
         _read('HYDRATION'),
         _read('NUTRITION'),
-      };
+      });
 
-  Set<String> get hydrationWritePermissions => {_write('HYDRATION')};
+  Set<String> get hydrationWritePermissions =>
+      _supported({_write('HYDRATION')});
 
-  Set<String> get nutritionWritePermissions => {_write('NUTRITION')};
+  Set<String> get nutritionWritePermissions =>
+      _supported({_write('NUTRITION')});
 
-  Set<String> get bodyWritePermissions => {
+  Set<String> get bodyWritePermissions => _supported({
         _write('WEIGHT'),
         _write('HEIGHT'),
         _write('BODY_FAT'),
-      };
+      });
 
-  Set<String> get mindfulnessPermissions => {_read('MINDFULNESS')};
+  Set<String> get mindfulnessPermissions => _supported({_read('MINDFULNESS')});
 
-  Set<String> get mindfulnessWritePermissions => {_write('MINDFULNESS')};
+  Set<String> get mindfulnessWritePermissions =>
+      _supported({_write('MINDFULNESS')});
 
-  Set<String> get additionalDataAccessPermissions => {
+  Set<String> get additionalDataAccessPermissions => _supported({
         if (flags.healthDataHistoryAvailable) readHealthDataHistoryPermission,
         if (flags.backgroundReadAvailable)
           readHealthDataInBackgroundPermission,
-      };
+      });
 
-  Set<String> get vitalsPermissions => {
+  Set<String> get vitalsPermissions => _supported({
         _read('BLOOD_PRESSURE'),
         _read('OXYGEN_SATURATION'),
         _read('RESPIRATORY_RATE'),
@@ -225,16 +244,16 @@ class HealthPermissionService {
         _read('VO2_MAX'),
         _read('BLOOD_GLUCOSE'),
         if (flags.skinTemperatureAvailable) _read('SKIN_TEMPERATURE'),
-      };
+      });
 
-  Set<String> get vitalsWritePermissions => {
+  Set<String> get vitalsWritePermissions => _supported({
         _write('BLOOD_PRESSURE'),
         _write('OXYGEN_SATURATION'),
         _write('RESPIRATORY_RATE'),
         _write('BODY_TEMPERATURE'),
-      };
+      });
 
-  Set<String> get dataImportWritePermissions => {
+  Set<String> get dataImportWritePermissions => _supported({
         _write('STEPS'),
         _write('DISTANCE'),
         _write('EXERCISE'),
@@ -271,9 +290,9 @@ class HealthPermissionService {
         _write('BASAL_BODY_TEMPERATURE'),
         _write('INTERMENSTRUAL_BLEEDING'),
         _write('SEXUAL_ACTIVITY'),
-      };
+      });
 
-  Set<String> get cyclePermissions => {
+  Set<String> get cyclePermissions => _supported({
         // READ_MENSTRUATION covers both flow and period records (no separate
         // READ_MENSTRUATION_PERIOD permission exists in Health Connect).
         _read('MENSTRUATION'),
@@ -282,7 +301,7 @@ class HealthPermissionService {
         _read('BASAL_BODY_TEMPERATURE'),
         _read('INTERMENSTRUAL_BLEEDING'),
         _read('SEXUAL_ACTIVITY'),
-      };
+      });
 
   // ── Derived / phased sets ─────────────────────────────────────────────────
 
