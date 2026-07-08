@@ -15,7 +15,9 @@ version = "1.0"
 
 android {
     namespace = "tech.mmarca.openvitals.health_connect_native"
-    compileSdk = 36
+    // compileSdk 37 matches the host app and the reference: connect-client
+    // 1.2.0-alpha04 maps its newer records/permissions against API 37.
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -40,10 +42,13 @@ kotlin {
 }
 
 dependencies {
-    // AndroidX Health Connect Kotlin client. The host app already pulls a newer
-    // connect-client (1.2.0-alpha02); Gradle unifies to the highest requested
-    // version across modules, so this module's own contract stays on the released
-    // 1.1.0 line while remaining compatible with the app-wide resolution.
-    implementation "androidx.health.connect:connect-client:1.1.0"
+    // AndroidX Health Connect Kotlin client. Pinned to 1.2.0-alpha04 to match the
+    // reference OpenVitals app exactly: this version's AndroidX shim maps newer
+    // records (StepsCadence/CyclingPedalingCadence, mindfulness, aggregation) onto
+    // the permissions the current platform Health Connect module actually grants.
+    // On the older 1.1.0 line, cadence maps to READ_STEPS_CADENCE /
+    // READ_CYCLING_PEDALING_CADENCE, which the OS-module HC never exposes as
+    // grantable — that left onboarding's Activity Extras stuck at 9/11.
+    implementation "androidx.health.connect:connect-client:1.2.0-alpha04"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 }

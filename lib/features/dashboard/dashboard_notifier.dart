@@ -58,6 +58,11 @@ abstract class DashboardState with _$DashboardState {
     @Default(true) bool minimumPermissionsGranted,
     @Default(<DashboardMetric>{}) Set<DashboardMetric> loadingMetrics,
     @Default(<String>{}) Set<String> unacknowledgedPermissions,
+    // Dashboard metric-grid edit mode + persisted layout (tiles keyed by title).
+    @Default(false) bool editing,
+    @Default(<String>[]) List<String> tileOrder,
+    @Default(<String>[]) List<String> ringOrder,
+    @Default(<String>{}) Set<String> hiddenTiles,
   }) = _DashboardState;
 
   /// Forward day navigation is disabled once the selected day reaches today
@@ -87,6 +92,9 @@ class DashboardNotifier extends Notifier<DashboardState> {
       sleepRangeMode: prefs.sleepRangeMode,
       activityWeekMode: prefs.activityWeekMode,
       showOpenVitalsCalculatedCalories: prefs.showOpenVitalsCalculatedCalories,
+      tileOrder: prefs.dashboardWidgetOrder() ?? const <String>[],
+      ringOrder: prefs.dashboardRingOrder() ?? const <String>[],
+      hiddenTiles: prefs.dashboardHiddenWidgets(),
     );
     // Defer to a microtask so the first `state =` runs after `build` returns.
     Future.microtask(() {
@@ -102,6 +110,45 @@ class DashboardNotifier extends Notifier<DashboardState> {
 
   void clearError() {
     if (state.error != null) state = state.copyWith(error: null);
+  }
+
+  /// Toggles the metric-grid edit mode (drag-to-reorder + hide/show).
+  void toggleEditing() => state = state.copyWith(editing: !state.editing);
+
+  /// Persists a new tile order. [visibleIds] is the reordered sequence of the
+  /// tiles currently on screen; previously-saved ids for tiles not present today
+  /// are preserved at the end so their position survives.
+  void setTileOrder(List<String> visibleIds) {
+    final merged = <String>[
+      ...visibleIds,
+      for (final id in state.tileOrder)
+        if (!visibleIds.contains(id)) id,
+    ];
+    ref.read(preferencesRepositoryProvider).setDashboardWidgetOrder(merged);
+    state = state.copyWith(tileOrder: merged);
+  }
+
+  /// Persists a new hero-ring order (Steps / Weekly cardio).
+  void setRingOrder(List<String> visibleIds) {
+    final merged = <String>[
+      ...visibleIds,
+      for (final id in state.ringOrder)
+        if (!visibleIds.contains(id)) id,
+    ];
+    ref.read(preferencesRepositoryProvider).setDashboardRingOrder(merged);
+    state = state.copyWith(ringOrder: merged);
+  }
+
+  /// Hides or shows a tile (by its title-key).
+  void setTileHidden(String id, bool hidden) {
+    final next = {...state.hiddenTiles};
+    if (hidden) {
+      next.add(id);
+    } else {
+      next.remove(id);
+    }
+    ref.read(preferencesRepositoryProvider).setDashboardHiddenWidgets(next);
+    state = state.copyWith(hiddenTiles: next);
   }
 
   void previousDay() => _load(state.selectedDate.minusDays(1));

@@ -129,6 +129,33 @@ void main() {
     expect(find.text('Today'), findsOneWidget);
   });
 
+  testWidgets('edit mode enters/exits and reorder+hide render without error',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(availability: HealthConnectAvailability.available),
+    );
+    await tester.pumpAndSettle();
+
+    // Enter edit mode.
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // Eye toggles appear on both rings + tiles.
+    expect(find.byIcon(Icons.visibility_outlined), findsWidgets);
+
+    // Hide a tile via its eye toggle.
+    await tester.tap(find.byIcon(Icons.visibility_outlined).first);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // Exit edit mode; the carousel must render again.
+    await tester.tap(find.byTooltip('Done'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MetricStatCard), findsWidgets);
+  });
+
   testWidgets('renders the inline permission callout when permissions missing',
       (tester) async {
     _usePhoneViewport(tester);

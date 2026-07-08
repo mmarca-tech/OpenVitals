@@ -93,6 +93,29 @@ class _DashboardBody extends StatelessWidget {
     }
 
     final summary = buildDashboardSummary(data, formatter);
+    // All data-present tiles in the user's saved order (hidden included, for the
+    // edit grid); the carousel shows only the non-hidden subset.
+    final orderedTiles = applyDashboardTileLayout(
+      summary.tiles,
+      order: state.tileOrder,
+      includeHidden: true,
+    );
+    final visibleTiles = [
+      for (final t in orderedTiles)
+        if (!state.hiddenTiles.contains(t.title)) t,
+    ];
+    // Hero rings share the same edit mode + hidden set; only their order is
+    // stored separately (they render in their own top row).
+    final orderedRings = applyDashboardLayout(
+      <RingCardData>[summary.steps, summary.weeklyCardio],
+      (r) => r.title,
+      order: state.ringOrder,
+      includeHidden: true,
+    );
+    final visibleRings = [
+      for (final r in orderedRings)
+        if (!state.hiddenTiles.contains(r.title)) r,
+    ];
 
     return RefreshIndicator(
       onRefresh: notifier.refresh,
@@ -120,51 +143,82 @@ class _DashboardBody extends StatelessWidget {
                 onDismiss: notifier.acknowledgePermissions,
               ),
             ),
+          if (orderedRings.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 0),
+              child: state.editing
+                  ? _HeroRingEditRow(
+                      rings: orderedRings,
+                      hidden: state.hiddenTiles,
+                      onReorder: (from, to) {
+                        final ids = [for (final r in orderedRings) r.title];
+                        final moved = ids.removeAt(from);
+                        ids.insert(to > from ? to - 1 : to, moved);
+                        notifier.setRingOrder(ids);
+                      },
+                      onToggleHidden: (title) => notifier.setTileHidden(
+                        title,
+                        !state.hiddenTiles.contains(title),
+                      ),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < visibleRings.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 12),
+                          Expanded(
+                            child: SummaryRingCard(
+                              title: visibleRings[i].title,
+                              value: visibleRings[i].value,
+                              subtitle: visibleRings[i].subtitle,
+                              accentColor: visibleRings[i].accent,
+                              progress: visibleRings[i].progress,
+                              onTap: () =>
+                                  context.push(visibleRings[i].location),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SummaryRingCard(
-                    title: summary.steps.title,
-                    value: summary.steps.value,
-                    subtitle: summary.steps.subtitle,
-                    accentColor: summary.steps.accent,
-                    progress: summary.steps.progress,
-                    onTap: () => context.push(summary.steps.location),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SummaryRingCard(
-                    title: summary.weeklyCardio.title,
-                    value: summary.weeklyCardio.value,
-                    subtitle: summary.weeklyCardio.subtitle,
-                    accentColor: summary.weeklyCardio.accent,
-                    progress: summary.weeklyCardio.progress,
-                    onTap: () => context.push(summary.weeklyCardio.location),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(_gutter, 14, _gutter, 0),
+            child: _DashboardQuickActions(
+              editing: state.editing,
+              onToggleEdit: notifier.toggleEditing,
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(_gutter, 14, _gutter, 0),
-            child: _DashboardQuickActions(),
-          ),
-          if (summary.tiles.isNotEmpty) ...[
+          if (orderedTiles.isNotEmpty) ...[
             const Padding(
               padding: EdgeInsets.fromLTRB(_gutter, 16, _gutter, 4),
               child: _ThinDivider(),
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _MetricCarousel(
-                tiles: summary.tiles,
-                onOpen: (location) => context.push(location),
+            if (state.editing)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _MetricEditGrid(
+                  tiles: orderedTiles,
+                  hidden: state.hiddenTiles,
+                  onReorder: (from, to) {
+                    final ids = [for (final t in orderedTiles) t.title];
+                    final moved = ids.removeAt(from);
+                    ids.insert(to > from ? to - 1 : to, moved);
+                    notifier.setTileOrder(ids);
+                  },
+                  onToggleHidden: (title) => notifier.setTileHidden(
+                    title,
+                    !state.hiddenTiles.contains(title),
+                  ),
+                ),
+              )
+            else if (visibleTiles.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _MetricCarousel(
+                  tiles: visibleTiles,
+                  onOpen: (location) => context.push(location),
+                ),
               ),
-            ),
           ],
           const SizedBox(height: 8),
           _ActivitiesSection(
@@ -191,7 +245,13 @@ class _DashboardBody extends StatelessWidget {
 /// full-width; the trailing 44dp edit button is a placeholder for the widget
 /// reorder/edit mode.
 class _DashboardQuickActions extends StatelessWidget {
-  const _DashboardQuickActions();
+  const _DashboardQuickActions({
+    required this.editing,
+    required this.onToggleEdit,
+  });
+
+  final bool editing;
+  final VoidCallback onToggleEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -241,14 +301,13 @@ class _DashboardQuickActions extends StatelessWidget {
           width: 44,
           height: 44,
           child: IconButton(
-            // TODO(dashboard-edit): wire the widget reorder/edit mode.
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Dashboard editing is coming soon.'),
-              ),
+            onPressed: onToggleEdit,
+            tooltip: editing ? 'Done' : 'Edit dashboard',
+            isSelected: editing,
+            icon: Icon(
+              editing ? Icons.check : Icons.edit_outlined,
+              color: editing ? scheme.primary : scheme.onSurfaceVariant,
             ),
-            tooltip: 'Edit dashboard',
-            icon: Icon(Icons.edit_outlined, color: scheme.onSurfaceVariant),
           ),
         ),
       ],
@@ -281,8 +340,11 @@ class _MetricCarousel extends StatefulWidget {
   static const int _columns = 2;
   static const int _rowsPerPage = 3;
   static const int _perPage = _columns * _rowsPerPage;
-  static const double _tileHeight = 92;
+  static const double _tileHeight = 112;
+  // Horizontal gap between the two columns.
   static const double _gap = 12;
+  // Vertical gap between rows — kept small so the taller cards almost touch.
+  static const double _rowGap = 6;
 
   @override
   State<_MetricCarousel> createState() => _MetricCarouselState();
@@ -319,7 +381,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
         widget.tiles.length.clamp(0, _MetricCarousel._perPage);
     final rows = (tilesOnTallestPage / _MetricCarousel._columns).ceil();
     final pageHeight = rows * _MetricCarousel._tileHeight +
-        (rows - 1).clamp(0, rows) * _MetricCarousel._gap;
+        (rows - 1).clamp(0, rows) * _MetricCarousel._rowGap;
 
     return Column(
       children: [
@@ -377,7 +439,7 @@ class _MetricGridPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var row = 0; row < rows; row++) ...[
-            if (row > 0) const SizedBox(height: _MetricCarousel._gap),
+            if (row > 0) const SizedBox(height: _MetricCarousel._rowGap),
             SizedBox(
               height: _MetricCarousel._tileHeight,
               child: Row(
@@ -411,6 +473,260 @@ class _MetricGridPage extends StatelessWidget {
       showTitle: tile.showTitle,
       progress: tile.progress,
       onTap: () => onOpen(tile.location),
+    );
+  }
+}
+
+/// Edit-mode metric grid: the same 2-column tile layout, but each tile is
+/// long-press draggable to reorder (custom [LongPressDraggable]/[DragTarget], no
+/// package) and carries an eye toggle to hide/show it. Shows every tile that has
+/// data today (hidden ones dimmed) so the whole layout can be arranged at once.
+class _MetricEditGrid extends StatelessWidget {
+  const _MetricEditGrid({
+    required this.tiles,
+    required this.hidden,
+    required this.onReorder,
+    required this.onToggleHidden,
+  });
+
+  final List<StatTileData> tiles;
+  final Set<String> hidden;
+  final void Function(int from, int to) onReorder;
+  final void Function(String title) onToggleHidden;
+
+  static const int _columns = 2;
+  static const double _gap = 12;
+  static const double _rowGap = 6;
+  static const double _tileHeight = 112;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final rows = (tiles.length / _columns).ceil();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cellWidth = (constraints.maxWidth - _gap) / _columns;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Icon(Icons.drag_indicator,
+                        size: 16, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Hold to drag & reorder · tap the eye to hide',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (var row = 0; row < rows; row++) ...[
+                if (row > 0) const SizedBox(height: _rowGap),
+                SizedBox(
+                  height: _tileHeight,
+                  child: Row(
+                    children: [
+                      for (var col = 0; col < _columns; col++) ...[
+                        if (col > 0) const SizedBox(width: _gap),
+                        Expanded(
+                          child: _cell(context, row * _columns + col, cellWidth),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _cell(BuildContext context, int index, double cellWidth) {
+    if (index >= tiles.length) return const SizedBox.shrink();
+    final tile = tiles[index];
+    final isHidden = hidden.contains(tile.title);
+    final card = _card(context, tile, isHidden);
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) => onReorder(details.data, index),
+      builder: (context, candidate, rejected) {
+        return AnimatedScale(
+          scale: candidate.isNotEmpty ? 1.04 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: LongPressDraggable<int>(
+            data: index,
+            feedback: SizedBox(
+              width: cellWidth,
+              height: _tileHeight,
+              child: Material(
+                color: Colors.transparent,
+                elevation: 8,
+                borderRadius: BorderRadius.circular(20),
+                child: _card(context, tile, isHidden),
+              ),
+            ),
+            childWhenDragging: Opacity(opacity: 0.25, child: card),
+            child: card,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _card(BuildContext context, StatTileData tile, bool isHidden) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: isHidden ? 0.4 : 1.0,
+            child: MetricStatCard(
+              title: tile.title,
+              value: tile.value,
+              unit: tile.unit,
+              icon: tile.icon,
+              accentColor: tile.accent,
+              subtitle: tile.subtitle,
+              message: tile.message,
+              showTitle: tile.showTitle,
+              progress: tile.progress,
+              // No navigation while editing.
+            ),
+          ),
+        ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            tooltip: isHidden ? 'Show' : 'Hide',
+            onPressed: () => onToggleHidden(tile.title),
+            icon: Icon(
+              isHidden
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Edit-mode hero-ring row: the two [SummaryRingCard]s (Steps / Weekly cardio)
+/// become long-press draggable to swap and carry an eye toggle to hide/show,
+/// mirroring [_MetricEditGrid] but for the large square ring cards.
+class _HeroRingEditRow extends StatelessWidget {
+  const _HeroRingEditRow({
+    required this.rings,
+    required this.hidden,
+    required this.onReorder,
+    required this.onToggleHidden,
+  });
+
+  final List<RingCardData> rings;
+  final Set<String> hidden;
+  final void Function(int from, int to) onReorder;
+  final void Function(String title) onToggleHidden;
+
+  static const double _gap = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = (constraints.maxWidth - _gap) / 2;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < rings.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(child: _cell(context, i, cellWidth)),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _cell(BuildContext context, int index, double cellWidth) {
+    final ring = rings[index];
+    final isHidden = hidden.contains(ring.title);
+    final card = _card(context, ring, isHidden);
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) => onReorder(details.data, index),
+      builder: (context, candidate, rejected) {
+        return AnimatedScale(
+          scale: candidate.isNotEmpty ? 1.03 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: LongPressDraggable<int>(
+            data: index,
+            feedback: SizedBox(
+              width: cellWidth,
+              height: cellWidth,
+              child: Material(
+                color: Colors.transparent,
+                elevation: 8,
+                borderRadius: BorderRadius.circular(24),
+                child: _card(context, ring, isHidden),
+              ),
+            ),
+            childWhenDragging: Opacity(opacity: 0.25, child: card),
+            child: card,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _card(BuildContext context, RingCardData ring, bool isHidden) {
+    return Stack(
+      children: [
+        Opacity(
+          opacity: isHidden ? 0.4 : 1.0,
+          child: SummaryRingCard(
+            title: ring.title,
+            value: ring.value,
+            subtitle: ring.subtitle,
+            accentColor: ring.accent,
+            progress: ring.progress,
+            // No navigation while editing.
+          ),
+        ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            tooltip: isHidden ? 'Show' : 'Hide',
+            onPressed: () => onToggleHidden(ring.title),
+            icon: Icon(
+              isHidden
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

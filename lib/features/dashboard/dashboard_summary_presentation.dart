@@ -485,6 +485,49 @@ DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
   );
 }
 
+/// Applies the user's saved dashboard layout to [items]: reorders by [order]
+/// (items whose key appears in [order] come first, in that order; the rest keep
+/// their default relative order, appended), and — unless [includeHidden] — drops
+/// items whose key is in [hidden]. Items are keyed by [keyOf] (a unique title).
+/// Unknown/new items gracefully fall to the end in default order.
+List<T> applyDashboardLayout<T>(
+  List<T> items,
+  String Function(T) keyOf, {
+  List<String> order = const <String>[],
+  Set<String> hidden = const <String>{},
+  bool includeHidden = false,
+}) {
+  final orderIndex = <String, int>{
+    for (var i = 0; i < order.length; i++) order[i]: i,
+  };
+  final kept = includeHidden
+      ? List<T>.of(items)
+      : [for (final it in items) if (!hidden.contains(keyOf(it))) it];
+  // Pair each with its default index so unknown items keep a stable order.
+  final indexed = [for (var i = 0; i < kept.length; i++) (i, kept[i])];
+  indexed.sort((a, b) {
+    final ai = orderIndex[keyOf(a.$2)] ?? (order.length + a.$1);
+    final bi = orderIndex[keyOf(b.$2)] ?? (order.length + b.$1);
+    return ai.compareTo(bi);
+  });
+  return [for (final e in indexed) e.$2];
+}
+
+/// Metric-tile specialization of [applyDashboardLayout], keyed by tile title.
+List<StatTileData> applyDashboardTileLayout(
+  List<StatTileData> tiles, {
+  List<String> order = const <String>[],
+  Set<String> hidden = const <String>{},
+  bool includeHidden = false,
+}) =>
+    applyDashboardLayout(
+      tiles,
+      (t) => t.title,
+      order: order,
+      hidden: hidden,
+      includeHidden: includeHidden,
+    );
+
 StatTileData? _gramTile({
   required String title,
   required double? grams,

@@ -5,6 +5,7 @@ package tech.mmarca.openvitals.health_connect_native
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -868,10 +869,25 @@ class HealthConnectNativePlugin :
     callback: (Result<List<String>>) -> Unit,
   ) {
     launchCatching(callback) {
-      val granted = withContext(Dispatchers.IO) {
-        client().permissionController.getGrantedPermissions()
+      val context = applicationContext
+        ?: throw IllegalStateException("Plugin not attached to an engine")
+      withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+          // Android 14+: Health Connect permissions are OS runtime permissions,
+          // so checkSelfPermission is the source of truth. Crucially it reports
+          // the "additional access" permissions (READ_HEALTH_DATA_IN_BACKGROUND /
+          // READ_HEALTH_DATA_HISTORY) as granted, which
+          // permissionController.getGrantedPermissions() does not on the
+          // OS-module Health Connect. Matches the reference app's
+          // HealthConnectPermissionService.grantedPermissions().
+          permissions.filter {
+            context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
+          }
+        } else {
+          val granted = client().permissionController.getGrantedPermissions()
+          permissions.filter { it in granted }
+        }
       }
-      permissions.filter { it in granted }
     }
   }
 

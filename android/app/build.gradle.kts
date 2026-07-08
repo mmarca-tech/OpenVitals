@@ -6,11 +6,11 @@ plugins {
 
 android {
     namespace = "tech.mmarca.openvitals"
-    // Kotlin source used compileSdk 37 (an Android preview SDK). The Flutter port
-    // pins the stable compileSdk that this Flutter release ships with (36), which
-    // satisfies every plugin (health, flutter_local_notifications 22, etc.) and
-    // builds against a standard installed SDK. Bump if a plugin needs newer.
-    compileSdk = flutter.compileSdkVersion
+    // compileSdk 37 matches the reference Kotlin app. connect-client 1.2.0-alpha04
+    // (pulled by the health_connect_native plugin, on AGP 9.1.1) resolves its newer
+    // record/permission mappings against API 37, so the app module compiles against
+    // the same SDK. The android-37.0 platform must be installed.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -515,6 +515,19 @@ class PreferencesRepository {
   void setDashboardWidgetOrder(List<String> widgetIds) =>
       _putString(_keyDashboardWidgetOrder, widgetIds.join(_keyValueSeparator));
 
+  List<String>? dashboardRingOrder() => _readOrderList(_keyDashboardRingOrder);
+
+  void setDashboardRingOrder(List<String> ringIds) =>
+      _putString(_keyDashboardRingOrder, ringIds.join(_keyValueSeparator));
+
+  /// The dashboard metric tiles the user has hidden (keyed by tile title).
+  Set<String> dashboardHiddenWidgets() =>
+      (_prefs.getStringList(_keyDashboardHiddenWidgets) ?? const <String>[])
+          .toSet();
+
+  void setDashboardHiddenWidgets(Set<String> widgetIds) =>
+      _putStringList(_keyDashboardHiddenWidgets, widgetIds.toList());
+
   List<String>? manualEntryWidgetOrder() =>
       _readOrderList(_keyManualEntryWidgetOrder);
 
@@ -1185,6 +1198,8 @@ class PreferencesRepository {
   static const String _keyFavoriteActivityExerciseType =
       'favorite_activity_exercise_type';
   static const String _keyDashboardWidgetOrder = 'dashboard_widget_order';
+  static const String _keyDashboardHiddenWidgets = 'dashboard_hidden_widgets';
+  static const String _keyDashboardRingOrder = 'dashboard_ring_order';
   static const String _keyManualEntryWidgetOrder = 'manual_entry_widget_order';
   static const String _keyMetricDetailSectionOrder =
       'metric_detail_section_order';
