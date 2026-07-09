@@ -348,6 +348,7 @@ class DashboardDataLoader {
       latestBasalBodyTemperatureCelsius: basalBodyTemperature,
       missingPermissions: missingPerms,
       loadedMetrics: metrics,
+      supportedMetrics: _supportedMetrics(),
       metricSourcePackages: metricSourcePackages,
     );
   }
@@ -544,13 +545,48 @@ class DashboardDataLoader {
       granted.contains(HcPermissions.readActiveCalories) &&
       granted.contains(HcPermissions.readBmr);
 
+  /// The metrics the installed Health Connect provider can serve at all — i.e.
+  /// every permission the metric reads is one the provider defines. Metrics
+  /// outside this set can never be granted, so the dashboard hides their tiles
+  /// entirely rather than showing a tile that can never fill.
+  ///
+  /// Deliberately evaluated with `showOpenVitalsCalculatedCalories: false`:
+  /// whether a metric is *supported by the device* must not depend on a user
+  /// preference.
+  Set<DashboardMetric> _supportedMetrics() {
+    final managed = _hc.permissionService.managedPermissions;
+    return {
+      for (final metric in DashboardMetric.values)
+        if (_permissionsForMetric(metric, false)
+            case final perms when perms.isNotEmpty && perms.every(managed.contains))
+          metric,
+    };
+  }
+
   Set<String> _dashboardPermissionsFor(
     Set<DashboardMetric> metrics,
     bool showOpenVitalsCalculatedCalories,
   ) {
     final result = <String>{};
     for (final metric in metrics) {
-      result.addAll(switch (metric) {
+      result.addAll(
+        _permissionsForMetric(metric, showOpenVitalsCalculatedCalories),
+      );
+    }
+    // `grantedPermissions()` only ever reports permissions inside
+    // `managedPermissions`, which is feature-gated and has the provider's
+    // unsupported permissions subtracted. Anything outside it can never be
+    // reported as granted nor meaningfully requested, so keeping it here would
+    // strand the permission callout on a set the user cannot grant.
+    return result.intersection(_hc.permissionService.managedPermissions);
+  }
+
+  /// The raw (unfiltered) Health Connect permissions [metric] reads.
+  Set<String> _permissionsForMetric(
+    DashboardMetric metric,
+    bool showOpenVitalsCalculatedCalories,
+  ) =>
+      switch (metric) {
         DashboardMetric.steps => {HcPermissions.readSteps},
         DashboardMetric.distance => {HcPermissions.readDistance},
         DashboardMetric.caloriesOut => showOpenVitalsCalculatedCalories
@@ -599,9 +635,10 @@ class DashboardDataLoader {
         DashboardMetric.respiratoryRate => {HcPermissions.readRespiratoryRate},
         DashboardMetric.bodyTemperature => {HcPermissions.readBodyTemperature},
         DashboardMetric.bloodGlucose => {HcPermissions.readBloodGlucose},
-        DashboardMetric.skinTemperature => _hc.isSkinTemperatureAvailable()
-            ? {HcPermissions.readSkinTemperature}
-            : <String>{},
+        // No explicit feature-flag check: READ_SKIN_TEMPERATURE drops out of
+        // `managedPermissions` when the feature is unavailable, so both callers
+        // already treat it as unsupported.
+        DashboardMetric.skinTemperature => {HcPermissions.readSkinTemperature},
         DashboardMetric.weeklyCardioLoad => {HcPermissions.readSteps},
         DashboardMetric.intensityMinutes => {
             HcPermissions.readHeartRate,
@@ -617,15 +654,7 @@ class DashboardDataLoader {
             HcPermissions.readOvulationTest,
             HcPermissions.readBasalBodyTemperature,
           },
-      });
-    }
-    // `grantedPermissions()` only ever reports permissions inside
-    // `managedPermissions`, which is feature-gated and has the provider's
-    // unsupported permissions subtracted. Anything outside it can never be
-    // reported as granted nor meaningfully requested, so keeping it here would
-    // strand the permission callout on a set the user cannot grant.
-    return result.intersection(_hc.permissionService.managedPermissions);
-  }
+      };
 
   double? _bmi(double? weightKg, double? heightCm) {
     if (weightKg == null || heightCm == null || heightCm <= 0) return null;

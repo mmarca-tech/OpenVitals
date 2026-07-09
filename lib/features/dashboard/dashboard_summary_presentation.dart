@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../domain/insights/sleep_score.dart';
 import '../../domain/model/dashboard_data.dart';
+import '../../domain/model/dashboard_query.dart';
+import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../ui/theme/app_colors.dart';
 
@@ -92,13 +94,25 @@ class _Goals {
 double _fraction(double current, double target) =>
     target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
 
+/// Returns [value] only when it is a real, positive reading, else null.
+double? _positive(double? value) => (value != null && value > 0) ? value : null;
+int? _positiveInt(int? value) => (value != null && value > 0) ? value : null;
+
 /// Maps a fully-loaded [DashboardData] onto the summary UI model, mirroring the
 /// Kotlin `DashboardPresentationMapper` (metric selection, icons, accent, value
-/// formatting and goal-progress). Optional metrics only produce a tile when they
-/// carry data; a small "always shown" required set (distance, hydration, body
-/// fat, heart rate, resting HR, mindfulness) renders regardless, matching the
-/// Kotlin default dashboard layout.
-DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
+/// formatting and goal-progress).
+///
+/// Every metric the device supports produces a tile — an empty one carrying a
+/// no-data message when the reading is absent or its permission is not granted
+/// (the Kotlin `addOptionalMetric`). Only metrics the installed Health Connect
+/// provider cannot serve are dropped, via [DashboardData.supportedMetrics]. The
+/// required set (distance, hydration, body fat, heart rate, resting HR,
+/// mindfulness) always shows its value, because zero is a real reading there.
+DashboardSummary buildDashboardSummary(
+  DashboardData data,
+  UnitFormatter f,
+  AppLocalizations l10n,
+) {
   final steps = RingCardData(
     title: 'Steps',
     value: f.count(data.steps),
@@ -128,13 +142,66 @@ DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
         );
 
   final tiles = <StatTileData>[];
-  void add(StatTileData? tile) {
-    if (tile != null) tiles.add(tile);
+
+  /// Emits a tile for [metric] whenever the device supports it. A null [value]
+  /// renders the tile empty, with [noDataMessage] (or the generic "No data") in
+  /// place of the value — ports the Kotlin `addOptionalMetric`.
+  void add(
+    DashboardMetric metric, {
+    required String title,
+    required IconData icon,
+    required Color accent,
+    required String location,
+    String? value,
+    String? unit,
+    String? subtitle,
+    String? noDataMessage,
+    bool showTitle = true,
+    double? progress,
+  }) {
+    if (!data.supportedMetrics.contains(metric)) return;
+    final empty = value == null;
+    tiles.add(StatTileData(
+      title: title,
+      value: value ?? '',
+      unit: empty ? null : unit,
+      icon: icon,
+      accent: accent,
+      subtitle: empty ? null : subtitle,
+      message: empty ? (noDataMessage ?? l10n.noData) : null,
+      showTitle: showTitle,
+      progress: empty ? null : progress,
+      location: location,
+    ));
   }
+
+  /// A required metric (Kotlin `dashboardRequiredMetricWidgets`): a zero reading
+  /// is a real value, so these never fall back to a no-data message.
+  void addRequired(
+    DashboardMetric metric, {
+    required String title,
+    required IconData icon,
+    required Color accent,
+    required String location,
+    required String value,
+    String? unit,
+    double? progress,
+  }) =>
+      add(
+        metric,
+        title: title,
+        icon: icon,
+        accent: accent,
+        location: location,
+        value: value,
+        unit: unit,
+        progress: progress,
+      );
 
   // ── Activity ──────────────────────────────────────────────────────────────
   final distance = f.distance(data.distanceMeters);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.distance,
     title: 'Distance',
     value: distance.value,
     unit: distance.unit,
@@ -142,98 +209,94 @@ DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
     accent: AppColors.distance,
     progress: _fraction(data.distanceMeters, _Goals.distanceMeters),
     location: AppRoutes.metricLocation('DISTANCE'),
-  ));
+  );
 
-  if (data.caloriesKcal > 0) {
-    final energy = f.energy(data.caloriesKcal);
-    add(StatTileData(
-      title: 'Total calories',
-      value: energy.value,
-      unit: energy.unit,
-      icon: Icons.local_fire_department,
-      accent: AppColors.calories,
-      progress: _fraction(data.caloriesKcal, _Goals.caloriesOutKcal),
-      location: AppRoutes.calories,
-    ));
-  }
+  final caloriesOut = _positive(data.caloriesKcal);
+  final caloriesOutValue = caloriesOut == null ? null : f.energy(caloriesOut);
+  add(
+    DashboardMetric.caloriesOut,
+    title: 'Total calories',
+    value: caloriesOutValue?.value,
+    unit: caloriesOutValue?.unit,
+    icon: Icons.local_fire_department,
+    accent: AppColors.calories,
+    progress: _fraction(data.caloriesKcal, _Goals.caloriesOutKcal),
+    location: AppRoutes.calories,
+  );
 
-  final activeCalories = data.activeCaloriesKcal;
-  if (activeCalories != null && activeCalories > 0) {
-    final energy = f.energy(activeCalories);
-    add(StatTileData(
-      title: 'Active calories',
-      value: energy.value,
-      unit: energy.unit,
-      icon: Icons.local_fire_department,
-      accent: AppColors.activeCalories,
-      progress: _fraction(activeCalories, _Goals.activeCaloriesKcal),
-      location: AppRoutes.calories,
-    ));
-  }
+  final activeCalories = _positive(data.activeCaloriesKcal);
+  final activeValue = activeCalories == null ? null : f.energy(activeCalories);
+  add(
+    DashboardMetric.activeCalories,
+    title: 'Active calories',
+    value: activeValue?.value,
+    unit: activeValue?.unit,
+    icon: Icons.local_fire_department,
+    accent: AppColors.activeCalories,
+    progress: _fraction(activeCalories ?? 0, _Goals.activeCaloriesKcal),
+    location: AppRoutes.calories,
+  );
 
-  final floors = data.floorsClimbed;
-  if (floors != null && floors > 0) {
-    add(StatTileData(
-      title: 'Floors',
-      value: f.count(floors),
-      icon: Icons.stairs,
-      accent: AppColors.floors,
-      progress: _fraction(floors.toDouble(), _Goals.floors),
-      location: AppRoutes.metricLocation('FLOORS'),
-    ));
-  }
+  final floors = _positiveInt(data.floorsClimbed);
+  add(
+    DashboardMetric.floors,
+    title: 'Floors',
+    value: floors == null ? null : f.count(floors),
+    icon: Icons.stairs,
+    accent: AppColors.floors,
+    progress: _fraction((floors ?? 0).toDouble(), _Goals.floors),
+    location: AppRoutes.metricLocation('FLOORS'),
+  );
 
-  final elevation = data.elevationGainedMeters;
-  if (elevation != null && elevation > 0) {
-    final ev = f.elevation(elevation);
-    add(StatTileData(
-      title: 'Elevation',
-      value: ev.value,
-      unit: ev.unit,
-      icon: Icons.terrain,
-      accent: AppColors.elevation,
-      progress: _fraction(elevation, _Goals.elevationMeters),
-      location: AppRoutes.metricLocation('ELEVATION'),
-    ));
-  }
+  final elevation = _positive(data.elevationGainedMeters);
+  final elevationValue = elevation == null ? null : f.elevation(elevation);
+  add(
+    DashboardMetric.elevation,
+    title: 'Elevation',
+    value: elevationValue?.value,
+    unit: elevationValue?.unit,
+    icon: Icons.terrain,
+    accent: AppColors.elevation,
+    progress: _fraction(elevation ?? 0, _Goals.elevationMeters),
+    location: AppRoutes.metricLocation('ELEVATION'),
+  );
 
-  final pushes = data.wheelchairPushes;
-  if (pushes != null && pushes > 0) {
-    add(StatTileData(
-      title: 'Wheelchair pushes',
-      value: f.count(pushes),
-      icon: Icons.accessible_forward,
-      accent: AppColors.wheelchairPushes,
-      progress: _fraction(pushes.toDouble(), _Goals.wheelchairPushes),
-      location: AppRoutes.metricLocation('WHEELCHAIR_PUSHES'),
-    ));
-  }
+  final pushes = _positiveInt(data.wheelchairPushes);
+  add(
+    DashboardMetric.wheelchairPushes,
+    title: 'Wheelchair pushes',
+    value: pushes == null ? null : f.count(pushes),
+    icon: Icons.accessible_forward,
+    accent: AppColors.wheelchairPushes,
+    progress: _fraction((pushes ?? 0).toDouble(), _Goals.wheelchairPushes),
+    location: AppRoutes.metricLocation('WHEELCHAIR_PUSHES'),
+  );
 
   // ── Sleep ─────────────────────────────────────────────────────────────────
   final sleep = data.sleep;
-  if (sleep != null) {
-    final score = data.sleepScore;
-    final subtitle = score.confidence != SleepScoreConfidence.noData
-        ? '${score.score} · ${_sleepRating(score.score)}'
-        : null;
-    add(StatTileData(
-      title: 'Sleep',
-      value: f.duration(sleep.durationMs),
-      icon: Icons.bed,
-      accent: AppColors.sleep,
-      subtitle: subtitle,
-      showTitle: false,
-      progress: _fraction(
-        sleep.durationMs.toDouble(),
-        _Goals.sleepHours * 3600 * 1000,
-      ),
-      location: AppRoutes.sleep,
-    ));
-  }
+  final sleepScore = data.sleepScore;
+  add(
+    DashboardMetric.sleep,
+    title: 'Sleep',
+    value: sleep == null ? null : f.duration(sleep.durationMs),
+    icon: Icons.bed,
+    accent: AppColors.sleep,
+    subtitle: sleepScore.confidence != SleepScoreConfidence.noData
+        ? '${sleepScore.score} · ${_sleepRating(sleepScore.score)}'
+        : null,
+    noDataMessage: l10n.messageNoSleepDay,
+    showTitle: false,
+    progress: _fraction(
+      (sleep?.durationMs ?? 0).toDouble(),
+      _Goals.sleepHours * 3600 * 1000,
+    ),
+    location: AppRoutes.sleep,
+  );
 
   // ── Hydration ─────────────────────────────────────────────────────────────
   final hydration = f.hydration(data.hydrationLiters);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.hydration,
     title: 'Beverages',
     value: hydration.value,
     unit: hydration.unit,
@@ -241,231 +304,287 @@ DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
     accent: AppColors.hydration,
     progress: _fraction(data.hydrationLiters, _Goals.hydrationLiters),
     location: AppRoutes.hydrationEntry,
-  ));
+  );
 
   // ── Nutrition ─────────────────────────────────────────────────────────────
-  final caloriesIn = data.caloriesInKcal;
-  if (caloriesIn != null && caloriesIn > 0) {
-    final energy = f.energy(caloriesIn);
-    add(StatTileData(
-      title: 'Calories in',
-      value: energy.value,
-      unit: energy.unit,
+  final caloriesIn = _positive(data.caloriesInKcal);
+  final caloriesInValue = caloriesIn == null ? null : f.energy(caloriesIn);
+  add(
+    DashboardMetric.caloriesIn,
+    title: 'Calories in',
+    value: caloriesInValue?.value,
+    unit: caloriesInValue?.unit,
+    icon: Icons.restaurant,
+    accent: AppColors.nutrition,
+    progress: _fraction(caloriesIn ?? 0, _Goals.caloriesInKcal),
+    location: AppRoutes.nutrition,
+  );
+
+  void addGrams(DashboardMetric metric, String title, double? grams, double goal) {
+    final value = _positive(grams);
+    add(
+      metric,
+      title: title,
+      value: value == null ? null : f.count(value.round()),
+      unit: 'g',
       icon: Icons.restaurant,
       accent: AppColors.nutrition,
-      progress: _fraction(caloriesIn, _Goals.caloriesInKcal),
+      progress: _fraction(value ?? 0, goal),
       location: AppRoutes.nutrition,
-    ));
+    );
   }
 
-  add(_gramTile(
-    title: 'Protein',
-    grams: data.proteinGrams,
-    goal: _Goals.proteinGrams,
-    f: f,
-  ));
-  add(_gramTile(
-    title: 'Carbs',
-    grams: data.carbsGrams,
-    goal: _Goals.carbsGrams,
-    f: f,
-  ));
-  add(_gramTile(
-    title: 'Fat',
-    grams: data.fatGrams,
-    goal: _Goals.fatGrams,
-    f: f,
-  ));
+  addGrams(DashboardMetric.protein, 'Protein', data.proteinGrams, _Goals.proteinGrams);
+  addGrams(DashboardMetric.carbs, 'Carbs', data.carbsGrams, _Goals.carbsGrams);
+  addGrams(DashboardMetric.fat, 'Fat', data.fatGrams, _Goals.fatGrams);
 
-  final caffeine = data.caffeineGrams;
-  if (caffeine != null && caffeine > 0) {
-    add(StatTileData(
-      title: 'Caffeine',
-      value: f.decimal(caffeine * 1000, 0),
-      unit: 'mg',
-      icon: Icons.restaurant,
-      accent: AppColors.nutrition,
-      location: AppRoutes.nutrition,
-    ));
-  }
+  final caffeine = _positive(data.caffeineGrams);
+  add(
+    DashboardMetric.caffeine,
+    title: 'Caffeine',
+    value: caffeine == null ? null : f.decimal(caffeine * 1000, 0),
+    unit: 'mg',
+    icon: Icons.restaurant,
+    accent: AppColors.nutrition,
+    location: AppRoutes.nutrition,
+  );
 
   // ── Body ──────────────────────────────────────────────────────────────────
-  final weight = data.weightKg;
-  if (weight != null && weight > 0) {
-    final wv = f.weight(weight);
-    add(StatTileData(
-      title: 'Weight',
-      value: wv.value,
-      unit: wv.unit,
-      icon: Icons.monitor_weight,
-      accent: AppColors.weight,
-      location: AppRoutes.body,
-    ));
-  }
+  final weight = _positive(data.weightKg);
+  final weightValue = weight == null ? null : f.weight(weight);
+  add(
+    DashboardMetric.weight,
+    title: 'Weight',
+    value: weightValue?.value,
+    unit: weightValue?.unit,
+    icon: Icons.monitor_weight,
+    accent: AppColors.weight,
+    location: AppRoutes.body,
+  );
 
-  final height = data.heightCm;
-  if (height != null && height > 0) {
-    final hv = f.height(height);
-    add(StatTileData(
-      title: 'Height',
-      value: hv.value,
-      unit: hv.unit,
-      icon: Icons.monitor_weight,
-      accent: AppColors.weight,
-      location: AppRoutes.body,
-    ));
-  }
+  final height = _positive(data.heightCm);
+  final heightValue = height == null ? null : f.height(height);
+  add(
+    DashboardMetric.height,
+    title: 'Height',
+    value: heightValue?.value,
+    unit: heightValue?.unit,
+    icon: Icons.monitor_weight,
+    accent: AppColors.weight,
+    location: AppRoutes.body,
+  );
 
-  final bmi = data.bmi;
-  if (bmi != null && bmi > 0) {
-    add(StatTileData(
-      title: 'BMI',
-      value: f.decimal(bmi, 1),
-      icon: Icons.monitor_weight,
-      accent: AppColors.weight,
-      location: AppRoutes.body,
-    ));
-  }
+  final bmi = _positive(data.bmi);
+  add(
+    DashboardMetric.bmi,
+    title: 'BMI',
+    value: bmi == null ? null : f.decimal(bmi, 1),
+    icon: Icons.monitor_weight,
+    accent: AppColors.weight,
+    location: AppRoutes.body,
+  );
 
-  final ffmi = data.ffmi;
-  if (ffmi != null && ffmi > 0) {
-    add(StatTileData(
-      title: 'FFMI',
-      value: f.decimal(ffmi, 1),
-      icon: Icons.fitness_center,
-      accent: AppColors.bodyFat,
-      location: AppRoutes.body,
-    ));
-  }
+  final ffmi = _positive(data.ffmi);
+  add(
+    DashboardMetric.ffmi,
+    title: 'FFMI',
+    value: ffmi == null ? null : f.decimal(ffmi, 1),
+    icon: Icons.fitness_center,
+    accent: AppColors.bodyFat,
+    location: AppRoutes.body,
+  );
 
-  // Body fat is a "required" tile (always shown).
   final bodyFat = f.percent(data.bodyFatPercent);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.bodyFat,
     title: 'Body fat',
     value: bodyFat.value,
     unit: bodyFat.unit,
     icon: Icons.monitor_weight,
     accent: AppColors.bodyFat,
     location: AppRoutes.body,
-  ));
+  );
 
-  final leanMass = data.leanMassKg;
-  if (leanMass != null && leanMass > 0) {
-    final lv = f.bodyMass(leanMass);
-    add(StatTileData(
-      title: 'Lean mass',
-      value: lv.value,
-      unit: lv.unit,
-      icon: Icons.monitor_weight,
-      accent: AppColors.weight,
-      location: AppRoutes.body,
-    ));
-  }
+  final leanMass = _positive(data.leanMassKg);
+  final leanValue = leanMass == null ? null : f.bodyMass(leanMass);
+  add(
+    DashboardMetric.leanMass,
+    title: 'Lean mass',
+    value: leanValue?.value,
+    unit: leanValue?.unit,
+    icon: Icons.monitor_weight,
+    accent: AppColors.weight,
+    location: AppRoutes.body,
+  );
+
+  final bmr = _positive(data.bmrKcal);
+  final bmrValue = bmr == null ? null : f.energy(bmr);
+  add(
+    DashboardMetric.bmr,
+    title: 'BMR',
+    value: bmrValue?.value,
+    unit: bmrValue?.unit,
+    icon: Icons.local_fire_department,
+    accent: AppColors.calories,
+    location: AppRoutes.body,
+  );
+
+  final boneMass = _positive(data.boneMassKg);
+  final boneValue = boneMass == null ? null : f.bodyMass(boneMass);
+  add(
+    DashboardMetric.boneMass,
+    title: 'Bone mass',
+    value: boneValue?.value,
+    unit: boneValue?.unit,
+    icon: Icons.monitor_weight,
+    accent: AppColors.weight,
+    location: AppRoutes.body,
+  );
+
+  final bodyWater = _positive(data.bodyWaterMassKg);
+  final bodyWaterValue = bodyWater == null ? null : f.bodyMass(bodyWater);
+  add(
+    DashboardMetric.bodyWaterMass,
+    title: 'Body water',
+    value: bodyWaterValue?.value,
+    unit: bodyWaterValue?.unit,
+    icon: Icons.water_drop,
+    accent: AppColors.hydration,
+    location: AppRoutes.body,
+  );
 
   // ── Heart & vitals ────────────────────────────────────────────────────────
-  // Heart rate + resting HR are "required" tiles (always shown).
   final avgHr = f.heartRate(data.avgHeartRateBpm);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.avgHeartRate,
     title: 'Heart rate',
     value: avgHr.value,
     unit: avgHr.unit,
     icon: Icons.favorite,
     accent: AppColors.vitals,
     location: AppRoutes.metricLocation('AVG_HEART_RATE'),
-  ));
+  );
 
   final restingHr = f.heartRate(data.restingHeartRateBpm);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.restingHeartRate,
     title: 'Resting HR',
     value: restingHr.value,
     unit: restingHr.unit,
     icon: Icons.favorite,
     accent: AppColors.vitals,
     location: AppRoutes.metricLocation('RESTING_HEART_RATE'),
-  ));
+  );
 
-  final hrv = data.hrvRmssdMs;
-  if (hrv != null && hrv > 0) {
-    final hv = f.hrv(hrv);
-    add(StatTileData(
-      title: 'HRV',
-      value: hv.value,
-      unit: hv.unit,
-      icon: Icons.favorite_border,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('HRV'),
-    ));
-  }
+  final hrv = _positive(data.hrvRmssdMs);
+  final hrvValue = hrv == null ? null : f.hrv(hrv);
+  add(
+    DashboardMetric.hrv,
+    title: 'HRV',
+    value: hrvValue?.value,
+    unit: hrvValue?.unit,
+    icon: Icons.favorite_border,
+    accent: AppColors.vitals,
+    location: AppRoutes.metricLocation('HRV'),
+  );
 
   final systolic = data.latestSystolicMmHg;
   final diastolic = data.latestDiastolicMmHg;
-  if (systolic != null && diastolic != null) {
-    final bp = f.bloodPressure(systolic, diastolic);
-    add(StatTileData(
-      title: 'Blood pressure',
-      value: bp.value,
-      unit: bp.unit,
-      icon: Icons.favorite,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('BLOOD_PRESSURE'),
-    ));
-  }
+  final bp = systolic != null && diastolic != null
+      ? f.bloodPressure(systolic, diastolic)
+      : null;
+  add(
+    DashboardMetric.bloodPressure,
+    title: 'Blood pressure',
+    value: bp?.value,
+    unit: bp?.unit,
+    icon: Icons.favorite,
+    accent: AppColors.vitals,
+    noDataMessage: l10n.messageNoBloodPressure,
+    location: AppRoutes.metricLocation('BLOOD_PRESSURE'),
+  );
 
   final spo2 = data.latestSpO2Percent;
-  if (spo2 != null) {
-    final sv = f.percent(spo2);
-    add(StatTileData(
-      title: 'Blood oxygen',
-      value: sv.value,
-      unit: sv.unit,
-      icon: Icons.favorite_border,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('SPO2'),
-    ));
-  }
+  final spo2Value = spo2 == null ? null : f.percent(spo2);
+  add(
+    DashboardMetric.spo2,
+    title: 'Blood oxygen',
+    value: spo2Value?.value,
+    unit: spo2Value?.unit,
+    icon: Icons.favorite_border,
+    accent: AppColors.vitals,
+    noDataMessage: l10n.messageNoOxygen,
+    location: AppRoutes.metricLocation('SPO2'),
+  );
 
   final vo2 = data.latestVo2Max;
-  if (vo2 != null) {
-    final vv = f.vo2Max(vo2);
-    add(StatTileData(
-      title: 'VO₂ max',
-      value: vv.value,
-      unit: vv.unit,
-      icon: Icons.directions_run,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('VO2_MAX'),
-    ));
-  }
+  final vo2Value = vo2 == null ? null : f.vo2Max(vo2);
+  add(
+    DashboardMetric.vo2Max,
+    title: 'VO₂ max',
+    value: vo2Value?.value,
+    unit: vo2Value?.unit,
+    icon: Icons.directions_run,
+    accent: AppColors.vitals,
+    noDataMessage: l10n.messageNoVo2Max,
+    location: AppRoutes.metricLocation('VO2_MAX'),
+  );
 
-  final respiratory = data.avgRespiratoryRate;
-  if (respiratory != null && respiratory > 0) {
-    final rv = f.respiratoryRate(respiratory);
-    add(StatTileData(
-      title: 'Respiratory rate',
-      value: rv.value,
-      unit: rv.unit,
-      icon: Icons.favorite,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('RESPIRATORY_RATE'),
-    ));
-  }
+  final respiratory = _positive(data.avgRespiratoryRate);
+  final respiratoryValue =
+      respiratory == null ? null : f.respiratoryRate(respiratory);
+  add(
+    DashboardMetric.respiratoryRate,
+    title: 'Respiratory rate',
+    value: respiratoryValue?.value,
+    unit: respiratoryValue?.unit,
+    icon: Icons.favorite,
+    accent: AppColors.vitals,
+    location: AppRoutes.metricLocation('RESPIRATORY_RATE'),
+  );
 
   final bodyTemp = data.latestBodyTemperatureCelsius;
-  if (bodyTemp != null) {
-    final tv = f.temperature(bodyTemp);
-    add(StatTileData(
-      title: 'Body temperature',
-      value: tv.value,
-      unit: tv.unit,
-      icon: Icons.device_thermostat,
-      accent: AppColors.vitals,
-      location: AppRoutes.metricLocation('BODY_TEMPERATURE'),
-    ));
-  }
+  final bodyTempValue = bodyTemp == null ? null : f.temperature(bodyTemp);
+  add(
+    DashboardMetric.bodyTemperature,
+    title: 'Body temperature',
+    value: bodyTempValue?.value,
+    unit: bodyTempValue?.unit,
+    icon: Icons.device_thermostat,
+    accent: AppColors.vitals,
+    location: AppRoutes.metricLocation('BODY_TEMPERATURE'),
+  );
+
+  final glucose = data.latestBloodGlucoseMillimolesPerLiter;
+  final glucoseValue = glucose == null ? null : f.bloodGlucose(glucose);
+  add(
+    DashboardMetric.bloodGlucose,
+    title: 'Blood glucose',
+    value: glucoseValue?.value,
+    unit: glucoseValue?.unit,
+    icon: Icons.water_drop,
+    accent: AppColors.vitals,
+    noDataMessage: l10n.messageNoBloodGlucose,
+    location: AppRoutes.metricLocation('BLOOD_GLUCOSE'),
+  );
+
+  final skinTemp = data.latestSkinTemperatureDeltaCelsius;
+  final skinTempValue = skinTemp == null ? null : f.temperatureDelta(skinTemp);
+  add(
+    DashboardMetric.skinTemperature,
+    title: 'Skin temperature',
+    value: skinTempValue?.value,
+    unit: skinTempValue?.unit,
+    icon: Icons.device_thermostat,
+    accent: AppColors.vitals,
+    noDataMessage: l10n.messageNoSkinTemperature,
+    location: AppRoutes.metricLocation('SKIN_TEMPERATURE'),
+  );
 
   // ── Mindfulness (required tile) ───────────────────────────────────────────
   final mindfulness = f.minutes(data.mindfulnessMinutes ?? 0);
-  add(StatTileData(
+  addRequired(
+    DashboardMetric.mindfulness,
     title: 'Mindfulness',
     value: mindfulness.value,
     unit: mindfulness.unit,
@@ -476,7 +595,20 @@ DashboardSummary buildDashboardSummary(DashboardData data, UnitFormatter f) {
       _Goals.mindfulnessMinutes,
     ),
     location: AppRoutes.mindfulnessEntry,
-  ));
+  );
+
+  // ── Cycle ─────────────────────────────────────────────────────────────────
+  final periodDays = _positiveInt(data.menstruationPeriodDays);
+  add(
+    DashboardMetric.cycle,
+    title: 'Cycle',
+    value: periodDays == null ? null : f.count(periodDays),
+    unit: 'days',
+    icon: Icons.favorite_border,
+    accent: AppColors.cycle,
+    noDataMessage: l10n.messageCycleBrowse,
+    location: AppRoutes.metricLocation(DashboardMetricId.cycle.storageName),
+  );
 
   return DashboardSummary(
     steps: steps,
@@ -542,24 +674,6 @@ List<StatTileData> applyDashboardTileLayout(
       hidden: hidden,
       includeHidden: includeHidden,
     );
-
-StatTileData? _gramTile({
-  required String title,
-  required double? grams,
-  required double goal,
-  required UnitFormatter f,
-}) {
-  if (grams == null || grams <= 0) return null;
-  return StatTileData(
-    title: title,
-    value: f.count(grams.round()),
-    unit: 'g',
-    icon: Icons.restaurant,
-    accent: AppColors.nutrition,
-    progress: _fraction(grams, goal),
-    location: AppRoutes.nutrition,
-  );
-}
 
 /// Sleep-score rating label, from the Kotlin `sleepScoreRatingLabel(score)`.
 String _sleepRating(int score) {

@@ -89,6 +89,62 @@ void main() {
     expect(data.missingPermissions, isEmpty);
   });
 
+  test('supportedMetrics drops metrics the provider cannot serve', () async {
+    final source = _FakeSource(const <String>{})
+      ..unsupportedPermissions = {
+        HcPermissions.readWheelchairPushes,
+        HcPermissions.readBloodGlucose,
+      };
+    final loader = DashboardDataLoader(source);
+
+    final data = await loader.loadDashboard(
+      DashboardQuery(
+        date: LocalDate(2026, 1, 2),
+        visibleMetrics: {DashboardMetric.steps},
+        includeHistoricalBaselines: false,
+        includeWeeklyTrainingSignals: false,
+      ),
+    );
+
+    // Reported for every metric, not just the queried ones — the dashboard uses
+    // it to decide which tiles exist at all.
+    expect(data.supportedMetrics, contains(DashboardMetric.steps));
+    expect(data.supportedMetrics, contains(DashboardMetric.distance));
+    expect(
+      data.supportedMetrics,
+      isNot(contains(DashboardMetric.wheelchairPushes)),
+    );
+    expect(data.supportedMetrics, isNot(contains(DashboardMetric.bloodGlucose)));
+    // Feature-flagged permissions are unsupported by default.
+    expect(
+      data.supportedMetrics,
+      isNot(contains(DashboardMetric.skinTemperature)),
+    );
+    expect(data.supportedMetrics, isNot(contains(DashboardMetric.mindfulness)));
+  });
+
+  test('a multi-permission metric needs all of its permissions supported',
+      () async {
+    // BMI reads weight + height; dropping height alone must unsupport it.
+    final source = _FakeSource(const <String>{})
+      ..unsupportedPermissions = {HcPermissions.readHeight};
+    final loader = DashboardDataLoader(source);
+
+    final data = await loader.loadDashboard(
+      DashboardQuery(
+        date: LocalDate(2026, 1, 2),
+        visibleMetrics: {DashboardMetric.steps},
+        includeHistoricalBaselines: false,
+        includeWeeklyTrainingSignals: false,
+      ),
+    );
+
+    expect(data.supportedMetrics, contains(DashboardMetric.weight));
+    expect(data.supportedMetrics, isNot(contains(DashboardMetric.height)));
+    expect(data.supportedMetrics, isNot(contains(DashboardMetric.bmi)));
+    expect(data.supportedMetrics, isNot(contains(DashboardMetric.ffmi)));
+  });
+
   test('returns empty granted set when Health Connect is unavailable', () async {
     final source = _FakeSource({HcPermissions.readSteps})
       ..cachedAvailability = HealthConnectAvailability.notSupported;

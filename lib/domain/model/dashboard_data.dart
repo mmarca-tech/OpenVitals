@@ -74,6 +74,10 @@ abstract class DashboardData with _$DashboardData {
     BodyEnergyTimeline? bodyEnergyTimeline,
     @Default(<String>{}) Set<String> missingPermissions,
     @Default(<DashboardMetric>{}) Set<DashboardMetric> loadedMetrics,
+    /// The metrics the installed provider can serve — i.e. every permission the
+    /// metric reads is one the device defines. Metrics outside this set get no
+    /// tile; the rest always get one, empty or not.
+    @Default(<DashboardMetric>{}) Set<DashboardMetric> supportedMetrics,
     @Default(<DashboardMetric, String>{})
     Map<DashboardMetric, String> metricSourcePackages,
     // Derived in Kotlin from caloriesKcal; construct with an explicit value when
@@ -220,6 +224,10 @@ extension DashboardDataMergeLoaded on DashboardData {
       bodyEnergyTimeline: other.bodyEnergyTimeline ?? bodyEnergyTimeline,
       missingPermissions: {...missingPermissions, ...other.missingPermissions},
       loadedMetrics: {...loadedMetrics, ...other.loadedMetrics},
+      // Device support is a property of the provider, not of a load pass; both
+      // passes report the same set. Prefer the newer one when it has an answer.
+      supportedMetrics:
+          other.supportedMetrics.isEmpty ? supportedMetrics : other.supportedMetrics,
       metricSourcePackages: {
         ...metricSourcePackages,
         ...other.metricSourcePackages,

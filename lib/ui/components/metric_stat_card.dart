@@ -61,6 +61,11 @@ class MetricStatCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Stack(
+          // Ports the Kotlin `Box(Modifier.fillMaxSize())`: when the tile is
+          // given a fixed height by its grid cell, the content centres in it
+          // rather than pinning to the top-left (the Stack default). With a
+          // loose height the card still shrink-wraps to its content.
+          alignment: Alignment.centerLeft,
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

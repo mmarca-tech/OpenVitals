@@ -62,6 +62,9 @@ DashboardData _sampleData(DashboardQuery query, {Set<String> missing = const {}}
     caloriesInKcal: 1800,
     proteinGrams: 90,
     loadedMetrics: query.visibleMetrics,
+    // Every metric is device-supported unless a test says otherwise, so tiles
+    // render for all of them (empty ones included).
+    supportedMetrics: DashboardMetric.values.toSet(),
     missingPermissions: missing,
   );
 }
@@ -128,6 +131,9 @@ void _usePhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Mirrors the carousel's private `_MetricCarousel._tileHeight`.
+const double _kTileHeight = 82;
+
 void main() {
   testWidgets('shows a loader then renders the summary dashboard',
       (tester) async {
@@ -151,6 +157,41 @@ void main() {
     expect(find.text('Start workout'), findsOneWidget);
     expect(find.text('Steps'), findsOneWidget);
     expect(find.text('Today'), findsOneWidget);
+  });
+
+  testWidgets('carousel tiles fill their grid cell in both modes',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(availability: HealthConnectAvailability.available),
+    );
+    await tester.pumpAndSettle();
+
+    // Normal mode: the tile stretches to the full cell height instead of
+    // shrink-wrapping its content and leaving gaps between the rows.
+    final firstTile = find.byType(MetricStatCard).first;
+    expect(tester.getSize(firstTile).height, _kTileHeight);
+
+    // The icon and text are centred in that height, not pinned to the top.
+    final tileRect = tester.getRect(firstTile);
+    final iconRect = tester.getRect(
+      find.descendant(of: firstTile, matching: find.byType(Icon)).first,
+    );
+    expect(iconRect.center.dy, moreOrLessEquals(tileRect.center.dy, epsilon: 1));
+
+    // Edit mode: same fill, same centring.
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+    final editTile = find.byType(MetricStatCard).first;
+    expect(tester.getSize(editTile).height, _kTileHeight);
+    final editIcon = tester.getRect(
+      find.descendant(of: editTile, matching: find.byType(Icon)).first,
+    );
+    expect(
+      editIcon.center.dy,
+      moreOrLessEquals(tester.getRect(editTile).center.dy, epsilon: 1),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('edge-scroll keeps paging while a drag is held at the edge',
@@ -206,7 +247,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('edit mode enters/exits and reorder+hide render without error',
+  testWidgets('edit mode enters/exits and reorder+remove render without error',
       (tester) async {
     _usePhoneViewport(tester);
     await tester.pumpWidget(
@@ -218,19 +259,19 @@ void main() {
     await tester.tap(find.byTooltip('Edit dashboard'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    // Eye toggles appear on both rings + tiles.
-    expect(find.byIcon(Icons.visibility_outlined), findsWidgets);
+    // Remove buttons appear on both rings + tiles.
+    expect(find.byTooltip('Remove widget'), findsWidgets);
     // Edit mode reorders in the carousel itself (not a separate flat grid): the
     // paged carousel is present and its tiles are long-press draggable.
     expect(
-      find.text('Hold to drag & reorder · tap the eye to hide'),
+      find.text('Hold to drag & reorder · tap ✕ to remove'),
       findsOneWidget,
     );
     expect(find.byType(PageView), findsOneWidget);
     expect(find.byType(LongPressDraggable<int>), findsWidgets);
 
-    // Hide a tile via its eye toggle.
-    await tester.tap(find.byIcon(Icons.visibility_outlined).first);
+    // Remove a tile.
+    await tester.tap(find.byTooltip('Remove widget').first);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
@@ -239,6 +280,79 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(MetricStatCard), findsWidgets);
+  });
+
+  testWidgets('removing a widget moves it to the add tray and back',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(availability: HealthConnectAvailability.available),
+    );
+    await tester.pumpAndSettle();
+
+    List<String> carouselTitles() => tester
+        .widgetList<MetricStatCard>(find.byType(MetricStatCard))
+        .map((c) => c.title)
+        .toList();
+
+    expect(carouselTitles(), contains('Distance'));
+
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+    // Nothing removed yet, so the tray says so and offers no add buttons.
+    expect(find.text('All widgets are already on the summary.'), findsOneWidget);
+
+    // Remove the first carousel tile (Distance) via its ✕.
+    final tileRemove = find.descendant(
+      of: find.byType(PageView),
+      matching: find.byTooltip('Remove widget'),
+    );
+    await tester.tap(tileRemove.first);
+    await tester.pumpAndSettle();
+
+    // It leaves the carousel and shows up in the "Add widgets" tray.
+    expect(carouselTitles(), isNot(contains('Distance')));
+    final addButton = find.widgetWithText(OutlinedButton, 'Distance');
+    expect(addButton, findsOneWidget);
+    expect(find.text('All widgets are already on the summary.'), findsNothing);
+
+    // Adding it back restores it to the carousel and empties the tray.
+    await tester.tap(addButton);
+    await tester.pumpAndSettle();
+    expect(carouselTitles(), contains('Distance'));
+    expect(find.widgetWithText(OutlinedButton, 'Distance'), findsNothing);
+    expect(find.text('All widgets are already on the summary.'), findsOneWidget);
+
+    // And it is visible again outside edit mode.
+    await tester.tap(find.byTooltip('Done'));
+    await tester.pumpAndSettle();
+    expect(carouselTitles(), contains('Distance'));
+  });
+
+  testWidgets('a removed hero ring can be added back from the tray',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(availability: HealthConnectAvailability.available),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
+
+    // The hero rings render above the carousel, so the first ✕ in the tree is
+    // the Steps ring's.
+    await tester.tap(find.byTooltip('Remove widget').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SummaryRingCard), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Steps'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Steps'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
+    expect(find.widgetWithText(OutlinedButton, 'Steps'), findsNothing);
   });
 
   testWidgets('renders the inline permission callout when permissions missing',

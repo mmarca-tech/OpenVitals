@@ -94,7 +94,7 @@ class _DashboardBody extends StatelessWidget {
       return const ErrorMessage('No dashboard data yet.');
     }
 
-    final summary = buildDashboardSummary(data, formatter);
+    final summary = buildDashboardSummary(data, formatter, l10n);
     // All data-present tiles in the user's saved order (hidden included, for the
     // edit grid); the carousel shows only the non-hidden subset.
     final orderedTiles = applyDashboardTileLayout(
@@ -150,19 +150,15 @@ class _DashboardBody extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(_gutter, 16, _gutter, 0),
               child: state.editing
                   ? _HeroRingEditRow(
-                      rings: orderedRings,
-                      hidden: state.hiddenTiles,
+                      rings: visibleRings,
                       onReorder: (from, to) => notifier.setRingOrder(
                         reorderOntoDropTarget(
-                          [for (final r in orderedRings) r.title],
+                          [for (final r in visibleRings) r.title],
                           from,
                           to,
                         ),
                       ),
-                      onToggleHidden: (title) => notifier.setTileHidden(
-                        title,
-                        !state.hiddenTiles.contains(title),
-                      ),
+                      onRemove: (title) => notifier.setTileHidden(title, true),
                     )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,19 +197,15 @@ class _DashboardBody extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: _MetricCarousel(
                   editing: true,
-                  tiles: orderedTiles,
-                  hidden: state.hiddenTiles,
+                  tiles: visibleTiles,
                   onReorder: (from, to) => notifier.setTileOrder(
                     reorderOntoDropTarget(
-                      [for (final t in orderedTiles) t.title],
+                      [for (final t in visibleTiles) t.title],
                       from,
                       to,
                     ),
                   ),
-                  onToggleHidden: (title) => notifier.setTileHidden(
-                    title,
-                    !state.hiddenTiles.contains(title),
-                  ),
+                  onRemove: (title) => notifier.setTileHidden(title, true),
                 ),
               )
             else if (visibleTiles.isNotEmpty)
@@ -225,6 +217,18 @@ class _DashboardBody extends StatelessWidget {
                 ),
               ),
           ],
+          // Outside the tiles-exist gate: with every widget removed there is
+          // nothing to reorder, but the user still needs a way to add them back.
+          if (state.editing)
+            _HiddenWidgetsSection(
+              titles: [
+                for (final r in orderedRings)
+                  if (state.hiddenTiles.contains(r.title)) r.title,
+                for (final t in orderedTiles)
+                  if (state.hiddenTiles.contains(t.title)) t.title,
+              ],
+              onAdd: (title) => notifier.setTileHidden(title, false),
+            ),
           const SizedBox(height: 8),
           _ActivitiesSection(
             data: data,
@@ -320,6 +324,81 @@ class _DashboardQuickActions extends StatelessWidget {
   }
 }
 
+/// The ✕ overlaid on a hero ring / stat tile in edit mode, which removes the
+/// widget from the summary. Port of the Kotlin `onRemove` affordance.
+class _RemoveWidgetButton extends StatelessWidget {
+  const _RemoveWidgetButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      tooltip: AppLocalizations.of(context).cdRemoveWidget,
+      onPressed: onPressed,
+      icon: Icon(Icons.close, color: scheme.onSurfaceVariant),
+    );
+  }
+}
+
+/// The edit-mode "Add widgets" tray: every widget the user has removed, as a
+/// tap-to-restore row. Port of the Kotlin `DashboardHiddenWidgets`.
+class _HiddenWidgetsSection extends StatelessWidget {
+  const _HiddenWidgetsSection({required this.titles, required this.onAdd});
+
+  final List<String> titles;
+  final void Function(String title) onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.dashboardAddWidgets,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (titles.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                l10n.dashboardAllWidgetsAdded,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            )
+          else
+            for (final title in titles)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  onPressed: () => onAdd(title),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(title),
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A 1dp `outlineVariant` divider at 0.5 opacity (Kotlin dashboard section
 /// separator).
 class _ThinDivider extends StatelessWidget {
@@ -342,33 +421,35 @@ class _ThinDivider extends StatelessWidget {
 /// the carousel itself*: the dragged tile floats under the finger (Flutter's
 /// [LongPressDraggable] `feedback` is the Kotlin drag overlay), dragging near a
 /// horizontal edge auto-pages (the Kotlin edge-scroll loop), and dropping on
-/// another tile reorders across pages. Each tile also carries an eye toggle to
-/// hide/show it. Not editing: plain paged, tappable tiles.
+/// another tile reorders across pages. Each tile also carries a remove button;
+/// removed tiles move to the [_HiddenWidgetsSection] tray, so [tiles] is always
+/// the visible set. Not editing: plain paged, tappable tiles.
 class _MetricCarousel extends StatefulWidget {
   const _MetricCarousel({
     required this.tiles,
     this.editing = false,
-    this.hidden = const <String>{},
     this.onOpen,
     this.onReorder,
-    this.onToggleHidden,
+    this.onRemove,
   });
 
   final List<StatTileData> tiles;
   final bool editing;
-  final Set<String> hidden;
   final void Function(String location)? onOpen;
   final void Function(int from, int to)? onReorder;
-  final void Function(String title)? onToggleHidden;
+  final void Function(String title)? onRemove;
 
   static const int _columns = 2;
   static const int _rowsPerPage = 3;
   static const int _perPage = _columns * _rowsPerPage;
-  static const double _tileHeight = 112;
-  // Horizontal gap between the two columns.
+  // Matches the Kotlin `DashboardCompactWidgetHeight`. Tiles fill this height
+  // and centre their content in it, so it must stay close to the card's natural
+  // content height or the tiles read as mostly empty.
+  static const double _tileHeight = 82;
+  // Horizontal gap between the two columns (Kotlin `DashboardWidgetGridSpacing`).
   static const double _gap = 12;
-  // Vertical gap between rows — kept small so the taller cards almost touch.
-  static const double _rowGap = 6;
+  // Vertical gap between rows — the same grid spacing.
+  static const double _rowGap = 12;
   // Dragging within this distance of a horizontal edge auto-pages the carousel.
   static const double _edgeScrollThreshold = 56;
   static const Duration _edgeScrollInterval = Duration(milliseconds: 450);
@@ -488,7 +569,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Hold to drag & reorder · tap the eye to hide',
+                    'Hold to drag & reorder · tap ✕ to remove',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -557,6 +638,9 @@ class _MetricCarouselState extends State<_MetricCarousel> {
                 SizedBox(
                   height: _MetricCarousel._tileHeight,
                   child: Row(
+                    // Tiles fill the row height; the default centre alignment
+                    // leaves them shrink-wrapped, with dead space above/below.
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (var col = 0;
                           col < _MetricCarousel._columns;
@@ -613,8 +697,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
       );
     }
 
-    final isHidden = widget.hidden.contains(tile.title);
-    final card = _editCard(context, tile, isHidden);
+    final card = _editCard(context, tile);
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != flatIndex,
       onAcceptWithDetails: (details) =>
@@ -637,7 +720,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
                 color: Colors.transparent,
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
-                child: _editCard(context, tile, isHidden),
+                child: _editCard(context, tile),
               ),
             ),
             childWhenDragging: Opacity(opacity: 0.25, child: card),
@@ -648,42 +731,28 @@ class _MetricCarouselState extends State<_MetricCarousel> {
     );
   }
 
-  Widget _editCard(BuildContext context, StatTileData tile, bool isHidden) {
+  Widget _editCard(BuildContext context, StatTileData tile) {
     return Stack(
       children: [
         Positioned.fill(
-          child: Opacity(
-            opacity: isHidden ? 0.4 : 1.0,
-            child: MetricStatCard(
-              title: tile.title,
-              value: tile.value,
-              unit: tile.unit,
-              icon: tile.icon,
-              accentColor: tile.accent,
-              subtitle: tile.subtitle,
-              message: tile.message,
-              showTitle: tile.showTitle,
-              progress: tile.progress,
-              // No navigation while editing.
-            ),
+          child: MetricStatCard(
+            title: tile.title,
+            value: tile.value,
+            unit: tile.unit,
+            icon: tile.icon,
+            accentColor: tile.accent,
+            subtitle: tile.subtitle,
+            message: tile.message,
+            showTitle: tile.showTitle,
+            progress: tile.progress,
+            // No navigation while editing.
           ),
         ),
         Positioned(
           top: 2,
           right: 2,
-          child: IconButton(
-            visualDensity: VisualDensity.compact,
-            iconSize: 18,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-            tooltip: isHidden ? 'Show' : 'Hide',
-            onPressed: () => widget.onToggleHidden?.call(tile.title),
-            icon: Icon(
-              isHidden
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          child: _RemoveWidgetButton(
+            onPressed: () => widget.onRemove?.call(tile.title),
           ),
         ),
       ],
@@ -691,21 +760,20 @@ class _MetricCarouselState extends State<_MetricCarousel> {
   }
 }
 
-/// Edit-mode hero-ring row: the two [SummaryRingCard]s (Steps / Weekly cardio)
-/// become long-press draggable to swap and carry an eye toggle to hide/show,
+/// Edit-mode hero-ring row: the visible [SummaryRingCard]s (Steps / Weekly
+/// cardio) become long-press draggable to swap and carry a remove button,
 /// mirroring the carousel's edit-mode tiles but for the large square ring cards.
+/// Removed rings move to the [_HiddenWidgetsSection] tray.
 class _HeroRingEditRow extends StatelessWidget {
   const _HeroRingEditRow({
     required this.rings,
-    required this.hidden,
     required this.onReorder,
-    required this.onToggleHidden,
+    required this.onRemove,
   });
 
   final List<RingCardData> rings;
-  final Set<String> hidden;
   final void Function(int from, int to) onReorder;
-  final void Function(String title) onToggleHidden;
+  final void Function(String title) onRemove;
 
   static const double _gap = 12;
 
@@ -729,8 +797,7 @@ class _HeroRingEditRow extends StatelessWidget {
 
   Widget _cell(BuildContext context, int index, double cellWidth) {
     final ring = rings[index];
-    final isHidden = hidden.contains(ring.title);
-    final card = _card(context, ring, isHidden);
+    final card = _card(context, ring);
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != index,
       onAcceptWithDetails: (details) => onReorder(details.data, index),
@@ -747,7 +814,7 @@ class _HeroRingEditRow extends StatelessWidget {
                 color: Colors.transparent,
                 elevation: 8,
                 borderRadius: BorderRadius.circular(24),
-                child: _card(context, ring, isHidden),
+                child: _card(context, ring),
               ),
             ),
             childWhenDragging: Opacity(opacity: 0.25, child: card),
@@ -758,37 +825,21 @@ class _HeroRingEditRow extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, RingCardData ring, bool isHidden) {
+  Widget _card(BuildContext context, RingCardData ring) {
     return Stack(
       children: [
-        Opacity(
-          opacity: isHidden ? 0.4 : 1.0,
-          child: SummaryRingCard(
-            title: ring.title,
-            value: ring.value,
-            subtitle: ring.subtitle,
-            accentColor: ring.accent,
-            progress: ring.progress,
-            // No navigation while editing.
-          ),
+        SummaryRingCard(
+          title: ring.title,
+          value: ring.value,
+          subtitle: ring.subtitle,
+          accentColor: ring.accent,
+          progress: ring.progress,
+          // No navigation while editing.
         ),
         Positioned(
           top: 2,
           right: 2,
-          child: IconButton(
-            visualDensity: VisualDensity.compact,
-            iconSize: 18,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-            tooltip: isHidden ? 'Show' : 'Hide',
-            onPressed: () => onToggleHidden(ring.title),
-            icon: Icon(
-              isHidden
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+          child: _RemoveWidgetButton(onPressed: () => onRemove(ring.title)),
         ),
       ],
     );
