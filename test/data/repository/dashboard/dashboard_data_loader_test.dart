@@ -63,6 +63,32 @@ void main() {
     );
   });
 
+  test('omits permissions the installed provider cannot grant', () async {
+    // The provider does not define WHEELCHAIR_PUSHES (the app's connect-client
+    // is newer than it), and the mindfulness feature is unavailable — the
+    // default feature flags. Neither permission can ever be granted, and
+    // `grantedPermissions()` cannot even report them, so requiring them would
+    // strand the dashboard's permission callout on an ungrantable set.
+    final source = _FakeSource({HcPermissions.readSteps})
+      ..unsupportedPermissions = {HcPermissions.readWheelchairPushes};
+    final loader = DashboardDataLoader(source);
+
+    final data = await loader.loadDashboard(
+      DashboardQuery(
+        date: LocalDate(2026, 1, 2),
+        visibleMetrics: {
+          DashboardMetric.steps,
+          DashboardMetric.wheelchairPushes,
+          DashboardMetric.mindfulness,
+        },
+        includeHistoricalBaselines: false,
+        includeWeeklyTrainingSignals: false,
+      ),
+    );
+
+    expect(data.missingPermissions, isEmpty);
+  });
+
   test('returns empty granted set when Health Connect is unavailable', () async {
     final source = _FakeSource({HcPermissions.readSteps})
       ..cachedAvailability = HealthConnectAvailability.notSupported;

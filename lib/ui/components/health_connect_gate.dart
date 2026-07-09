@@ -8,9 +8,15 @@ import 'ov_card.dart';
 
 /// The current Health Connect / HealthKit availability, resolved from the
 /// platform data source. Overridable in tests.
+///
+/// Goes through [HealthRepository.refreshAvailability] rather than the data
+/// source directly so the optional-feature flags and the provider's supported
+/// permission set are resolved on every launch, not only the one that runs
+/// onboarding. Permission sets are derived from those, so leaving them at their
+/// defaults makes every consumer require permissions the device cannot grant.
 final healthConnectAvailabilityProvider =
     FutureProvider<HealthConnectAvailability>((ref) async {
-  return ref.watch(healthDataSourceProvider).availability();
+  return ref.watch(healthRepositoryProvider).refreshAvailability();
 });
 
 /// The set of currently granted health permissions. Overridable in tests.

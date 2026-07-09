@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -150,12 +152,13 @@ class _DashboardBody extends StatelessWidget {
                   ? _HeroRingEditRow(
                       rings: orderedRings,
                       hidden: state.hiddenTiles,
-                      onReorder: (from, to) {
-                        final ids = [for (final r in orderedRings) r.title];
-                        final moved = ids.removeAt(from);
-                        ids.insert(to > from ? to - 1 : to, moved);
-                        notifier.setRingOrder(ids);
-                      },
+                      onReorder: (from, to) => notifier.setRingOrder(
+                        reorderOntoDropTarget(
+                          [for (final r in orderedRings) r.title],
+                          from,
+                          to,
+                        ),
+                      ),
                       onToggleHidden: (title) => notifier.setTileHidden(
                         title,
                         !state.hiddenTiles.contains(title),
@@ -196,15 +199,17 @@ class _DashboardBody extends StatelessWidget {
             if (state.editing)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: _MetricEditGrid(
+                child: _MetricCarousel(
+                  editing: true,
                   tiles: orderedTiles,
                   hidden: state.hiddenTiles,
-                  onReorder: (from, to) {
-                    final ids = [for (final t in orderedTiles) t.title];
-                    final moved = ids.removeAt(from);
-                    ids.insert(to > from ? to - 1 : to, moved);
-                    notifier.setTileOrder(ids);
-                  },
+                  onReorder: (from, to) => notifier.setTileOrder(
+                    reorderOntoDropTarget(
+                      [for (final t in orderedTiles) t.title],
+                      from,
+                      to,
+                    ),
+                  ),
                   onToggleHidden: (title) => notifier.setTileHidden(
                     title,
                     !state.hiddenTiles.contains(title),
@@ -329,13 +334,32 @@ class _ThinDivider extends StatelessWidget {
   }
 }
 
-/// The paged grid of [MetricStatCard] tiles (3 rows × 2 columns per page) with
-/// centered dot indicators, mirroring the Kotlin `DashboardWidgetCarousel`.
+/// The paged grid of [MetricStatCard] tiles (up to 3 rows × 2 columns per page)
+/// with centered dot indicators — the Flutter analogue of the Kotlin
+/// `DashboardWidgetCarousel`.
+///
+/// In [editing] mode each tile becomes long-press draggable to reorder *within
+/// the carousel itself*: the dragged tile floats under the finger (Flutter's
+/// [LongPressDraggable] `feedback` is the Kotlin drag overlay), dragging near a
+/// horizontal edge auto-pages (the Kotlin edge-scroll loop), and dropping on
+/// another tile reorders across pages. Each tile also carries an eye toggle to
+/// hide/show it. Not editing: plain paged, tappable tiles.
 class _MetricCarousel extends StatefulWidget {
-  const _MetricCarousel({required this.tiles, required this.onOpen});
+  const _MetricCarousel({
+    required this.tiles,
+    this.editing = false,
+    this.hidden = const <String>{},
+    this.onOpen,
+    this.onReorder,
+    this.onToggleHidden,
+  });
 
   final List<StatTileData> tiles;
-  final void Function(String location) onOpen;
+  final bool editing;
+  final Set<String> hidden;
+  final void Function(String location)? onOpen;
+  final void Function(int from, int to)? onReorder;
+  final void Function(String title)? onToggleHidden;
 
   static const int _columns = 2;
   static const int _rowsPerPage = 3;
@@ -345,6 +369,10 @@ class _MetricCarousel extends StatefulWidget {
   static const double _gap = 12;
   // Vertical gap between rows — kept small so the taller cards almost touch.
   static const double _rowGap = 6;
+  // Dragging within this distance of a horizontal edge auto-pages the carousel.
+  static const double _edgeScrollThreshold = 56;
+  static const Duration _edgeScrollInterval = Duration(milliseconds: 450);
+  static const Duration _pageAnimation = Duration(milliseconds: 300);
 
   @override
   State<_MetricCarousel> createState() => _MetricCarouselState();
@@ -352,12 +380,30 @@ class _MetricCarousel extends StatefulWidget {
 
 class _MetricCarouselState extends State<_MetricCarousel> {
   final PageController _controller = PageController();
+  // Measures the pager viewport so drag positions can be tested against its edges.
+  final GlobalKey _pagerKey = GlobalKey();
   int _page = 0;
+  int? _draggingIndex;
+  // Repeats while the drag rests in an edge zone. -1 = left, 1 = right, 0 = idle.
+  Timer? _edgeScrollTimer;
+  int _edgeScrollDirection = 0;
 
   @override
   void dispose() {
+    _edgeScrollTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _stopEdgeScroll() {
+    _edgeScrollTimer?.cancel();
+    _edgeScrollTimer = null;
+    _edgeScrollDirection = 0;
+  }
+
+  void _endDrag() {
+    _stopEdgeScroll();
+    setState(() => _draggingIndex = null);
   }
 
   List<List<StatTileData>> get _pages {
@@ -373,10 +419,57 @@ class _MetricCarouselState extends State<_MetricCarousel> {
     return pages;
   }
 
+  /// Auto-advances the pager while a reorder drag hovers near a horizontal edge,
+  /// one page per [_edgeScrollInterval] — the Flutter equivalent of the Kotlin
+  /// carousel's edge-scroll `LaunchedEffect` loop.
+  ///
+  /// The repeat is driven by a [Timer], not by this callback: `onDragUpdate`
+  /// only fires while the pointer *moves*, so a finger held still at the edge
+  /// would page exactly once and then stall. This only re-arms the timer when
+  /// the edge zone changes, so holding at the edge keeps paging.
+  void _maybeEdgeScroll(Offset globalPosition, int pageCount) {
+    if (pageCount <= 1) {
+      _stopEdgeScroll();
+      return;
+    }
+    final box = _pagerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final left = box.localToGlobal(Offset.zero).dx;
+    final dx = globalPosition.dx - left;
+    final width = box.size.width;
+    final direction = dx <= _MetricCarousel._edgeScrollThreshold
+        ? -1
+        : dx >= width - _MetricCarousel._edgeScrollThreshold
+            ? 1
+            : 0;
+
+    if (direction == _edgeScrollDirection) return;
+    _stopEdgeScroll();
+    if (direction == 0) return;
+
+    _edgeScrollDirection = direction;
+    _advancePage(direction, pageCount);
+    _edgeScrollTimer = Timer.periodic(
+      _MetricCarousel._edgeScrollInterval,
+      (_) => _advancePage(direction, pageCount),
+    );
+  }
+
+  void _advancePage(int direction, int pageCount) {
+    final target = (_page + direction).clamp(0, pageCount - 1);
+    if (target == _page) return;
+    _controller.animateToPage(
+      target,
+      duration: _MetricCarousel._pageAnimation,
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final pages = _pages;
+    if (pages.isEmpty) return const SizedBox.shrink();
     final tilesOnTallestPage =
         widget.tiles.length.clamp(0, _MetricCarousel._perPage);
     final rows = (tilesOnTallestPage / _MetricCarousel._columns).ceil();
@@ -385,16 +478,39 @@ class _MetricCarouselState extends State<_MetricCarousel> {
 
     return Column(
       children: [
+        if (widget.editing)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+              children: [
+                Icon(Icons.drag_indicator,
+                    size: 16, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Hold to drag & reorder · tap the eye to hide',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
         SizedBox(
+          key: _pagerKey,
           height: pageHeight,
           child: PageView.builder(
             controller: _controller,
+            // While dragging, the drag gesture owns the pointer; edge-scroll
+            // drives paging instead of user swipes.
+            physics: _draggingIndex != null
+                ? const NeverScrollableScrollPhysics()
+                : null,
             itemCount: pages.length,
             onPageChanged: (page) => setState(() => _page = page),
-            itemBuilder: (context, index) => _MetricGridPage(
-              tiles: pages[index],
-              onOpen: widget.onOpen,
-            ),
+            itemBuilder: (context, index) => _buildPage(context, index, pages),
           ),
         ),
         if (pages.length > 1)
@@ -410,9 +526,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: i == _page
-                          ? scheme.primary
-                          : scheme.outlineVariant,
+                      color: i == _page ? scheme.primary : scheme.outlineVariant,
                     ),
                   ),
               ],
@@ -421,124 +535,45 @@ class _MetricCarouselState extends State<_MetricCarousel> {
       ],
     );
   }
-}
 
-/// One page of the carousel: up to 3 rows of 2 stat tiles.
-class _MetricGridPage extends StatelessWidget {
-  const _MetricGridPage({required this.tiles, required this.onOpen});
-
-  final List<StatTileData> tiles;
-  final void Function(String location) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = (tiles.length / _MetricCarousel._columns).ceil();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var row = 0; row < rows; row++) ...[
-            if (row > 0) const SizedBox(height: _MetricCarousel._rowGap),
-            SizedBox(
-              height: _MetricCarousel._tileHeight,
-              child: Row(
-                children: [
-                  for (var col = 0; col < _MetricCarousel._columns; col++) ...[
-                    if (col > 0) const SizedBox(width: _MetricCarousel._gap),
-                    Expanded(
-                      child: _tileAt(row * _MetricCarousel._columns + col),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _tileAt(int index) {
-    if (index >= tiles.length) return const SizedBox.shrink();
-    final tile = tiles[index];
-    return MetricStatCard(
-      title: tile.title,
-      value: tile.value,
-      unit: tile.unit,
-      icon: tile.icon,
-      accentColor: tile.accent,
-      subtitle: tile.subtitle,
-      message: tile.message,
-      showTitle: tile.showTitle,
-      progress: tile.progress,
-      onTap: () => onOpen(tile.location),
-    );
-  }
-}
-
-/// Edit-mode metric grid: the same 2-column tile layout, but each tile is
-/// long-press draggable to reorder (custom [LongPressDraggable]/[DragTarget], no
-/// package) and carries an eye toggle to hide/show it. Shows every tile that has
-/// data today (hidden ones dimmed) so the whole layout can be arranged at once.
-class _MetricEditGrid extends StatelessWidget {
-  const _MetricEditGrid({
-    required this.tiles,
-    required this.hidden,
-    required this.onReorder,
-    required this.onToggleHidden,
-  });
-
-  final List<StatTileData> tiles;
-  final Set<String> hidden;
-  final void Function(int from, int to) onReorder;
-  final void Function(String title) onToggleHidden;
-
-  static const int _columns = 2;
-  static const double _gap = 12;
-  static const double _rowGap = 6;
-  static const double _tileHeight = 112;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final rows = (tiles.length / _columns).ceil();
+  Widget _buildPage(
+    BuildContext context,
+    int pageIndex,
+    List<List<StatTileData>> pages,
+  ) {
+    final pageTiles = pages[pageIndex];
+    final rows = (pageTiles.length / _MetricCarousel._columns).ceil();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final cellWidth = (constraints.maxWidth - _gap) / _columns;
+          final cellWidth = (constraints.maxWidth - _MetricCarousel._gap) /
+              _MetricCarousel._columns;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Icon(Icons.drag_indicator,
-                        size: 16, color: scheme.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Hold to drag & reorder · tap the eye to hide',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               for (var row = 0; row < rows; row++) ...[
-                if (row > 0) const SizedBox(height: _rowGap),
+                if (row > 0) const SizedBox(height: _MetricCarousel._rowGap),
                 SizedBox(
-                  height: _tileHeight,
+                  height: _MetricCarousel._tileHeight,
                   child: Row(
                     children: [
-                      for (var col = 0; col < _columns; col++) ...[
-                        if (col > 0) const SizedBox(width: _gap),
+                      for (var col = 0;
+                          col < _MetricCarousel._columns;
+                          col++) ...[
+                        if (col > 0)
+                          const SizedBox(width: _MetricCarousel._gap),
                         Expanded(
-                          child: _cell(context, row * _columns + col, cellWidth),
+                          child: _cell(
+                            context,
+                            localIndex: row * _MetricCarousel._columns + col,
+                            flatIndex: pageIndex * _MetricCarousel._perPage +
+                                row * _MetricCarousel._columns +
+                                col,
+                            pageTiles: pageTiles,
+                            cellWidth: cellWidth,
+                            pageCount: pages.length,
+                          ),
                         ),
                       ],
                     ],
@@ -552,28 +587,57 @@ class _MetricEditGrid extends StatelessWidget {
     );
   }
 
-  Widget _cell(BuildContext context, int index, double cellWidth) {
-    if (index >= tiles.length) return const SizedBox.shrink();
-    final tile = tiles[index];
-    final isHidden = hidden.contains(tile.title);
-    final card = _card(context, tile, isHidden);
+  Widget _cell(
+    BuildContext context, {
+    required int localIndex,
+    required int flatIndex,
+    required List<StatTileData> pageTiles,
+    required double cellWidth,
+    required int pageCount,
+  }) {
+    if (localIndex >= pageTiles.length) return const SizedBox.shrink();
+    final tile = pageTiles[localIndex];
+
+    if (!widget.editing) {
+      return MetricStatCard(
+        title: tile.title,
+        value: tile.value,
+        unit: tile.unit,
+        icon: tile.icon,
+        accentColor: tile.accent,
+        subtitle: tile.subtitle,
+        message: tile.message,
+        showTitle: tile.showTitle,
+        progress: tile.progress,
+        onTap: () => widget.onOpen?.call(tile.location),
+      );
+    }
+
+    final isHidden = widget.hidden.contains(tile.title);
+    final card = _editCard(context, tile, isHidden);
     return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != index,
-      onAcceptWithDetails: (details) => onReorder(details.data, index),
+      onWillAcceptWithDetails: (details) => details.data != flatIndex,
+      onAcceptWithDetails: (details) =>
+          widget.onReorder?.call(details.data, flatIndex),
       builder: (context, candidate, rejected) {
         return AnimatedScale(
           scale: candidate.isNotEmpty ? 1.04 : 1.0,
           duration: const Duration(milliseconds: 120),
           child: LongPressDraggable<int>(
-            data: index,
+            data: flatIndex,
+            onDragStarted: () => setState(() => _draggingIndex = flatIndex),
+            onDragUpdate: (details) =>
+                _maybeEdgeScroll(details.globalPosition, pageCount),
+            onDragEnd: (_) => _endDrag(),
+            onDraggableCanceled: (_, _) => _endDrag(),
             feedback: SizedBox(
               width: cellWidth,
-              height: _tileHeight,
+              height: _MetricCarousel._tileHeight,
               child: Material(
                 color: Colors.transparent,
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
-                child: _card(context, tile, isHidden),
+                child: _editCard(context, tile, isHidden),
               ),
             ),
             childWhenDragging: Opacity(opacity: 0.25, child: card),
@@ -584,7 +648,7 @@ class _MetricEditGrid extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, StatTileData tile, bool isHidden) {
+  Widget _editCard(BuildContext context, StatTileData tile, bool isHidden) {
     return Stack(
       children: [
         Positioned.fill(
@@ -613,7 +677,7 @@ class _MetricEditGrid extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             tooltip: isHidden ? 'Show' : 'Hide',
-            onPressed: () => onToggleHidden(tile.title),
+            onPressed: () => widget.onToggleHidden?.call(tile.title),
             icon: Icon(
               isHidden
                   ? Icons.visibility_off_outlined
@@ -629,7 +693,7 @@ class _MetricEditGrid extends StatelessWidget {
 
 /// Edit-mode hero-ring row: the two [SummaryRingCard]s (Steps / Weekly cardio)
 /// become long-press draggable to swap and carry an eye toggle to hide/show,
-/// mirroring [_MetricEditGrid] but for the large square ring cards.
+/// mirroring the carousel's edit-mode tiles but for the large square ring cards.
 class _HeroRingEditRow extends StatelessWidget {
   const _HeroRingEditRow({
     required this.rings,

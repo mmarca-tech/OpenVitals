@@ -56,4 +56,29 @@ void main() {
       expect(_titles(out), ['C', 'B', 'D']);
     });
   });
+
+  group('reorderOntoDropTarget', () {
+    const ids = ['1', '2', '3', '4'];
+
+    test('forward drag lands the moved card on the drop target', () {
+      // Drag card 1 onto card 4: card 1 takes card 4's slot, and only the cards
+      // between them shift left. Card 4 must not keep its position.
+      expect(reorderOntoDropTarget(ids, 0, 3), ['2', '3', '4', '1']);
+    });
+
+    test('backward drag lands the moved card on the drop target', () {
+      expect(reorderOntoDropTarget(ids, 3, 0), ['4', '1', '2', '3']);
+    });
+
+    test('adjacent drags swap neighbours', () {
+      expect(reorderOntoDropTarget(ids, 1, 2), ['1', '3', '2', '4']);
+      expect(reorderOntoDropTarget(ids, 2, 1), ['1', '3', '2', '4']);
+    });
+
+    test('dropping onto itself or out of range leaves the order untouched', () {
+      expect(reorderOntoDropTarget(ids, 2, 2), ids);
+      expect(reorderOntoDropTarget(ids, 0, 4), ids);
+      expect(reorderOntoDropTarget(ids, -1, 2), ids);
+    });
+  });
 }

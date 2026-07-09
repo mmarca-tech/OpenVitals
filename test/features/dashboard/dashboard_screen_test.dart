@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,10 +66,31 @@ DashboardData _sampleData(DashboardQuery query, {Set<String> missing = const {}}
   );
 }
 
+/// Enough populated metrics to fill at least three carousel pages (6 tiles per
+/// page), so an edge-scroll drag has somewhere to go twice.
+DashboardData _threePageData(DashboardQuery query) {
+  return _sampleData(query).copyWith(
+    activeCaloriesKcal: 320,
+    floorsClimbed: 12,
+    elevationGainedMeters: 140,
+    carbsGrams: 210,
+    fatGrams: 60,
+    latestSystolicMmHg: 118,
+    latestDiastolicMmHg: 76,
+    latestSpO2Percent: 97,
+    latestVo2Max: 44,
+    avgRespiratoryRate: 14,
+    latestBodyTemperatureCelsius: 36.7,
+    hrvRmssdMs: 42,
+    hrvSampleCount: 30,
+  );
+}
+
 Future<Widget> _bootstrap({
   required HealthConnectAvailability availability,
   Set<String> granted = const <String>{},
   Set<String> missing = const <String>{},
+  DashboardData Function(DashboardQuery query)? dataBuilder,
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
@@ -81,7 +103,9 @@ Future<Widget> _bootstrap({
       healthConnectAvailabilityProvider.overrideWith((ref) async => availability),
       grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
       loadDashboardDayUseCaseProvider.overrideWithValue(
-        _FakeUseCase((query) => _sampleData(query, missing: missing)),
+        _FakeUseCase(
+          dataBuilder ?? (query) => _sampleData(query, missing: missing),
+        ),
       ),
     ],
     child: const MaterialApp(
@@ -129,6 +153,59 @@ void main() {
     expect(find.text('Today'), findsOneWidget);
   });
 
+  testWidgets('edge-scroll keeps paging while a drag is held at the edge',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(
+        availability: HealthConnectAvailability.available,
+        dataBuilder: _threePageData,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+
+    final pager = find.byType(PageView);
+    int currentPage() =>
+        tester.widget<PageView>(pager).controller!.page!.round();
+    expect(currentPage(), 0);
+
+    // Three pages of tiles, so the drag has somewhere to go twice.
+    expect(tester.widget<PageView>(pager).childrenDelegate.estimatedChildCount,
+        greaterThanOrEqualTo(3));
+
+    // Long-press a carousel tile (not a hero ring), then drag it into the
+    // right-hand edge zone.
+    final gesture = await tester.startGesture(
+      tester.getCenter(
+        find
+            .descendant(
+              of: pager,
+              matching: find.byType(LongPressDraggable<int>),
+            )
+            .first,
+      ),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    final rect = tester.getRect(pager);
+    await gesture.moveTo(Offset(rect.right - 8, rect.center.dy));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(currentPage(), 1);
+
+    // Hold still at the edge. `onDragUpdate` no longer fires, so only the
+    // repeating timer can advance the pager — this is the regression: paging
+    // used to stall here after the first page.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(currentPage(), 2);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('edit mode enters/exits and reorder+hide render without error',
       (tester) async {
     _usePhoneViewport(tester);
@@ -143,6 +220,14 @@ void main() {
     expect(tester.takeException(), isNull);
     // Eye toggles appear on both rings + tiles.
     expect(find.byIcon(Icons.visibility_outlined), findsWidgets);
+    // Edit mode reorders in the carousel itself (not a separate flat grid): the
+    // paged carousel is present and its tiles are long-press draggable.
+    expect(
+      find.text('Hold to drag & reorder · tap the eye to hide'),
+      findsOneWidget,
+    );
+    expect(find.byType(PageView), findsOneWidget);
+    expect(find.byType(LongPressDraggable<int>), findsWidgets);
 
     // Hide a tile via its eye toggle.
     await tester.tap(find.byIcon(Icons.visibility_outlined).first);

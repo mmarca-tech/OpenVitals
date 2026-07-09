@@ -619,7 +619,12 @@ class DashboardDataLoader {
           },
       });
     }
-    return result;
+    // `grantedPermissions()` only ever reports permissions inside
+    // `managedPermissions`, which is feature-gated and has the provider's
+    // unsupported permissions subtracted. Anything outside it can never be
+    // reported as granted nor meaningfully requested, so keeping it here would
+    // strand the permission callout on a set the user cannot grant.
+    return result.intersection(_hc.permissionService.managedPermissions);
   }
 
   double? _bmi(double? weightKg, double? heightCm) {

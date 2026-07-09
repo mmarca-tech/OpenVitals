@@ -195,7 +195,12 @@ class DashboardNotifier extends Notifier<DashboardState> {
     final repo = ref.read(healthRepositoryProvider);
     final useCase = ref.read(loadDashboardDayUseCaseProvider);
 
-    final availability = repo.availability();
+    // Awaits the resolved availability rather than `repo.availability()`, whose
+    // cached value is still `notSupported` on the first load of a cold start.
+    // Reading it too early yields an empty granted set, which would surface the
+    // whole dashboard permission set as missing.
+    final availability = await ref.read(healthConnectAvailabilityProvider.future);
+    if (!ref.mounted || generation != _generation) return;
     final granted = availability == HealthConnectAvailability.available
         ? await repo.grantedPermissions()
         : const <String>{};
