@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/domain/model/activity_models.dart';
 import 'package:openvitals/features/activity/maps/route_map_view.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 
 /// A tile provider that never touches the network: it returns a 1x1
 /// transparent PNG so widget tests can pump [RouteMapView] without fetching
@@ -87,6 +88,89 @@ void main() {
     // attempts a network fetch without the INTERNET permission).
     expect(find.byType(TileLayer), findsNothing);
     expect(find.byType(PolylineLayer), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows no recenter control by default', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: RouteMapView(
+              points: [
+                point(52.5200, 13.4050, 0),
+                point(52.5210, 13.4075, 20),
+              ],
+              tileProvider: _TransparentTileProvider(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byIcon(Icons.my_location_outlined), findsNothing);
+  });
+
+  testWidgets('recenter control re-fits the camera to the route bounds',
+      (tester) async {
+    final points = [
+      point(52.5200, 13.4050, 0),
+      point(52.5205, 13.4062, 10),
+      point(52.5210, 13.4075, 20),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: RouteMapView(
+              points: points,
+              currentPoint: points.last,
+              showRecenterControl: true,
+              tileProvider: _TransparentTileProvider(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final recenterButton = find.byIcon(Icons.my_location_outlined);
+    expect(recenterButton, findsOneWidget);
+
+    await tester.tap(recenterButton);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('recenter control handles a single-point route', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: RouteMapView(
+              points: [point(52.5200, 13.4050, 0)],
+              showRecenterControl: true,
+              tileProvider: _TransparentTileProvider(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.my_location_outlined));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 

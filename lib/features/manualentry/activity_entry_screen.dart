@@ -13,7 +13,9 @@ import 'activity/activity_entry_notifier.dart';
 import 'activity/activity_entry_providers.dart';
 import 'activity/activity_entry_source_card.dart';
 import 'activity/activity_entry_state.dart';
-import 'activity/activity_entry_ui_text.dart';
+import 'activity/recording/activity_recording_device_support.dart';
+import 'activity/recording/activity_recording_screen.dart';
+import 'activity/recording/activity_recording_setup_screen.dart';
 import 'activity/routeimport/activity_route_import_types.dart';
 import 'activity/activity_plan_picker_cards.dart';
 import 'activity/recording/activity_recording.dart';
@@ -116,9 +118,14 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
       case ActivityEntrySourceAction.importRouteFile:
         await _importRouteFile();
       case ActivityEntrySourceAction.recordGps:
-        // The runtime location / notification / activity-recognition prompts
-        // Kotlin launches here belong with the recording pass; the controller
-        // reports whichever permission is missing once it tries to start.
+        // Kotlin asks for POST_NOTIFICATIONS before opening the recorder: the
+        // session runs in a foreground service, which cannot start without it.
+        final support = ref.read(activityRecordingDeviceSupportProvider);
+        if (!await support.hasNotificationPermission() &&
+            !await support.requestNotificationPermission()) {
+          _controller.reportNotificationPermissionNeeded();
+          return;
+        }
         _controller.prepareGpsRecording();
     }
   }
@@ -152,6 +159,28 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
     _controller.refreshPermission();
   }
 
+  /// Kotlin `requestGpsLocationPermissions`: report the need only if refused.
+  Future<void> _requestLocationPermission() async {
+    final support = ref.read(activityRecordingDeviceSupportProvider);
+    if (await support.requestPreciseLocationPermission()) {
+      // The setup screen's fix stream keys off the permission, so restart it.
+      ref.invalidate(preRecordingGpsFixProvider);
+      return;
+    }
+    _controller.reportLocationPermissionNeeded();
+  }
+
+  /// Kotlin `requestActivityRecognitionPermission`.
+  Future<void> _requestActivityRecognitionPermission() async {
+    final support = ref.read(activityRecordingDeviceSupportProvider);
+    if (await support.requestActivityRecognitionPermission()) {
+      ref.invalidate(recordingSensorReadinessProvider);
+      _controller.openRecordingDashboard();
+      return;
+    }
+    _controller.reportActivityRecognitionPermissionNeeded();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -183,7 +212,15 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
   Widget _content(ActivityEntryUiState state, UnitFormatter formatter) {
     switch (state.mode) {
       case ActivityEntryFormMode.recording:
-        return _ActivityRecordingPlaceholder(controller: _controller, state: state);
+        return _ActivityEntryRecordingContent(
+          controller: _controller,
+          state: state,
+          unitFormatter: formatter,
+          onRequestLocationPermission: _requestLocationPermission,
+          onRequestActivityRecognitionPermission:
+              _requestActivityRecognitionPermission,
+          onRequestWritePermission: _requestWritePermission,
+        );
       case ActivityEntryFormMode.chooseSource:
         return ActivityEntrySourceCard(
           state: state,
@@ -251,98 +288,105 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
   }
 }
 
-/// Stands in for the Kotlin `ActivityRecordingSetupScreen` + recording
-/// dashboard, which are a separate port (setup, live dashboard, GPS tabs,
-/// splits, focus mode). It exposes the recording controller's start / pause /
-/// finish / discard so a recording started here still produces an entry, but it
-/// is deliberately not a parity UI.
-class _ActivityRecordingPlaceholder extends ConsumerWidget {
-  const _ActivityRecordingPlaceholder({
+/// Port of the Kotlin `ActivityEntryRecordingContent`: the setup card until the
+/// recorder has an activity prepared, then the live recording screen.
+class _ActivityEntryRecordingContent extends ConsumerWidget {
+  const _ActivityEntryRecordingContent({
     required this.controller,
     required this.state,
+    required this.unitFormatter,
+    required this.onRequestLocationPermission,
+    required this.onRequestActivityRecognitionPermission,
+    required this.onRequestWritePermission,
   });
 
   final ActivityEntryController controller;
   final ActivityEntryUiState state;
+  final UnitFormatter unitFormatter;
+  final VoidCallback onRequestLocationPermission;
+  final VoidCallback onRequestActivityRecognitionPermission;
+  final VoidCallback onRequestWritePermission;
+
+  /// The recording runs in a foreground service, which cannot post its
+  /// notification without POST_NOTIFICATIONS. Kotlin only asks on the way in
+  /// from the source card, so a session launched from the dashboard's "Start
+  /// workout" never gets asked; checking here covers both entry points.
+  Future<void> _startRecording(
+    WidgetRef ref,
+    ActivityEntryController controller, {
+    required ActivityRecordingInitialFix? initialFix,
+    required int restSeconds,
+  }) async {
+    final support = ref.read(activityRecordingDeviceSupportProvider);
+    if (!await support.hasNotificationPermission() &&
+        !await support.requestNotificationPermission()) {
+      controller.reportNotificationPermissionNeeded();
+      return;
+    }
+    controller.startGpsRecording(
+      initialFix: initialFix,
+      repetitionRestSeconds: restSeconds,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
     final recorder = controller.activityRecorder;
     if (recorder == null) return const SizedBox.shrink();
 
     return ValueListenableBuilder<ActivityRecordingState>(
       valueListenable: recorder.state,
-      builder: (context, recording, _) {
-        final isActive = recording.isActive;
-        final isPaused = recording.status == ActivityRecordingStatus.paused;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: [
-            Text(l10n.activityEntryRecordingTitle,
-                style: theme.textTheme.titleMedium),
-            Text(state.selectedActivityType.label,
-                style: theme.textTheme.bodyMedium),
-            Text(
-              l10n.activityEntryRecordingReadyBody,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      builder: (context, recordingState, _) {
+        // Kotlin's `isRecordingDashboardVisible`: the dashboard replaces the
+        // setup card once a session is live or an activity has been prepared.
+        final showDashboard =
+            recordingState.isActive || recordingState.activityTypeId != null;
+        if (!showDashboard) {
+          return ActivityRecordingSetupScreen(
+            state: state,
+            recordingState: recordingState,
+            unitFormatter: unitFormatter,
+            onSelectActivityType: controller.selectActivityType,
+            // Kotlin's setup Start begins the session immediately, handing the
+            // pre-start fix over as the first route point.
+            onStartRecording: (initialFix, restSeconds) => _startRecording(
+              ref,
+              controller,
+              initialFix: initialFix,
+              restSeconds: restSeconds,
             ),
-            Text(
-              '${l10n.activityEntryRecordingDistance}: '
-              '${(recording.distanceMeters / 1000).toStringAsFixed(2)} km',
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (recording.errorMessage != null)
-              Text(
-                recording.errorMessage!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
-              ),
-            if (!isActive)
-              FilledButton.icon(
-                onPressed: controller.startGpsRecording,
-                icon: const Icon(Icons.play_arrow),
-                label: Text(l10n.activityEntryRecordGps),
-              )
-            else ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isPaused
-                          ? controller.resumeGpsRecording
-                          : controller.pauseGpsRecording,
-                      child: Text(isPaused
-                          ? l10n.activityEntryRecordingActive
-                          : l10n.activityEntryRecordingPaused),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => controller
-                          .finishGpsRecording(ref.read(unitSystemProvider)),
-                      child: Text(l10n.activityEntryRecordingEndSession),
-                    ),
-                  ),
-                ],
-              ),
-              OutlinedButton(
-                onPressed: controller.discardGpsRecording,
-                child: Text(l10n.actionDiscard),
-              ),
-            ],
-            if (!isActive)
-              OutlinedButton.icon(
-                onPressed: controller.chooseSource,
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: Text(l10n.activityEntryChooseAnotherSource),
-              ),
-            ActivityEntryErrorText(state: state),
-          ],
+            onRequestLocationPermission: onRequestLocationPermission,
+            onRequestActivityRecognitionPermission:
+                onRequestActivityRecognitionPermission,
+            onChooseSource: controller.chooseSource,
+            onRequestWritePermission: onRequestWritePermission,
+          );
+        }
+
+        return SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.82,
+          child: ActivityRecordingScreen(
+            state: recordingState,
+            unitFormatter: unitFormatter,
+            onStartRecording: (initialFix) =>
+                controller.startGpsRecording(initialFix: initialFix),
+            onPauseRecording: controller.pauseGpsRecording,
+            onResumeRecording: controller.resumeGpsRecording,
+            onAddLap: controller.addRecordingLap,
+            onAddMarker: controller.addRecordingMarker,
+            onUpdateMarker: controller.updateRecordingMarker,
+            onDeleteMarker: controller.deleteRecordingMarker,
+            onUpdateDashboardLayout: controller.updateRecordingDashboardLayout,
+            onChooseSource: controller.chooseSource,
+            onAdjustRepetitionCount: controller.adjustRepetitionRecording,
+            onEndRepetitionSet: controller.endRepetitionSet,
+            onStartNextRepetitionSet: controller.startNextRepetitionSet,
+            onFinishRecording: () =>
+                controller.finishGpsRecording(ref.read(unitSystemProvider)),
+            // Kotlin threads the theme-mode preference through so the outdoor
+            // high-contrast theme can pick its light or dark scheme.
+            appThemeMode: ref.watch(appThemeModeProvider),
+          ),
         );
       },
     );

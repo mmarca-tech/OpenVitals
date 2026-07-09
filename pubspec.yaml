@@ -78,6 +78,14 @@ dependencies:
   flutter_timezone: ^5.1.0
   audioplayers: ^6.8.1
   file_selector: ^1.1.0
+  # Keeps the screen on while an activity recording is live (Kotlin
+  # `view.keepScreenOn`). 1.6.x pulls package_info_plus 10, which does not
+  # apply the Kotlin Gradle plugin and breaks this AGP 9 build with
+  # "cannot find symbol" in GeneratedPluginRegistrant.
+  wakelock_plus: ^1.5.0
+  # Not used directly: pins wakelock_plus's transitive dependency to the 9.x
+  # line that still compiles its Kotlin under AGP 9 (see wakelock_plus above).
+  package_info_plus: ^9.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

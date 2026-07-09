@@ -2,6 +2,79 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
+/// One customizable widget in edit mode: long-press to pick it up, drop it on
+/// another to take that one's place.
+///
+/// Shared by the dashboard summary carousel, the dashboard hero rings, the
+/// add-entry hub and the activity-recording dashboard, so a drag feels the same
+/// everywhere. Pair the reported `(from, to)` with [reorderOntoDropTarget] —
+/// [to] is the *target's own index*, not an insertion gap.
+class ReorderableEditTile extends StatelessWidget {
+  const ReorderableEditTile({
+    super.key,
+    required this.index,
+    required this.onReorder,
+    required this.feedbackSize,
+    required this.child,
+    this.feedbackBorderRadius = const BorderRadius.all(Radius.circular(20)),
+    this.highlightScale = 1.04,
+    this.onDragStarted,
+    this.onDragUpdate,
+    this.onDragEnd,
+  });
+
+  /// This tile's position in the list being reordered.
+  final int index;
+
+  /// Called with the dragged tile's index and this tile's index.
+  final void Function(int from, int to) onReorder;
+
+  /// The size of the card that follows the finger.
+  final Size feedbackSize;
+  final BorderRadius feedbackBorderRadius;
+
+  /// How much a tile swells when a drag hovers over it.
+  final double highlightScale;
+
+  /// Hooks for a host that scrolls or pages while a drag is in flight.
+  final VoidCallback? onDragStarted;
+  final ValueChanged<DragUpdateDetails>? onDragUpdate;
+  final VoidCallback? onDragEnd;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) => onReorder(details.data, index),
+      builder: (context, candidate, rejected) => AnimatedScale(
+        scale: candidate.isNotEmpty ? highlightScale : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: LongPressDraggable<int>(
+          data: index,
+          onDragStarted: onDragStarted,
+          onDragUpdate: onDragUpdate,
+          onDragEnd: onDragEnd == null ? null : (_) => onDragEnd!(),
+          onDraggableCanceled:
+              onDragEnd == null ? null : (_, _) => onDragEnd!(),
+          feedback: SizedBox.fromSize(
+            size: feedbackSize,
+            child: Material(
+              color: Colors.transparent,
+              elevation: 8,
+              borderRadius: feedbackBorderRadius,
+              child: child,
+            ),
+          ),
+          childWhenDragging: Opacity(opacity: 0.25, child: child),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 /// The ✕ overlaid on a customizable widget in edit mode, which removes it from
 /// the screen. Port of the Kotlin `onRemove` affordance; shared by the dashboard
 /// summary and the add-entry hub.
@@ -37,11 +110,16 @@ class HiddenWidgetsSection extends StatelessWidget {
     required this.titles,
     required this.onAdd,
     this.padding = const EdgeInsets.fromLTRB(16, 20, 16, 0),
+    this.heading,
   });
 
   final List<String> titles;
   final void Function(String title) onAdd;
   final EdgeInsetsGeometry padding;
+
+  /// Overrides the "Add widgets" heading. The recording dashboard names the
+  /// same affordance "Add widget".
+  final String? heading;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +131,7 @@ class HiddenWidgetsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            l10n.dashboardAddWidgets,
+            heading ?? l10n.dashboardAddWidgets,
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               letterSpacing: 1,

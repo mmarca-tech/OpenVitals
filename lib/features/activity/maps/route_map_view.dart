@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../domain/model/activity_models.dart';
+import '../../../l10n/app_localizations.dart';
 import 'route_geometry.dart';
 
 /// Renders a workout GPS route on a [FlutterMap], replacing the Kotlin
@@ -33,12 +34,19 @@ class RouteMapView extends StatefulWidget {
     this.height = 240,
     this.tileProvider,
     this.urlTemplate,
+    this.showRecenterControl = false,
   });
 
   final List<ExerciseRoutePoint> points;
   final List<int> routeBreakIndexes;
   final ExerciseRoutePoint? currentPoint;
   final double height;
+
+  /// Kotlin `showRecenterControl`: overlays a circular button (bottom-end)
+  /// that re-fits the camera to the current route bounds — the initial camera
+  /// fit only happens once, so during a live recording the user can pan/zoom
+  /// away (or the track can outgrow the viewport) and jump back with one tap.
+  final bool showRecenterControl;
 
   /// Offline tile source (e.g. an imported MBTiles/PMTiles pack). When null (and
   /// [urlTemplate] is null) no base-map tiles are drawn. Tests pass a
@@ -63,6 +71,36 @@ class RouteMapView extends StatefulWidget {
 }
 
 class _RouteMapViewState extends State<RouteMapView> {
+  final MapController _mapController = MapController();
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  /// Kotlin `OfflineRouteMapRenderState.recenter` / `fitCamera`: re-fit the
+  /// camera to the current route + current-location point.
+  void _recenter(RouteBounds? bounds) {
+    if (bounds == null) return;
+    if (bounds.isSinglePoint) {
+      _mapController.move(
+        LatLng(bounds.centerLatitude, bounds.centerLongitude),
+        15.5,
+      );
+      return;
+    }
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds(
+          LatLng(bounds.minLatitude, bounds.minLongitude),
+          LatLng(bounds.maxLatitude, bounds.maxLongitude),
+        ),
+        padding: const EdgeInsets.all(32),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final segments = routeSegments(widget.points, widget.routeBreakIndexes)
@@ -82,31 +120,53 @@ class _RouteMapViewState extends State<RouteMapView> {
     final hasTileSource =
         widget.tileProvider != null || widget.urlTemplate != null;
 
+    final scheme = Theme.of(context).colorScheme;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
         height: widget.height,
-        child: FlutterMap(
-          options: _mapOptions(bounds),
+        child: Stack(
           children: [
-            if (hasTileSource)
-              TileLayer(
-                urlTemplate: widget.urlTemplate,
-                userAgentPackageName: 'tech.mmarca.openvitals',
-                tileProvider: widget.tileProvider,
+            FlutterMap(
+              mapController: _mapController,
+              options: _mapOptions(bounds),
+              children: [
+                if (hasTileSource)
+                  TileLayer(
+                    urlTemplate: widget.urlTemplate,
+                    userAgentPackageName: 'tech.mmarca.openvitals',
+                    tileProvider: widget.tileProvider,
+                  ),
+                if (segments.isNotEmpty)
+                  PolylineLayer(
+                    polylines: [
+                      for (final segment in segments)
+                        Polyline(
+                          points: segment,
+                          color: RouteMapView._routeColor,
+                          strokeWidth: 4,
+                        ),
+                    ],
+                  ),
+                MarkerLayer(markers: _markers()),
+              ],
+            ),
+            // Kotlin: a circular MyLocation FAB aligned bottom-end, 12dp in.
+            if (widget.showRecenterControl)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: IconButton(
+                  onPressed: () => _recenter(bounds),
+                  tooltip: AppLocalizations.of(context).cdRecenterMap,
+                  icon: const Icon(Icons.my_location_outlined),
+                  style: IconButton.styleFrom(
+                    backgroundColor: scheme.surfaceContainerHigh,
+                    foregroundColor: scheme.primary,
+                  ),
+                ),
               ),
-            if (segments.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  for (final segment in segments)
-                    Polyline(
-                      points: segment,
-                      color: RouteMapView._routeColor,
-                      strokeWidth: 4,
-                    ),
-                ],
-              ),
-            MarkerLayer(markers: _markers()),
           ],
         ),
       ),

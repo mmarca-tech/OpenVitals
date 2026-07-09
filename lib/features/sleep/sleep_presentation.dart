@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../../core/period/period_calculations.dart';
 import '../../core/period/time_range.dart';
 import '../../core/time/local_date.dart';
+import '../../domain/insights/cross_metric_insights.dart';
 import '../../domain/insights/sleep_score.dart';
 import '../../domain/model/sleep_daily_summary.dart';
 import '../../domain/model/sleep_models.dart';
@@ -64,14 +65,31 @@ class SleepDisplay {
     required this.dailySummary,
     required this.durationPoints,
     required this.previousDurationPoints,
+    required this.baselineDurationPoints,
     required this.overviewSummary,
+    required this.sessionsByDate,
+    required this.crossMetricHrvValues,
   });
 
   final List<SleepData> dailySessions;
   final SleepData? dailySummary;
   final List<SleepDurationPoint> durationPoints;
   final List<SleepDurationPoint> previousDurationPoints;
+
+  /// The 90 days before the period, for the personal-baseline stats.
+  final List<SleepDurationPoint> baselineDurationPoints;
   final SleepOverviewSummary overviewSummary;
+
+  /// The sessions of each night in the period, keyed by the night's date. The
+  /// entries list flattens it; the selected-day section reads one key.
+  final Map<LocalDate, List<SleepData>> sessionsByDate;
+
+  /// Every session inside the selected period, newest night last.
+  List<SleepData> get periodSessions =>
+      [for (final sessions in sessionsByDate.values) ...sessions];
+
+  /// Daily HRV over the same period, for the sleep-vs-HRV correlation.
+  final List<CrossMetricValue> crossMetricHrvValues;
 }
 
 const int _minutesPerDay = 24 * 60;
@@ -136,12 +154,28 @@ SleepDisplay buildSleepDisplay({
     sleepRangeMode,
   );
 
+  final baselineDurationPoints = _sleepDurationPoints(
+    result.baselineSessions,
+    result.baselineDailyDurations,
+    baselinePeriodBefore(selectedPeriod),
+    sleepRangeMode,
+  );
+
   return SleepDisplay(
     dailySessions: dailySessions,
     dailySummary: dailySummary,
     durationPoints: durationPoints,
     previousDurationPoints: previousDurationPoints,
+    baselineDurationPoints: baselineDurationPoints,
     overviewSummary: _overviewSummary(overviewDays),
+    sessionsByDate: {
+      for (final date in _datesInPeriod(selectedPeriod.start, selectedPeriod.end))
+        date: sleepSessionsForRange(result.sessions, date, sleepRangeMode),
+    },
+    crossMetricHrvValues: [
+      for (final hrv in result.crossDailyHrv)
+        CrossMetricValue(date: hrv.date, value: hrv.rmssdMs),
+    ],
   );
 }
 

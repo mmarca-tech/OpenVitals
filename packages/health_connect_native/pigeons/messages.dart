@@ -632,6 +632,108 @@ class SpeedSampleMsg {
   SpeedSampleMsg(this.timeEpochMs, this.metersPerSecond, this.source);
 }
 
+/// One cadence sample. [isCycling] tells apart a `CyclingPedalingCadenceRecord`
+/// (revolutions per minute) from a `StepsCadenceRecord` (steps per minute) —
+/// the two share a shape but not a unit.
+class ActivityCadenceSampleMsg {
+  final int timeEpochMs;
+  final double rate;
+  final bool isCycling;
+  final String source;
+  ActivityCadenceSampleMsg(
+    this.timeEpochMs,
+    this.rate,
+    this.isCycling,
+    this.source,
+  );
+}
+
+// ── Planned exercise sessions ────────────────────────────────────────────────
+
+/// Which `ExerciseCompletionGoal` a planned step carries. Health Connect models
+/// a handful more; anything the app does not understand arrives as [unknown]
+/// and is written back as manual completion.
+enum PlannedExerciseCompletionKindMsg {
+  repetitions,
+  durationSeconds,
+  manual,
+  unknown,
+}
+
+class PlannedExerciseStepMsg {
+  final int exerciseType;
+  final int exercisePhase;
+  final String? description;
+  final PlannedExerciseCompletionKindMsg completionKind;
+
+  /// Set only when [completionKind] is `repetitions`.
+  final int? completionRepetitions;
+
+  /// Set only when [completionKind] is `durationSeconds`.
+  final int? completionSeconds;
+  PlannedExerciseStepMsg(
+    this.exerciseType,
+    this.exercisePhase,
+    this.description,
+    this.completionKind,
+    this.completionRepetitions,
+    this.completionSeconds,
+  );
+}
+
+class PlannedExerciseBlockMsg {
+  final int repetitions;
+  final String? description;
+  final List<PlannedExerciseStepMsg> steps;
+  PlannedExerciseBlockMsg(this.repetitions, this.description, this.steps);
+}
+
+class PlannedExerciseSessionMsg {
+  final String id;
+  final String? title;
+  final int exerciseType;
+  final int startEpochMs;
+  final int endEpochMs;
+  final bool hasExplicitTime;
+  final String? completedExerciseSessionId;
+  final String? notes;
+  final String source;
+  final List<PlannedExerciseBlockMsg> blocks;
+  PlannedExerciseSessionMsg(
+    this.id,
+    this.title,
+    this.exerciseType,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.hasExplicitTime,
+    this.completedExerciseSessionId,
+    this.notes,
+    this.source,
+    this.blocks,
+  );
+}
+
+class PlannedExerciseWriteRequestMsg {
+  /// When set, the existing plan is deleted and replaced (Health Connect has no
+  /// in-place update for planned sessions).
+  final String? id;
+  final int exerciseType;
+  final int startEpochMs;
+  final int endEpochMs;
+  final String? title;
+  final String? notes;
+  final List<PlannedExerciseBlockMsg> blocks;
+  PlannedExerciseWriteRequestMsg(
+    this.id,
+    this.exerciseType,
+    this.startEpochMs,
+    this.endEpochMs,
+    this.title,
+    this.notes,
+    this.blocks,
+  );
+}
+
 // ── Apple Health import (Phase 9) ────────────────────────────────────────────
 
 class ImportSampleMsg {
@@ -681,6 +783,64 @@ class ImportRecordMsg {
   );
 }
 
+class ActivityPauseIntervalMsg {
+  final int startEpochMs;
+  final int endEpochMs;
+  ActivityPauseIntervalMsg(this.startEpochMs, this.endEpochMs);
+}
+
+class BleHeartRateSampleMsg {
+  final int timeEpochMs;
+  final int beatsPerMinute;
+  BleHeartRateSampleMsg(this.timeEpochMs, this.beatsPerMinute);
+}
+
+class BlePowerSampleMsg {
+  final int timeEpochMs;
+  final double watts;
+  BlePowerSampleMsg(this.timeEpochMs, this.watts);
+}
+
+class BleCyclingCadenceSampleMsg {
+  final int timeEpochMs;
+  final int rpm;
+  BleCyclingCadenceSampleMsg(this.timeEpochMs, this.rpm);
+}
+
+class BleSpeedSampleMsg {
+  final int timeEpochMs;
+  final double metersPerSecond;
+
+  /// Running speed and cycling speed are written as separate `SpeedRecord`s
+  /// (clientRecordId kinds `running_speed` vs `speed`), mirroring the Kotlin
+  /// `BleSpeedSample.isRunning` split.
+  final bool isRunning;
+  BleSpeedSampleMsg(this.timeEpochMs, this.metersPerSecond, this.isRunning);
+}
+
+class BleStepsCadenceSampleMsg {
+  final int timeEpochMs;
+  final int stepsPerMinute;
+  BleStepsCadenceSampleMsg(this.timeEpochMs, this.stepsPerMinute);
+}
+
+/// Recorded BLE sensor series captured during an activity recording; mirrors
+/// the Dart/Kotlin `BleRecordingSampleBuffer`.
+class ActivityBleSamplesMsg {
+  final List<BleHeartRateSampleMsg> heartRateSamples;
+  final List<BlePowerSampleMsg> powerSamples;
+  final List<BleCyclingCadenceSampleMsg> cyclingCadenceSamples;
+  final List<BleSpeedSampleMsg> speedSamples;
+  final List<BleStepsCadenceSampleMsg> stepsCadenceSamples;
+  ActivityBleSamplesMsg(
+    this.heartRateSamples,
+    this.powerSamples,
+    this.cyclingCadenceSamples,
+    this.speedSamples,
+    this.stepsCadenceSamples,
+  );
+}
+
 class ActivityWriteRequestMsg {
   final int exerciseType;
   final int startEpochMs;
@@ -691,6 +851,23 @@ class ActivityWriteRequestMsg {
   final List<ExerciseSegmentMsg> segments;
   final List<ExerciseLapMsg> laps;
   final List<ExerciseRoutePointMsg> routePoints;
+
+  /// Pauses recorded during a live recording. When [segments] is empty the
+  /// native side synthesizes active + PAUSE `ExerciseSegment`s from these.
+  final List<ActivityPauseIntervalMsg>? pauseIntervals;
+
+  /// Session totals written as standalone records alongside the session
+  /// (DistanceRecord, ElevationGainedRecord, ActiveCaloriesBurnedRecord,
+  /// TotalCaloriesBurnedRecord, StepsRecord). All canonical units.
+  final int? stepsCount;
+  final double? distanceMeters;
+  final double? elevationGainedMeters;
+  final double? activeCaloriesKcal;
+  final double? totalCaloriesKcal;
+
+  /// Recorded BLE sensor series written as sample-series records
+  /// (HeartRate/Power/CyclingPedalingCadence/Speed/StepsCadence).
+  final ActivityBleSamplesMsg? bleSamples;
   ActivityWriteRequestMsg(
     this.exerciseType,
     this.startEpochMs,
@@ -701,6 +878,13 @@ class ActivityWriteRequestMsg {
     this.segments,
     this.laps,
     this.routePoints,
+    this.pauseIntervals,
+    this.stepsCount,
+    this.distanceMeters,
+    this.elevationGainedMeters,
+    this.activeCaloriesKcal,
+    this.totalCaloriesKcal,
+    this.bleSamples,
   );
 }
 
@@ -818,6 +1002,21 @@ abstract class HealthConnectHostApi {
     int startEpochMs,
     int endEpochMs,
     String bucketType,
+  );
+
+  /// Aggregates [aggregateMetrics] into fixed-length buckets of
+  /// [bucketMinutes], returning one JSON object (as a String) per bucket with
+  /// its time range and aggregated values.
+  ///
+  /// Unlike [aggregateGroupByPeriodJson], which slices on calendar periods, this
+  /// slices on a wall-clock duration — what an intraday (hour-by-hour) chart
+  /// needs. Buckets with no data are omitted by Health Connect.
+  @async
+  List<String> aggregateGroupByDurationJson(
+    List<String> aggregateMetrics,
+    int startEpochMs,
+    int endEpochMs,
+    int bucketMinutes,
   );
 
   /// Import dedup helper: of the supplied [clientRecordIds], returns the subset
@@ -1016,6 +1215,26 @@ abstract class HealthConnectHostApi {
   ExerciseDataMsg? readExerciseSessionById(String id);
   @async
   List<SpeedSampleMsg> readSpeedSamples(int startEpochMs, int endEpochMs);
+
+  /// Cycling-pedaling and steps cadence samples in the window, merged and
+  /// ordered by time.
+  @async
+  List<ActivityCadenceSampleMsg> readActivityCadenceSamples(
+    int startEpochMs,
+    int endEpochMs,
+  );
+
+  /// Planned (scheduled) exercise sessions overlapping the window.
+  @async
+  List<PlannedExerciseSessionMsg> readPlannedExerciseSessions(
+    int startEpochMs,
+    int endEpochMs,
+  );
+
+  /// Inserts a planned exercise session, replacing [PlannedExerciseWriteRequestMsg.id]
+  /// when supplied. Returns the new record id.
+  @async
+  String writePlannedExerciseSession(PlannedExerciseWriteRequestMsg request);
   @async
   String writeActivityEntry(ActivityWriteRequestMsg request);
   @async

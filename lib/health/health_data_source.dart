@@ -115,10 +115,10 @@ class HealthDataSource {
 
   Future<int> readFloorsClimbed(LocalDate date) async => 0;
 
-  // TODO(native): ElevationGained aggregation not yet wired through the bridge.
+  /// Null when the device records no elevation at all, which the metric screens
+  /// distinguish from a day that climbed nothing.
   Future<double?> readElevationGained(LocalDate date) async => null;
 
-  // TODO(native): WheelchairPushes aggregation not yet wired through the bridge.
   Future<int?> readWheelchairPushes(LocalDate date) async => null;
 
   Future<List<ExerciseData>> readExerciseSessions(
@@ -129,7 +129,9 @@ class HealthDataSource {
 
   Future<ExerciseData?> readExerciseSession(String id) async => null;
 
-  // TODO(native): no per-hour cumulative aggregate wired yet; best-effort empty.
+  /// The day's cumulative metrics, hour by hour. Overridden by the native
+  /// source; empty here (and on unsupported platforms), which the intraday chart
+  /// renders as "no updates yet".
   Future<List<ActivityProgressPoint>> readRawActivityProgress(
     LocalDate date,
   ) async =>
@@ -138,14 +140,12 @@ class HealthDataSource {
   Future<List<SpeedSample>> readSpeedSamples(DateTime start, DateTime end) async =>
       const <SpeedSample>[];
 
-  // TODO(native): StepsCadence/CyclingPedalingCadence reads not yet wired.
   Future<List<ActivityCadenceSample>> readActivityCadenceSamples(
     DateTime start,
     DateTime end,
   ) async =>
       const <ActivityCadenceSample>[];
 
-  // TODO(native): PlannedExerciseSession reads not yet wired through the bridge.
   Future<List<PlannedExerciseData>> readPlannedExerciseSessions(
     DateTime start,
     DateTime end,
@@ -165,7 +165,6 @@ class HealthDataSource {
 
   Future<void> deleteActivityEntry(String id) async {}
 
-  // TODO(native): PlannedExerciseSession writes not yet wired through the bridge.
   Future<String> writePlannedExerciseSession(
     PlannedExerciseWriteRequest request,
   ) async =>
@@ -444,7 +443,6 @@ class HealthDataSource {
 
   // ── Mindfulness ─────────────────────────────────────────────────────────
 
-  // TODO(native): MindfulnessSession reads not yet wired through the bridge.
   Future<List<MindfulnessSession>> readMindfulnessSessions(
     DateTime start,
     DateTime end,
@@ -475,7 +473,6 @@ class HealthDataSource {
   ) async =>
       const <MenstruationFlowEntry>[];
 
-  // TODO(native): the following cycle reads are not yet wired through the bridge.
   Future<List<MenstruationPeriodEntry>> readMenstruationPeriods(
     DateTime start,
     DateTime end,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,6 +23,9 @@ import 'di/providers.dart';
 /// the first frame.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Receives activity-recording notification-button presses relayed from the
+  // foreground-service isolate (see activity_recording_task_handler.dart).
+  FlutterForegroundTask.initCommunicationPort();
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [

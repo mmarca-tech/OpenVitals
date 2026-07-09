@@ -1304,11 +1304,11 @@ class _FakeRecordingController implements ActivityRecordingController {
   @override
   void updateDashboardLayout(dynamic layout) {}
   @override
-  bool startRecording(
+  Future<bool> startRecording(
     ActivityEntryType activityType,
     ActivityRecordingInitialFix? initialFix, {
     int repetitionRestSeconds = 0,
-  }) =>
+  }) async =>
       true;
   @override
   void pauseRecording() {}

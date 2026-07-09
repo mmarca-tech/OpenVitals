@@ -7,6 +7,8 @@ import 'activity_entry_form_fields.dart';
 import 'activity_entry_state.dart';
 import 'activity_entry_types.dart';
 import 'activity_entry_ui_text.dart';
+import 'activity_entry_write_request_builder.dart'
+    show activityEntrySessionRange;
 import 'activity_repetition_inputs.dart';
 import 'activity_training_plan_section.dart';
 import 'recording/activity_recorded_sensor_summary.dart';
@@ -158,6 +160,10 @@ class ActivityEntryCard extends StatelessWidget {
         ? [for (final type in state.activityTypes) if (type.supportsGpsRoute) type]
         : state.activityTypes;
 
+    // Kotlin: the recorded heart-rate chart spans the session the entry's
+    // date / time / duration fields describe.
+    final sessionRange = activityEntrySessionRange(state);
+
     return OpenVitalsCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -257,6 +263,8 @@ class ActivityEntryCard extends StatelessWidget {
             ActivityRecordedSensorSummary(
               samples: state.recordedBleSamples,
               unitFormatter: unitFormatter,
+              sessionStart: sessionRange?.$1,
+              sessionEnd: sessionRange?.$2,
               savedHeartRateSamples: state.sessionHeartRateSamples,
             ),
             ActivityTrainingPlanActions(

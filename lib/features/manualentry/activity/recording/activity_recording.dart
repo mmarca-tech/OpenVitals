@@ -1,7 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../../core/geo/geo_distance.dart';
 import '../../../../domain/model/activity_models.dart';
 import '../../../../domain/model/ble_sensor_models.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
@@ -330,7 +331,7 @@ abstract interface class ActivityRecordingController {
 
   void clearPreparedRecording();
 
-  bool startRecording(
+  Future<bool> startRecording(
     ActivityEntryType activityType,
     ActivityRecordingInitialFix? initialFix, {
     int repetitionRestSeconds = 0,
@@ -400,13 +401,97 @@ ActivityRecordingState withLocationMetadata(
       errorMessage: null,
     );
 
+/// Kotlin `recordingDistanceMetersTo` uses `Location.distanceBetween`, which is
+/// geodesic on the WGS84 ellipsoid — not the spherical haversine the split
+/// helpers use (they are haversine in the Kotlin app too). The live distance
+/// accumulator has to match it.
 double recordingDistanceMetersTo(ExerciseRoutePoint from, ExerciseRoutePoint to) {
-  return haversineMeters(
+  return geodesicDistanceMeters(
     from.latitude,
     from.longitude,
     to.latitude,
     to.longitude,
   );
+}
+
+/// Port of `android.location.Location.computeDistanceAndBearing` (Vincenty
+/// inverse formula on WGS84), the algorithm behind `Location.distanceBetween`.
+double geodesicDistanceMeters(
+    double lat1Deg, double lon1Deg, double lat2Deg, double lon2Deg) {
+  const a = 6378137.0; // WGS84 major axis
+  const b = 6356752.3142; // WGS84 semi-major axis
+  const f = (a - b) / a;
+  const aSqMinusBSqOverBSq = (a * a - b * b) / (b * b);
+
+  final lat1 = lat1Deg * math.pi / 180.0;
+  final lat2 = lat2Deg * math.pi / 180.0;
+  final lon1 = lon1Deg * math.pi / 180.0;
+  final lon2 = lon2Deg * math.pi / 180.0;
+
+  final bigL = lon2 - lon1;
+  final u1 = math.atan((1.0 - f) * math.tan(lat1));
+  final u2 = math.atan((1.0 - f) * math.tan(lat2));
+
+  final cosU1 = math.cos(u1);
+  final cosU2 = math.cos(u2);
+  final sinU1 = math.sin(u1);
+  final sinU2 = math.sin(u2);
+  final cosU1cosU2 = cosU1 * cosU2;
+  final sinU1sinU2 = sinU1 * sinU2;
+
+  var sigma = 0.0;
+  var deltaSigma = 0.0;
+  var bigA = 1.0;
+
+  var lambda = bigL;
+  const maxIters = 20;
+  for (var iter = 0; iter < maxIters; iter++) {
+    final lambdaOrig = lambda;
+    final cosLambda = math.cos(lambda);
+    final sinLambda = math.sin(lambda);
+    final t1 = cosU2 * sinLambda;
+    final t2 = cosU1 * sinU2 - sinU1 * cosU2 * cosLambda;
+    final sinSqSigma = t1 * t1 + t2 * t2;
+    final sinSigma = math.sqrt(sinSqSigma);
+    final cosSigma = sinU1sinU2 + cosU1cosU2 * cosLambda;
+    sigma = math.atan2(sinSigma, cosSigma);
+    final sinAlpha = sinSigma == 0 ? 0.0 : cosU1cosU2 * sinLambda / sinSigma;
+    final cosSqAlpha = 1.0 - sinAlpha * sinAlpha;
+    final cos2SM =
+        cosSqAlpha == 0 ? 0.0 : cosSigma - 2.0 * sinU1sinU2 / cosSqAlpha;
+
+    final uSquared = cosSqAlpha * aSqMinusBSqOverBSq;
+    bigA = 1 +
+        (uSquared / 16384.0) *
+            (4096.0 + uSquared * (-768 + uSquared * (320.0 - 175.0 * uSquared)));
+    final bigB = (uSquared / 1024.0) *
+        (256.0 + uSquared * (-128.0 + uSquared * (74.0 - 47.0 * uSquared)));
+    final bigC = (f / 16.0) * cosSqAlpha * (4.0 + f * (4.0 - 3.0 * cosSqAlpha));
+    final cos2SMSq = cos2SM * cos2SM;
+    deltaSigma = bigB *
+        sinSigma *
+        (cos2SM +
+            (bigB / 4.0) *
+                (cosSigma * (-1.0 + 2.0 * cos2SMSq) -
+                    (bigB / 6.0) *
+                        cos2SM *
+                        (-3.0 + 4.0 * sinSigma * sinSigma) *
+                        (-3.0 + 4.0 * cos2SMSq)));
+
+    lambda = bigL +
+        (1.0 - bigC) *
+            f *
+            sinAlpha *
+            (sigma +
+                bigC *
+                    sinSigma *
+                    (cos2SM + bigC * cosSigma * (-1.0 + 2.0 * cos2SM * cos2SM)));
+
+    final delta = (lambda - lambdaOrig) / lambda;
+    if (delta.abs() < 1.0e-12) break;
+  }
+
+  return b * bigA * (sigma - deltaSigma);
 }
 
 double elevationGainMetersTo(ExerciseRoutePoint from, ExerciseRoutePoint to) {

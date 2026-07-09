@@ -247,6 +247,128 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     return result;
   }
 
+  @override
+  Future<double?> readElevationGained(LocalDate date) async {
+    final agg = await _aggregate(
+      const ['ElevationGained.elevation'],
+      _dayStart(date),
+      _dayEnd(date),
+    );
+    // Null, not zero: "this device records no elevation" and "you climbed
+    // nothing today" are different, and the metric screens key on which.
+    return agg['ElevationGained.elevation'];
+  }
+
+  @override
+  Future<int?> readWheelchairPushes(LocalDate date) async {
+    final agg = await _aggregate(
+      const ['WheelchairPushes.count'],
+      _dayStart(date),
+      _dayEnd(date),
+    );
+    return agg['WheelchairPushes.count']?.round();
+  }
+
+  /// Kotlin `ActivityHealthReader.readRawActivityProgress`: the day's metrics
+  /// aggregated into hourly buckets and accumulated, so each point is the
+  /// running total at that hour — what the intraday chart plots.
+  ///
+  /// Health Connect omits empty buckets, so the returned points are sparse; the
+  /// chart draws straight lines between them, which is what a cumulative series
+  /// means anyway.
+  @override
+  Future<List<ActivityProgressPoint>> readRawActivityProgress(
+    LocalDate date,
+  ) async {
+    const metrics = <String>[
+      'Steps.count',
+      'Distance.distance',
+      'TotalCaloriesBurned.energy',
+      'ActiveCaloriesBurned.energy',
+      'WheelchairPushes.count',
+      'FloorsClimbed.floors',
+      'ElevationGained.elevation',
+    ];
+    // Today's chart stops at "now" rather than running on to midnight.
+    final isToday = date == LocalDate.now();
+    final end = isToday ? DateTime.now() : _dayEnd(date);
+    final buckets = await _catch(
+      () => _api.aggregateGroupByDurationJson(
+        metrics,
+        _dayStart(date).millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+        60,
+      ),
+      const <String>[],
+    );
+
+    var steps = 0.0;
+    var distance = 0.0;
+    var calories = 0.0;
+    var activeCalories = 0.0;
+    var wheelchairPushes = 0.0;
+    var floors = 0.0;
+    var elevation = 0.0;
+
+    // A metric the device never reports stays null on every point, so the
+    // display mapper drops it rather than charting a flat zero line.
+    var hasDistance = false;
+    var hasCalories = false;
+    var hasActiveCalories = false;
+    var hasWheelchairPushes = false;
+    var hasFloors = false;
+    var hasElevation = false;
+
+    final points = <ActivityProgressPoint>[];
+    for (final bucket in buckets) {
+      final map = jsonDecode(bucket) as Map<String, dynamic>;
+      final endMs = (map['endEpochMs'] as num).toInt();
+      final values = (map['values'] as Map).cast<String, dynamic>();
+      double? valueOf(String key) => (values[key] as num?)?.toDouble();
+
+      steps += valueOf('Steps.count') ?? 0.0;
+      if (valueOf('Distance.distance') case final value?) {
+        distance += value;
+        hasDistance = true;
+      }
+      if (valueOf('TotalCaloriesBurned.energy') case final value?) {
+        calories += value;
+        hasCalories = true;
+      }
+      if (valueOf('ActiveCaloriesBurned.energy') case final value?) {
+        activeCalories += value;
+        hasActiveCalories = true;
+      }
+      if (valueOf('WheelchairPushes.count') case final value?) {
+        wheelchairPushes += value;
+        hasWheelchairPushes = true;
+      }
+      if (valueOf('FloorsClimbed.floors') case final value?) {
+        floors += value;
+        hasFloors = true;
+      }
+      if (valueOf('ElevationGained.elevation') case final value?) {
+        elevation += value;
+        hasElevation = true;
+      }
+
+      points.add(
+        ActivityProgressPoint(
+          time: _fromMs(endMs),
+          totalSteps: steps.round(),
+          totalDistanceMeters: hasDistance ? distance : null,
+          totalCaloriesBurnedKcal: hasCalories ? calories : null,
+          totalActiveCaloriesKcal: hasActiveCalories ? activeCalories : null,
+          totalWheelchairPushes:
+              hasWheelchairPushes ? wheelchairPushes.round() : null,
+          totalFloorsClimbed: hasFloors ? floors.round() : null,
+          totalElevationGainedMeters: hasElevation ? elevation : null,
+        ),
+      );
+    }
+    return points;
+  }
+
   // ── Activity / Exercise (Phase 8) — typed via native ActivityHealthReader ───
 
   ExerciseRouteStatus _routeStatus(ExerciseRouteStatusMsg s) => switch (s) {
@@ -346,6 +468,58 @@ class HealthConnectNativeDataSource extends HealthDataSource {
               verticalAccuracyMeters: p.verticalAccuracyMeters,
             ),
         ],
+        pauseIntervals: [
+          for (final pause in request.pauseIntervals)
+            ActivityPauseIntervalMsg(
+              startEpochMs: pause.startTime.millisecondsSinceEpoch,
+              endEpochMs: pause.endTime.millisecondsSinceEpoch,
+            ),
+        ],
+        stepsCount: request.stepsCount,
+        distanceMeters: request.distanceMeters,
+        elevationGainedMeters: request.elevationGainedMeters,
+        activeCaloriesKcal: request.activeCaloriesKcal,
+        totalCaloriesKcal: request.totalCaloriesKcal,
+        bleSamples: request.bleSamples.isEmpty()
+            ? null
+            : ActivityBleSamplesMsg(
+                heartRateSamples: [
+                  for (final s in request.bleSamples.heartRateSamples)
+                    BleHeartRateSampleMsg(
+                      timeEpochMs: s.time.millisecondsSinceEpoch,
+                      beatsPerMinute: s.beatsPerMinute,
+                    ),
+                ],
+                powerSamples: [
+                  for (final s in request.bleSamples.powerSamples)
+                    BlePowerSampleMsg(
+                      timeEpochMs: s.time.millisecondsSinceEpoch,
+                      watts: s.watts,
+                    ),
+                ],
+                cyclingCadenceSamples: [
+                  for (final s in request.bleSamples.cyclingCadenceSamples)
+                    BleCyclingCadenceSampleMsg(
+                      timeEpochMs: s.time.millisecondsSinceEpoch,
+                      rpm: s.rpm,
+                    ),
+                ],
+                speedSamples: [
+                  for (final s in request.bleSamples.speedSamples)
+                    BleSpeedSampleMsg(
+                      timeEpochMs: s.time.millisecondsSinceEpoch,
+                      metersPerSecond: s.metersPerSecond,
+                      isRunning: s.isRunning,
+                    ),
+                ],
+                stepsCadenceSamples: [
+                  for (final s in request.bleSamples.stepsCadenceSamples)
+                    BleStepsCadenceSampleMsg(
+                      timeEpochMs: s.time.millisecondsSinceEpoch,
+                      stepsPerMinute: s.stepsPerMinute,
+                    ),
+                ],
+              ),
       );
 
   @override
@@ -404,6 +578,143 @@ class HealthConnectNativeDataSource extends HealthDataSource {
           source: m.source,
         ),
     ]..sort((a, b) => a.time.compareTo(b.time));
+  }
+
+  @override
+  Future<List<ActivityCadenceSample>> readActivityCadenceSamples(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final msgs = await _catch(
+      () => _api.readActivityCadenceSamples(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <ActivityCadenceSampleMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        ActivityCadenceSample(
+          time: _fromMs(m.timeEpochMs),
+          rate: m.rate,
+          // Cycling is revolutions per minute; steps cadence is steps per
+          // minute. Same number, different meaning.
+          kind: m.isCycling
+              ? ActivityCadenceKind.cycling
+              : ActivityCadenceKind.steps,
+          source: m.source,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<PlannedExerciseData>> readPlannedExerciseSessions(
+    DateTime start,
+    DateTime end,
+  ) async {
+    if (!isPlannedExerciseAvailable()) return const <PlannedExerciseData>[];
+    final msgs = await _catch(
+      () => _api.readPlannedExerciseSessions(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ),
+      const <PlannedExerciseSessionMsg>[],
+    );
+    return [
+      for (final m in msgs)
+        PlannedExerciseData(
+          id: m.id,
+          title: m.title,
+          exerciseType: m.exerciseType,
+          startTime: _fromMs(m.startEpochMs),
+          endTime: _fromMs(m.endEpochMs),
+          hasExplicitTime: m.hasExplicitTime,
+          completedExerciseSessionId: m.completedExerciseSessionId,
+          notes: m.notes,
+          blockCount: m.blocks.length,
+          source: m.source,
+          blocks: [for (final block in m.blocks) _plannedBlock(block)],
+        ),
+    ];
+  }
+
+  @override
+  Future<String> writePlannedExerciseSession(
+    PlannedExerciseWriteRequest request,
+  ) async {
+    if (!isPlannedExerciseAvailable()) {
+      throw UnsupportedError(
+        'Planned exercise sessions are unavailable on this Health Connect '
+        'provider.',
+      );
+    }
+    return _api.writePlannedExerciseSession(
+      PlannedExerciseWriteRequestMsg(
+        id: request.id,
+        exerciseType: request.exerciseType,
+        startEpochMs: request.startTime.millisecondsSinceEpoch,
+        endEpochMs: request.endTime.millisecondsSinceEpoch,
+        title: request.title,
+        notes: request.notes,
+        blocks: [for (final block in request.blocks) _plannedBlockMsg(block)],
+      ),
+    );
+  }
+
+  PlannedExerciseBlockData _plannedBlock(PlannedExerciseBlockMsg block) =>
+      PlannedExerciseBlockData(
+        repetitions: block.repetitions,
+        description: block.description,
+        steps: [for (final step in block.steps) _plannedStep(step)],
+      );
+
+  PlannedExerciseStepData _plannedStep(PlannedExerciseStepMsg step) =>
+      PlannedExerciseStepData(
+        exerciseType: step.exerciseType,
+        exercisePhase: step.exercisePhase,
+        description: step.description,
+        completion: switch (step.completionKind) {
+          PlannedExerciseCompletionKindMsg.repetitions =>
+            PlannedExerciseCompletionRepetitions(step.completionRepetitions ?? 0),
+          PlannedExerciseCompletionKindMsg.durationSeconds =>
+            PlannedExerciseCompletionDurationSeconds(step.completionSeconds ?? 0),
+          PlannedExerciseCompletionKindMsg.manual =>
+            const PlannedExerciseCompletionManual(),
+          PlannedExerciseCompletionKindMsg.unknown =>
+            const PlannedExerciseCompletionUnknown(),
+        },
+      );
+
+  PlannedExerciseBlockMsg _plannedBlockMsg(PlannedExerciseBlockData block) =>
+      PlannedExerciseBlockMsg(
+        repetitions: block.repetitions,
+        description: block.description,
+        steps: [for (final step in block.steps) _plannedStepMsg(step)],
+      );
+
+  PlannedExerciseStepMsg _plannedStepMsg(PlannedExerciseStepData step) {
+    final completion = step.completion;
+    return PlannedExerciseStepMsg(
+      exerciseType: step.exerciseType,
+      exercisePhase: step.exercisePhase,
+      description: step.description,
+      completionKind: switch (completion) {
+        PlannedExerciseCompletionRepetitions() =>
+          PlannedExerciseCompletionKindMsg.repetitions,
+        PlannedExerciseCompletionDurationSeconds() =>
+          PlannedExerciseCompletionKindMsg.durationSeconds,
+        PlannedExerciseCompletionManual() =>
+          PlannedExerciseCompletionKindMsg.manual,
+        PlannedExerciseCompletionUnknown() =>
+          PlannedExerciseCompletionKindMsg.unknown,
+      },
+      completionRepetitions: completion is PlannedExerciseCompletionRepetitions
+          ? completion.repetitions
+          : null,
+      completionSeconds: completion is PlannedExerciseCompletionDurationSeconds
+          ? completion.seconds
+          : null,
+    );
   }
 
   // ── Nutrition / hydration ─────────────────────────────────────────────────

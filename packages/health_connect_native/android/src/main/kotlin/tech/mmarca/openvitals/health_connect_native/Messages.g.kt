@@ -262,6 +262,24 @@ enum class ExerciseRouteStatusMsg(val raw: Int) {
 }
 
 /**
+ * Which `ExerciseCompletionGoal` a planned step carries. Health Connect models
+ * a handful more; anything the app does not understand arrives as [unknown]
+ * and is written back as manual completion.
+ */
+enum class PlannedExerciseCompletionKindMsg(val raw: Int) {
+  REPETITIONS(0),
+  DURATION_SECONDS(1),
+  MANUAL(2),
+  UNKNOWN(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlannedExerciseCompletionKindMsg? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Raw Health Connect availability signals, mapped to the Dart
  * `HealthConnectAvailability` enum on the Flutter side. Kept as separate
  * signals (rather than a native enum) so the enum stays a single source of
@@ -2742,6 +2760,303 @@ data class SpeedSampleMsg (
   }
 }
 
+/**
+ * One cadence sample. [isCycling] tells apart a `CyclingPedalingCadenceRecord`
+ * (revolutions per minute) from a `StepsCadenceRecord` (steps per minute) —
+ * the two share a shape but not a unit.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ActivityCadenceSampleMsg (
+  val timeEpochMs: Long,
+  val rate: Double,
+  val isCycling: Boolean,
+  val source: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ActivityCadenceSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val rate = pigeonVar_list[1] as Double
+      val isCycling = pigeonVar_list[2] as Boolean
+      val source = pigeonVar_list[3] as String
+      return ActivityCadenceSampleMsg(timeEpochMs, rate, isCycling, source)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      rate,
+      isCycling,
+      source,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ActivityCadenceSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.rate, other.rate) && MessagesPigeonUtils.deepEquals(this.isCycling, other.isCycling) && MessagesPigeonUtils.deepEquals(this.source, other.source)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rate)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.isCycling)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    return result
+  }
+  override fun toString(): String {
+    return "ActivityCadenceSampleMsg(timeEpochMs=$timeEpochMs, rate=$rate, isCycling=$isCycling, source=$source)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlannedExerciseStepMsg (
+  val exerciseType: Long,
+  val exercisePhase: Long,
+  val description: String? = null,
+  val completionKind: PlannedExerciseCompletionKindMsg,
+  /** Set only when [completionKind] is `repetitions`. */
+  val completionRepetitions: Long? = null,
+  /** Set only when [completionKind] is `durationSeconds`. */
+  val completionSeconds: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlannedExerciseStepMsg {
+      val exerciseType = pigeonVar_list[0] as Long
+      val exercisePhase = pigeonVar_list[1] as Long
+      val description = pigeonVar_list[2] as String?
+      val completionKind = pigeonVar_list[3] as PlannedExerciseCompletionKindMsg
+      val completionRepetitions = pigeonVar_list[4] as Long?
+      val completionSeconds = pigeonVar_list[5] as Long?
+      return PlannedExerciseStepMsg(exerciseType, exercisePhase, description, completionKind, completionRepetitions, completionSeconds)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      exerciseType,
+      exercisePhase,
+      description,
+      completionKind,
+      completionRepetitions,
+      completionSeconds,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlannedExerciseStepMsg
+    return MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.exercisePhase, other.exercisePhase) && MessagesPigeonUtils.deepEquals(this.description, other.description) && MessagesPigeonUtils.deepEquals(this.completionKind, other.completionKind) && MessagesPigeonUtils.deepEquals(this.completionRepetitions, other.completionRepetitions) && MessagesPigeonUtils.deepEquals(this.completionSeconds, other.completionSeconds)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.exerciseType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.exercisePhase)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.description)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.completionKind)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.completionRepetitions)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.completionSeconds)
+    return result
+  }
+  override fun toString(): String {
+    return "PlannedExerciseStepMsg(exerciseType=$exerciseType, exercisePhase=$exercisePhase, description=$description, completionKind=$completionKind, completionRepetitions=$completionRepetitions, completionSeconds=$completionSeconds)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlannedExerciseBlockMsg (
+  val repetitions: Long,
+  val description: String? = null,
+  val steps: List<PlannedExerciseStepMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlannedExerciseBlockMsg {
+      val repetitions = pigeonVar_list[0] as Long
+      val description = pigeonVar_list[1] as String?
+      val steps = pigeonVar_list[2] as List<PlannedExerciseStepMsg>
+      return PlannedExerciseBlockMsg(repetitions, description, steps)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      repetitions,
+      description,
+      steps,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlannedExerciseBlockMsg
+    return MessagesPigeonUtils.deepEquals(this.repetitions, other.repetitions) && MessagesPigeonUtils.deepEquals(this.description, other.description) && MessagesPigeonUtils.deepEquals(this.steps, other.steps)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.repetitions)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.description)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.steps)
+    return result
+  }
+  override fun toString(): String {
+    return "PlannedExerciseBlockMsg(repetitions=$repetitions, description=$description, steps=$steps)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlannedExerciseSessionMsg (
+  val id: String,
+  val title: String? = null,
+  val exerciseType: Long,
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val hasExplicitTime: Boolean,
+  val completedExerciseSessionId: String? = null,
+  val notes: String? = null,
+  val source: String,
+  val blocks: List<PlannedExerciseBlockMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlannedExerciseSessionMsg {
+      val id = pigeonVar_list[0] as String
+      val title = pigeonVar_list[1] as String?
+      val exerciseType = pigeonVar_list[2] as Long
+      val startEpochMs = pigeonVar_list[3] as Long
+      val endEpochMs = pigeonVar_list[4] as Long
+      val hasExplicitTime = pigeonVar_list[5] as Boolean
+      val completedExerciseSessionId = pigeonVar_list[6] as String?
+      val notes = pigeonVar_list[7] as String?
+      val source = pigeonVar_list[8] as String
+      val blocks = pigeonVar_list[9] as List<PlannedExerciseBlockMsg>
+      return PlannedExerciseSessionMsg(id, title, exerciseType, startEpochMs, endEpochMs, hasExplicitTime, completedExerciseSessionId, notes, source, blocks)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      title,
+      exerciseType,
+      startEpochMs,
+      endEpochMs,
+      hasExplicitTime,
+      completedExerciseSessionId,
+      notes,
+      source,
+      blocks,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlannedExerciseSessionMsg
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.hasExplicitTime, other.hasExplicitTime) && MessagesPigeonUtils.deepEquals(this.completedExerciseSessionId, other.completedExerciseSessionId) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.source, other.source) && MessagesPigeonUtils.deepEquals(this.blocks, other.blocks)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.title)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.exerciseType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.hasExplicitTime)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.completedExerciseSessionId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.notes)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.source)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.blocks)
+    return result
+  }
+  override fun toString(): String {
+    return "PlannedExerciseSessionMsg(id=$id, title=$title, exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, hasExplicitTime=$hasExplicitTime, completedExerciseSessionId=$completedExerciseSessionId, notes=$notes, source=$source, blocks=$blocks)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PlannedExerciseWriteRequestMsg (
+  /**
+   * When set, the existing plan is deleted and replaced (Health Connect has no
+   * in-place update for planned sessions).
+   */
+  val id: String? = null,
+  val exerciseType: Long,
+  val startEpochMs: Long,
+  val endEpochMs: Long,
+  val title: String? = null,
+  val notes: String? = null,
+  val blocks: List<PlannedExerciseBlockMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlannedExerciseWriteRequestMsg {
+      val id = pigeonVar_list[0] as String?
+      val exerciseType = pigeonVar_list[1] as Long
+      val startEpochMs = pigeonVar_list[2] as Long
+      val endEpochMs = pigeonVar_list[3] as Long
+      val title = pigeonVar_list[4] as String?
+      val notes = pigeonVar_list[5] as String?
+      val blocks = pigeonVar_list[6] as List<PlannedExerciseBlockMsg>
+      return PlannedExerciseWriteRequestMsg(id, exerciseType, startEpochMs, endEpochMs, title, notes, blocks)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      exerciseType,
+      startEpochMs,
+      endEpochMs,
+      title,
+      notes,
+      blocks,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlannedExerciseWriteRequestMsg
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.blocks, other.blocks)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.exerciseType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.title)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.notes)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.blocks)
+    return result
+  }
+  override fun toString(): String {
+    return "PlannedExerciseWriteRequestMsg(id=$id, exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, title=$title, notes=$notes, blocks=$blocks)"
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class ImportSampleMsg (
   val timeEpochMs: Long,
@@ -2918,6 +3233,319 @@ data class ImportRecordMsg (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class ActivityPauseIntervalMsg (
+  val startEpochMs: Long,
+  val endEpochMs: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ActivityPauseIntervalMsg {
+      val startEpochMs = pigeonVar_list[0] as Long
+      val endEpochMs = pigeonVar_list[1] as Long
+      return ActivityPauseIntervalMsg(startEpochMs, endEpochMs)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startEpochMs,
+      endEpochMs,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ActivityPauseIntervalMsg
+    return MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endEpochMs)
+    return result
+  }
+  override fun toString(): String {
+    return "ActivityPauseIntervalMsg(startEpochMs=$startEpochMs, endEpochMs=$endEpochMs)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BleHeartRateSampleMsg (
+  val timeEpochMs: Long,
+  val beatsPerMinute: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BleHeartRateSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val beatsPerMinute = pigeonVar_list[1] as Long
+      return BleHeartRateSampleMsg(timeEpochMs, beatsPerMinute)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      beatsPerMinute,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BleHeartRateSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.beatsPerMinute, other.beatsPerMinute)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.beatsPerMinute)
+    return result
+  }
+  override fun toString(): String {
+    return "BleHeartRateSampleMsg(timeEpochMs=$timeEpochMs, beatsPerMinute=$beatsPerMinute)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BlePowerSampleMsg (
+  val timeEpochMs: Long,
+  val watts: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BlePowerSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val watts = pigeonVar_list[1] as Double
+      return BlePowerSampleMsg(timeEpochMs, watts)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      watts,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BlePowerSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.watts, other.watts)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.watts)
+    return result
+  }
+  override fun toString(): String {
+    return "BlePowerSampleMsg(timeEpochMs=$timeEpochMs, watts=$watts)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BleCyclingCadenceSampleMsg (
+  val timeEpochMs: Long,
+  val rpm: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BleCyclingCadenceSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val rpm = pigeonVar_list[1] as Long
+      return BleCyclingCadenceSampleMsg(timeEpochMs, rpm)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      rpm,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BleCyclingCadenceSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.rpm, other.rpm)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rpm)
+    return result
+  }
+  override fun toString(): String {
+    return "BleCyclingCadenceSampleMsg(timeEpochMs=$timeEpochMs, rpm=$rpm)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BleSpeedSampleMsg (
+  val timeEpochMs: Long,
+  val metersPerSecond: Double,
+  /**
+   * Running speed and cycling speed are written as separate `SpeedRecord`s
+   * (clientRecordId kinds `running_speed` vs `speed`), mirroring the Kotlin
+   * `BleSpeedSample.isRunning` split.
+   */
+  val isRunning: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BleSpeedSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val metersPerSecond = pigeonVar_list[1] as Double
+      val isRunning = pigeonVar_list[2] as Boolean
+      return BleSpeedSampleMsg(timeEpochMs, metersPerSecond, isRunning)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      metersPerSecond,
+      isRunning,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BleSpeedSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.metersPerSecond, other.metersPerSecond) && MessagesPigeonUtils.deepEquals(this.isRunning, other.isRunning)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.metersPerSecond)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.isRunning)
+    return result
+  }
+  override fun toString(): String {
+    return "BleSpeedSampleMsg(timeEpochMs=$timeEpochMs, metersPerSecond=$metersPerSecond, isRunning=$isRunning)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class BleStepsCadenceSampleMsg (
+  val timeEpochMs: Long,
+  val stepsPerMinute: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BleStepsCadenceSampleMsg {
+      val timeEpochMs = pigeonVar_list[0] as Long
+      val stepsPerMinute = pigeonVar_list[1] as Long
+      return BleStepsCadenceSampleMsg(timeEpochMs, stepsPerMinute)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeEpochMs,
+      stepsPerMinute,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BleStepsCadenceSampleMsg
+    return MessagesPigeonUtils.deepEquals(this.timeEpochMs, other.timeEpochMs) && MessagesPigeonUtils.deepEquals(this.stepsPerMinute, other.stepsPerMinute)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timeEpochMs)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stepsPerMinute)
+    return result
+  }
+  override fun toString(): String {
+    return "BleStepsCadenceSampleMsg(timeEpochMs=$timeEpochMs, stepsPerMinute=$stepsPerMinute)"
+  }
+}
+
+/**
+ * Recorded BLE sensor series captured during an activity recording; mirrors
+ * the Dart/Kotlin `BleRecordingSampleBuffer`.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ActivityBleSamplesMsg (
+  val heartRateSamples: List<BleHeartRateSampleMsg>,
+  val powerSamples: List<BlePowerSampleMsg>,
+  val cyclingCadenceSamples: List<BleCyclingCadenceSampleMsg>,
+  val speedSamples: List<BleSpeedSampleMsg>,
+  val stepsCadenceSamples: List<BleStepsCadenceSampleMsg>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ActivityBleSamplesMsg {
+      val heartRateSamples = pigeonVar_list[0] as List<BleHeartRateSampleMsg>
+      val powerSamples = pigeonVar_list[1] as List<BlePowerSampleMsg>
+      val cyclingCadenceSamples = pigeonVar_list[2] as List<BleCyclingCadenceSampleMsg>
+      val speedSamples = pigeonVar_list[3] as List<BleSpeedSampleMsg>
+      val stepsCadenceSamples = pigeonVar_list[4] as List<BleStepsCadenceSampleMsg>
+      return ActivityBleSamplesMsg(heartRateSamples, powerSamples, cyclingCadenceSamples, speedSamples, stepsCadenceSamples)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      heartRateSamples,
+      powerSamples,
+      cyclingCadenceSamples,
+      speedSamples,
+      stepsCadenceSamples,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ActivityBleSamplesMsg
+    return MessagesPigeonUtils.deepEquals(this.heartRateSamples, other.heartRateSamples) && MessagesPigeonUtils.deepEquals(this.powerSamples, other.powerSamples) && MessagesPigeonUtils.deepEquals(this.cyclingCadenceSamples, other.cyclingCadenceSamples) && MessagesPigeonUtils.deepEquals(this.speedSamples, other.speedSamples) && MessagesPigeonUtils.deepEquals(this.stepsCadenceSamples, other.stepsCadenceSamples)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.heartRateSamples)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.powerSamples)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.cyclingCadenceSamples)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.speedSamples)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stepsCadenceSamples)
+    return result
+  }
+  override fun toString(): String {
+    return "ActivityBleSamplesMsg(heartRateSamples=$heartRateSamples, powerSamples=$powerSamples, cyclingCadenceSamples=$cyclingCadenceSamples, speedSamples=$speedSamples, stepsCadenceSamples=$stepsCadenceSamples)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class ActivityWriteRequestMsg (
   val exerciseType: Long,
   val startEpochMs: Long,
@@ -2927,7 +3555,27 @@ data class ActivityWriteRequestMsg (
   val plannedExerciseSessionId: String? = null,
   val segments: List<ExerciseSegmentMsg>,
   val laps: List<ExerciseLapMsg>,
-  val routePoints: List<ExerciseRoutePointMsg>
+  val routePoints: List<ExerciseRoutePointMsg>,
+  /**
+   * Pauses recorded during a live recording. When [segments] is empty the
+   * native side synthesizes active + PAUSE `ExerciseSegment`s from these.
+   */
+  val pauseIntervals: List<ActivityPauseIntervalMsg>? = null,
+  /**
+   * Session totals written as standalone records alongside the session
+   * (DistanceRecord, ElevationGainedRecord, ActiveCaloriesBurnedRecord,
+   * TotalCaloriesBurnedRecord, StepsRecord). All canonical units.
+   */
+  val stepsCount: Long? = null,
+  val distanceMeters: Double? = null,
+  val elevationGainedMeters: Double? = null,
+  val activeCaloriesKcal: Double? = null,
+  val totalCaloriesKcal: Double? = null,
+  /**
+   * Recorded BLE sensor series written as sample-series records
+   * (HeartRate/Power/CyclingPedalingCadence/Speed/StepsCadence).
+   */
+  val bleSamples: ActivityBleSamplesMsg? = null
 )
  {
   companion object {
@@ -2941,7 +3589,14 @@ data class ActivityWriteRequestMsg (
       val segments = pigeonVar_list[6] as List<ExerciseSegmentMsg>
       val laps = pigeonVar_list[7] as List<ExerciseLapMsg>
       val routePoints = pigeonVar_list[8] as List<ExerciseRoutePointMsg>
-      return ActivityWriteRequestMsg(exerciseType, startEpochMs, endEpochMs, title, notes, plannedExerciseSessionId, segments, laps, routePoints)
+      val pauseIntervals = pigeonVar_list[9] as List<ActivityPauseIntervalMsg>?
+      val stepsCount = pigeonVar_list[10] as Long?
+      val distanceMeters = pigeonVar_list[11] as Double?
+      val elevationGainedMeters = pigeonVar_list[12] as Double?
+      val activeCaloriesKcal = pigeonVar_list[13] as Double?
+      val totalCaloriesKcal = pigeonVar_list[14] as Double?
+      val bleSamples = pigeonVar_list[15] as ActivityBleSamplesMsg?
+      return ActivityWriteRequestMsg(exerciseType, startEpochMs, endEpochMs, title, notes, plannedExerciseSessionId, segments, laps, routePoints, pauseIntervals, stepsCount, distanceMeters, elevationGainedMeters, activeCaloriesKcal, totalCaloriesKcal, bleSamples)
     }
   }
   fun toList(): List<Any?> {
@@ -2955,6 +3610,13 @@ data class ActivityWriteRequestMsg (
       segments,
       laps,
       routePoints,
+      pauseIntervals,
+      stepsCount,
+      distanceMeters,
+      elevationGainedMeters,
+      activeCaloriesKcal,
+      totalCaloriesKcal,
+      bleSamples,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -2965,7 +3627,7 @@ data class ActivityWriteRequestMsg (
       return true
     }
     val other = other as ActivityWriteRequestMsg
-    return MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.plannedExerciseSessionId, other.plannedExerciseSessionId) && MessagesPigeonUtils.deepEquals(this.segments, other.segments) && MessagesPigeonUtils.deepEquals(this.laps, other.laps) && MessagesPigeonUtils.deepEquals(this.routePoints, other.routePoints)
+    return MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.plannedExerciseSessionId, other.plannedExerciseSessionId) && MessagesPigeonUtils.deepEquals(this.segments, other.segments) && MessagesPigeonUtils.deepEquals(this.laps, other.laps) && MessagesPigeonUtils.deepEquals(this.routePoints, other.routePoints) && MessagesPigeonUtils.deepEquals(this.pauseIntervals, other.pauseIntervals) && MessagesPigeonUtils.deepEquals(this.stepsCount, other.stepsCount) && MessagesPigeonUtils.deepEquals(this.distanceMeters, other.distanceMeters) && MessagesPigeonUtils.deepEquals(this.elevationGainedMeters, other.elevationGainedMeters) && MessagesPigeonUtils.deepEquals(this.activeCaloriesKcal, other.activeCaloriesKcal) && MessagesPigeonUtils.deepEquals(this.totalCaloriesKcal, other.totalCaloriesKcal) && MessagesPigeonUtils.deepEquals(this.bleSamples, other.bleSamples)
   }
 
   override fun hashCode(): Int {
@@ -2979,10 +3641,17 @@ data class ActivityWriteRequestMsg (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.segments)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.laps)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.routePoints)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.pauseIntervals)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.stepsCount)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.distanceMeters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.elevationGainedMeters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.activeCaloriesKcal)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.totalCaloriesKcal)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.bleSamples)
     return result
   }
   override fun toString(): String {
-    return "ActivityWriteRequestMsg(exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, title=$title, notes=$notes, plannedExerciseSessionId=$plannedExerciseSessionId, segments=$segments, laps=$laps, routePoints=$routePoints)"
+    return "ActivityWriteRequestMsg(exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, title=$title, notes=$notes, plannedExerciseSessionId=$plannedExerciseSessionId, segments=$segments, laps=$laps, routePoints=$routePoints, pauseIntervals=$pauseIntervals, stepsCount=$stepsCount, distanceMeters=$distanceMeters, elevationGainedMeters=$elevationGainedMeters, activeCaloriesKcal=$activeCaloriesKcal, totalCaloriesKcal=$totalCaloriesKcal, bleSamples=$bleSamples)"
   }
 }
 
@@ -3088,271 +3757,336 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         }
       }
       134.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          HealthConnectAvailabilityDetail.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlannedExerciseCompletionKindMsg.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          WeightEntryMsg.fromList(it)
+          HealthConnectAvailabilityDetail.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeightEntryMsg.fromList(it)
+          WeightEntryMsg.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyFatEntryMsg.fromList(it)
+          HeightEntryMsg.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMassEntryMsg.fromList(it)
+          BodyFatEntryMsg.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BmrEntryMsg.fromList(it)
+          BodyMassEntryMsg.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementEntryMsg.fromList(it)
+          BmrEntryMsg.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyMeasurementWriteRequestMsg.fromList(it)
+          BodyMeasurementEntryMsg.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationEntryMsg.fromList(it)
+          BodyMeasurementWriteRequestMsg.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyHydrationMsg.fromList(it)
+          HydrationEntryMsg.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HydrationWriteRequestMsg.fromList(it)
+          DailyHydrationMsg.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionMsg.fromList(it)
+          HydrationWriteRequestMsg.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MindfulnessSessionWriteRequestMsg.fromList(it)
+          MindfulnessSessionMsg.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodPressureEntryMsg.fromList(it)
+          MindfulnessSessionWriteRequestMsg.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpO2EntryMsg.fromList(it)
+          BloodPressureEntryMsg.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RespiratoryRateEntryMsg.fromList(it)
+          SpO2EntryMsg.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BodyTempEntryMsg.fromList(it)
+          RespiratoryRateEntryMsg.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Vo2MaxEntryMsg.fromList(it)
+          BodyTempEntryMsg.fromList(it)
         }
       }
       152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BloodGlucoseEntryMsg.fromList(it)
+          Vo2MaxEntryMsg.fromList(it)
         }
       }
       153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SkinTemperatureEntryMsg.fromList(it)
+          BloodGlucoseEntryMsg.fromList(it)
         }
       }
       154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementEntryMsg.fromList(it)
+          SkinTemperatureEntryMsg.fromList(it)
         }
       }
       155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          VitalsMeasurementWriteRequestMsg.fromList(it)
+          VitalsMeasurementEntryMsg.fromList(it)
         }
       }
       156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationFlowEntryMsg.fromList(it)
+          VitalsMeasurementWriteRequestMsg.fromList(it)
         }
       }
       157.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MenstruationPeriodEntryMsg.fromList(it)
+          MenstruationFlowEntryMsg.fromList(it)
         }
       }
       158.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          OvulationTestEntryMsg.fromList(it)
+          MenstruationPeriodEntryMsg.fromList(it)
         }
       }
       159.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CervicalMucusEntryMsg.fromList(it)
+          OvulationTestEntryMsg.fromList(it)
         }
       }
       160.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          BasalBodyTemperatureEntryMsg.fromList(it)
+          CervicalMucusEntryMsg.fromList(it)
         }
       }
       161.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          IntermenstrualBleedingEntryMsg.fromList(it)
+          BasalBodyTemperatureEntryMsg.fromList(it)
         }
       }
       162.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SexualActivityEntryMsg.fromList(it)
+          IntermenstrualBleedingEntryMsg.fromList(it)
         }
       }
       163.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSampleMsg.fromList(it)
+          SexualActivityEntryMsg.fromList(it)
         }
       }
       164.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateAggBucketMsg.fromList(it)
+          HeartRateSampleMsg.fromList(it)
         }
       }
       165.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HeartRateSummaryMsg.fromList(it)
+          HeartRateAggBucketMsg.fromList(it)
         }
       }
       166.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RestingHeartRateSampleMsg.fromList(it)
+          HeartRateSummaryMsg.fromList(it)
         }
       }
       167.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyRestingHRMsg.fromList(it)
+          RestingHeartRateSampleMsg.fromList(it)
         }
       }
       168.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HrvSampleMsg.fromList(it)
+          DailyRestingHRMsg.fromList(it)
         }
       }
       169.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyHrvMsg.fromList(it)
+          HrvSampleMsg.fromList(it)
         }
       }
       170.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          NutritionEntryMsg.fromList(it)
+          DailyHrvMsg.fromList(it)
         }
       }
       171.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyMacrosMsg.fromList(it)
+          NutritionEntryMsg.fromList(it)
         }
       }
       172.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DailyNutritionMsg.fromList(it)
+          DailyMacrosMsg.fromList(it)
         }
       }
       173.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          NutritionWriteRequestMsg.fromList(it)
+          DailyNutritionMsg.fromList(it)
         }
       }
       174.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SleepStageMsg.fromList(it)
+          NutritionWriteRequestMsg.fromList(it)
         }
       }
       175.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SleepDeviceDataMsg.fromList(it)
+          SleepStageMsg.fromList(it)
         }
       }
       176.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseDeviceDataMsg.fromList(it)
+          SleepDeviceDataMsg.fromList(it)
         }
       }
       177.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseSegmentMsg.fromList(it)
+          ExerciseDeviceDataMsg.fromList(it)
         }
       }
       178.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseLapMsg.fromList(it)
+          ExerciseSegmentMsg.fromList(it)
         }
       }
       179.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseRoutePointMsg.fromList(it)
+          ExerciseLapMsg.fromList(it)
         }
       }
       180.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseRouteMsg.fromList(it)
+          ExerciseRoutePointMsg.fromList(it)
         }
       }
       181.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ExerciseDataMsg.fromList(it)
+          ExerciseRouteMsg.fromList(it)
         }
       }
       182.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          SpeedSampleMsg.fromList(it)
+          ExerciseDataMsg.fromList(it)
         }
       }
       183.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportSampleMsg.fromList(it)
+          SpeedSampleMsg.fromList(it)
         }
       }
       184.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportSleepStageMsg.fromList(it)
+          ActivityCadenceSampleMsg.fromList(it)
         }
       }
       185.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ImportRecordMsg.fromList(it)
+          PlannedExerciseStepMsg.fromList(it)
         }
       }
       186.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ActivityWriteRequestMsg.fromList(it)
+          PlannedExerciseBlockMsg.fromList(it)
         }
       }
       187.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlannedExerciseSessionMsg.fromList(it)
+        }
+      }
+      188.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlannedExerciseWriteRequestMsg.fromList(it)
+        }
+      }
+      189.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ImportSampleMsg.fromList(it)
+        }
+      }
+      190.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ImportSleepStageMsg.fromList(it)
+        }
+      }
+      191.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ImportRecordMsg.fromList(it)
+        }
+      }
+      192.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ActivityPauseIntervalMsg.fromList(it)
+        }
+      }
+      193.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BleHeartRateSampleMsg.fromList(it)
+        }
+      }
+      194.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BlePowerSampleMsg.fromList(it)
+        }
+      }
+      195.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BleCyclingCadenceSampleMsg.fromList(it)
+        }
+      }
+      196.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BleSpeedSampleMsg.fromList(it)
+        }
+      }
+      197.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BleStepsCadenceSampleMsg.fromList(it)
+        }
+      }
+      198.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ActivityBleSamplesMsg.fromList(it)
+        }
+      }
+      199.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ActivityWriteRequestMsg.fromList(it)
+        }
+      }
+      200.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           SleepDataMsg.fromList(it)
         }
@@ -3382,220 +4116,272 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is HealthConnectAvailabilityDetail -> {
+      is PlannedExerciseCompletionKindMsg -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is WeightEntryMsg -> {
+      is HealthConnectAvailabilityDetail -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is HeightEntryMsg -> {
+      is WeightEntryMsg -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is BodyFatEntryMsg -> {
+      is HeightEntryMsg -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is BodyMassEntryMsg -> {
+      is BodyFatEntryMsg -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is BmrEntryMsg -> {
+      is BodyMassEntryMsg -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementEntryMsg -> {
+      is BmrEntryMsg -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is BodyMeasurementWriteRequestMsg -> {
+      is BodyMeasurementEntryMsg -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is HydrationEntryMsg -> {
+      is BodyMeasurementWriteRequestMsg -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is DailyHydrationMsg -> {
+      is HydrationEntryMsg -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is HydrationWriteRequestMsg -> {
+      is DailyHydrationMsg -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionMsg -> {
+      is HydrationWriteRequestMsg -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is MindfulnessSessionWriteRequestMsg -> {
+      is MindfulnessSessionMsg -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is BloodPressureEntryMsg -> {
+      is MindfulnessSessionWriteRequestMsg -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is SpO2EntryMsg -> {
+      is BloodPressureEntryMsg -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is RespiratoryRateEntryMsg -> {
+      is SpO2EntryMsg -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is BodyTempEntryMsg -> {
+      is RespiratoryRateEntryMsg -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is Vo2MaxEntryMsg -> {
+      is BodyTempEntryMsg -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is BloodGlucoseEntryMsg -> {
+      is Vo2MaxEntryMsg -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is SkinTemperatureEntryMsg -> {
+      is BloodGlucoseEntryMsg -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementEntryMsg -> {
+      is SkinTemperatureEntryMsg -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is VitalsMeasurementWriteRequestMsg -> {
+      is VitalsMeasurementEntryMsg -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is MenstruationFlowEntryMsg -> {
+      is VitalsMeasurementWriteRequestMsg -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is MenstruationPeriodEntryMsg -> {
+      is MenstruationFlowEntryMsg -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is OvulationTestEntryMsg -> {
+      is MenstruationPeriodEntryMsg -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is CervicalMucusEntryMsg -> {
+      is OvulationTestEntryMsg -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is BasalBodyTemperatureEntryMsg -> {
+      is CervicalMucusEntryMsg -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is IntermenstrualBleedingEntryMsg -> {
+      is BasalBodyTemperatureEntryMsg -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is SexualActivityEntryMsg -> {
+      is IntermenstrualBleedingEntryMsg -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is HeartRateSampleMsg -> {
+      is SexualActivityEntryMsg -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is HeartRateAggBucketMsg -> {
+      is HeartRateSampleMsg -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is HeartRateSummaryMsg -> {
+      is HeartRateAggBucketMsg -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is RestingHeartRateSampleMsg -> {
+      is HeartRateSummaryMsg -> {
         stream.write(166)
         writeValue(stream, value.toList())
       }
-      is DailyRestingHRMsg -> {
+      is RestingHeartRateSampleMsg -> {
         stream.write(167)
         writeValue(stream, value.toList())
       }
-      is HrvSampleMsg -> {
+      is DailyRestingHRMsg -> {
         stream.write(168)
         writeValue(stream, value.toList())
       }
-      is DailyHrvMsg -> {
+      is HrvSampleMsg -> {
         stream.write(169)
         writeValue(stream, value.toList())
       }
-      is NutritionEntryMsg -> {
+      is DailyHrvMsg -> {
         stream.write(170)
         writeValue(stream, value.toList())
       }
-      is DailyMacrosMsg -> {
+      is NutritionEntryMsg -> {
         stream.write(171)
         writeValue(stream, value.toList())
       }
-      is DailyNutritionMsg -> {
+      is DailyMacrosMsg -> {
         stream.write(172)
         writeValue(stream, value.toList())
       }
-      is NutritionWriteRequestMsg -> {
+      is DailyNutritionMsg -> {
         stream.write(173)
         writeValue(stream, value.toList())
       }
-      is SleepStageMsg -> {
+      is NutritionWriteRequestMsg -> {
         stream.write(174)
         writeValue(stream, value.toList())
       }
-      is SleepDeviceDataMsg -> {
+      is SleepStageMsg -> {
         stream.write(175)
         writeValue(stream, value.toList())
       }
-      is ExerciseDeviceDataMsg -> {
+      is SleepDeviceDataMsg -> {
         stream.write(176)
         writeValue(stream, value.toList())
       }
-      is ExerciseSegmentMsg -> {
+      is ExerciseDeviceDataMsg -> {
         stream.write(177)
         writeValue(stream, value.toList())
       }
-      is ExerciseLapMsg -> {
+      is ExerciseSegmentMsg -> {
         stream.write(178)
         writeValue(stream, value.toList())
       }
-      is ExerciseRoutePointMsg -> {
+      is ExerciseLapMsg -> {
         stream.write(179)
         writeValue(stream, value.toList())
       }
-      is ExerciseRouteMsg -> {
+      is ExerciseRoutePointMsg -> {
         stream.write(180)
         writeValue(stream, value.toList())
       }
-      is ExerciseDataMsg -> {
+      is ExerciseRouteMsg -> {
         stream.write(181)
         writeValue(stream, value.toList())
       }
-      is SpeedSampleMsg -> {
+      is ExerciseDataMsg -> {
         stream.write(182)
         writeValue(stream, value.toList())
       }
-      is ImportSampleMsg -> {
+      is SpeedSampleMsg -> {
         stream.write(183)
         writeValue(stream, value.toList())
       }
-      is ImportSleepStageMsg -> {
+      is ActivityCadenceSampleMsg -> {
         stream.write(184)
         writeValue(stream, value.toList())
       }
-      is ImportRecordMsg -> {
+      is PlannedExerciseStepMsg -> {
         stream.write(185)
         writeValue(stream, value.toList())
       }
-      is ActivityWriteRequestMsg -> {
+      is PlannedExerciseBlockMsg -> {
         stream.write(186)
         writeValue(stream, value.toList())
       }
-      is SleepDataMsg -> {
+      is PlannedExerciseSessionMsg -> {
         stream.write(187)
+        writeValue(stream, value.toList())
+      }
+      is PlannedExerciseWriteRequestMsg -> {
+        stream.write(188)
+        writeValue(stream, value.toList())
+      }
+      is ImportSampleMsg -> {
+        stream.write(189)
+        writeValue(stream, value.toList())
+      }
+      is ImportSleepStageMsg -> {
+        stream.write(190)
+        writeValue(stream, value.toList())
+      }
+      is ImportRecordMsg -> {
+        stream.write(191)
+        writeValue(stream, value.toList())
+      }
+      is ActivityPauseIntervalMsg -> {
+        stream.write(192)
+        writeValue(stream, value.toList())
+      }
+      is BleHeartRateSampleMsg -> {
+        stream.write(193)
+        writeValue(stream, value.toList())
+      }
+      is BlePowerSampleMsg -> {
+        stream.write(194)
+        writeValue(stream, value.toList())
+      }
+      is BleCyclingCadenceSampleMsg -> {
+        stream.write(195)
+        writeValue(stream, value.toList())
+      }
+      is BleSpeedSampleMsg -> {
+        stream.write(196)
+        writeValue(stream, value.toList())
+      }
+      is BleStepsCadenceSampleMsg -> {
+        stream.write(197)
+        writeValue(stream, value.toList())
+      }
+      is ActivityBleSamplesMsg -> {
+        stream.write(198)
+        writeValue(stream, value.toList())
+      }
+      is ActivityWriteRequestMsg -> {
+        stream.write(199)
+        writeValue(stream, value.toList())
+      }
+      is SleepDataMsg -> {
+        stream.write(200)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -3678,6 +4464,16 @@ interface HealthConnectHostApi {
    */
   fun aggregateGroupByPeriodJson(aggregateMetrics: List<String>, startEpochMs: Long, endEpochMs: Long, bucketType: String, callback: (Result<List<String>>) -> Unit)
   /**
+   * Aggregates [aggregateMetrics] into fixed-length buckets of
+   * [bucketMinutes], returning one JSON object (as a String) per bucket with
+   * its time range and aggregated values.
+   *
+   * Unlike [aggregateGroupByPeriodJson], which slices on calendar periods, this
+   * slices on a wall-clock duration — what an intraday (hour-by-hour) chart
+   * needs. Buckets with no data are omitted by Health Connect.
+   */
+  fun aggregateGroupByDurationJson(aggregateMetrics: List<String>, startEpochMs: Long, endEpochMs: Long, bucketMinutes: Long, callback: (Result<List<String>>) -> Unit)
+  /**
    * Import dedup helper: of the supplied [clientRecordIds], returns the subset
    * that ALREADY exist in Health Connect for [recordType].
    */
@@ -3755,6 +4551,18 @@ interface HealthConnectHostApi {
   fun readExerciseSessions(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<ExerciseDataMsg>>) -> Unit)
   fun readExerciseSessionById(id: String, callback: (Result<ExerciseDataMsg?>) -> Unit)
   fun readSpeedSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SpeedSampleMsg>>) -> Unit)
+  /**
+   * Cycling-pedaling and steps cadence samples in the window, merged and
+   * ordered by time.
+   */
+  fun readActivityCadenceSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<ActivityCadenceSampleMsg>>) -> Unit)
+  /** Planned (scheduled) exercise sessions overlapping the window. */
+  fun readPlannedExerciseSessions(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<PlannedExerciseSessionMsg>>) -> Unit)
+  /**
+   * Inserts a planned exercise session, replacing [PlannedExerciseWriteRequestMsg.id]
+   * when supplied. Returns the new record id.
+   */
+  fun writePlannedExerciseSession(request: PlannedExerciseWriteRequestMsg, callback: (Result<String>) -> Unit)
   fun writeActivityEntry(request: ActivityWriteRequestMsg, callback: (Result<String>) -> Unit)
   fun updateActivityEntry(id: String, request: ActivityWriteRequestMsg, callback: (Result<Unit>) -> Unit)
   fun deleteActivityEntry(id: String, callback: (Result<Unit>) -> Unit)
@@ -3963,6 +4771,29 @@ interface HealthConnectHostApi {
             val endEpochMsArg = args[2] as Long
             val bucketTypeArg = args[3] as String
             api.aggregateGroupByPeriodJson(aggregateMetricsArg, startEpochMsArg, endEpochMsArg, bucketTypeArg) { result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.aggregateGroupByDurationJson$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val aggregateMetricsArg = args[0] as List<String>
+            val startEpochMsArg = args[1] as Long
+            val endEpochMsArg = args[2] as Long
+            val bucketMinutesArg = args[3] as Long
+            api.aggregateGroupByDurationJson(aggregateMetricsArg, startEpochMsArg, endEpochMsArg, bucketMinutesArg) { result: Result<List<String>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
@@ -5479,6 +6310,68 @@ interface HealthConnectHostApi {
             val startEpochMsArg = args[0] as Long
             val endEpochMsArg = args[1] as Long
             api.readSpeedSamples(startEpochMsArg, endEpochMsArg) { result: Result<List<SpeedSampleMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readActivityCadenceSamples$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readActivityCadenceSamples(startEpochMsArg, endEpochMsArg) { result: Result<List<ActivityCadenceSampleMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readPlannedExerciseSessions$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            api.readPlannedExerciseSessions(startEpochMsArg, endEpochMsArg) { result: Result<List<PlannedExerciseSessionMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.writePlannedExerciseSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as PlannedExerciseWriteRequestMsg
+            api.writePlannedExerciseSession(requestArg) { result: Result<String> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

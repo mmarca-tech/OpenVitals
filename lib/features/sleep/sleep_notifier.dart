@@ -7,6 +7,7 @@ import '../../core/period/time_range.dart';
 import '../../core/presentation/screen_error.dart';
 import '../../core/time/local_date.dart';
 import '../../di/providers.dart';
+import '../../domain/insights/daily_goals.dart';
 import '../../domain/model/refresh_mode.dart';
 import '../../domain/preferences/sleep_range_mode.dart';
 import '../../domain/usecase/load_sleep_period_use_case.dart';
@@ -28,6 +29,8 @@ abstract class SleepState with _$SleepState {
     @Default(SleepRangeMode.evening18h) SleepRangeMode sleepRangeMode,
     @Default(WeekPeriodMode.mondayToSunday) WeekPeriodMode weekPeriodMode,
     @Default(true) bool isLoading,
+    /// The sleep-hours goal, moved by the goal card's steppers.
+    @Default(8.0) double dailyGoalHours,
     ScreenError? error,
     SleepPeriodLoadResult? result,
   }) = _SleepState;
@@ -49,8 +52,25 @@ class SleepNotifier extends Notifier<SleepState> {
       selectedDate: LocalDate.now(),
       sleepRangeMode: prefs.sleepRangeMode,
       weekPeriodMode: prefs.weekPeriodMode,
+      dailyGoalHours: prefs.dailyGoalFor(MetricDailyGoalKey.sleepHours),
     );
   }
+
+  /// Kotlin `SleepViewModel.increaseDailyGoal` / `decreaseDailyGoal`: step the
+  /// target by a quarter hour, clamped to 1–14 h, and persist it.
+  void _nudgeDailyGoal(double delta) {
+    const key = MetricDailyGoalKey.sleepHours;
+    final next = key.normalize(state.dailyGoalHours + delta);
+    if (next == state.dailyGoalHours) return;
+    ref.read(preferencesRepositoryProvider).setDailyGoalFor(key, next);
+    state = state.copyWith(dailyGoalHours: next);
+  }
+
+  void increaseDailyGoal() =>
+      _nudgeDailyGoal(MetricDailyGoalKey.sleepHours.step);
+
+  void decreaseDailyGoal() =>
+      _nudgeDailyGoal(-MetricDailyGoalKey.sleepHours.step);
 
   /// Loads the sleep period for [selection] (the scaffold's current period).
   Future<void> load(

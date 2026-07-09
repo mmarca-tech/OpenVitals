@@ -8,6 +8,7 @@ import '../../../data/repository/contract/heart_repository.dart';
 import '../../../data/repository/impl/repository_exceptions.dart';
 import '../../../domain/model/activity_models.dart';
 import '../../../domain/model/heart_models.dart';
+import '../../../domain/preferences/activity_recording_dashboard_layout.dart';
 import '../../../domain/preferences/unit_system.dart';
 import 'activity_entry_clock.dart';
 import 'activity_entry_edit_mapper.dart';
@@ -821,10 +822,10 @@ class ActivityEntryController {
     recorder.prepareRecordingDashboard(current.selectedActivityType);
   }
 
-  void startGpsRecording({
+  Future<void> startGpsRecording({
     ActivityRecordingInitialFix? initialFix,
     int repetitionRestSeconds = 0,
-  }) {
+  }) async {
     final recorder = activityRecorder;
     if (recorder == null) {
       _set(_state.value.copyWith(
@@ -863,7 +864,7 @@ class ActivityEntryController {
       detailError: null,
       validationErrors: const {},
     ));
-    final started = recorder.startRecording(
+    final started = await recorder.startRecording(
       current.selectedActivityType,
       initialFix,
       repetitionRestSeconds: repetitionRestSeconds,
@@ -890,6 +891,10 @@ class ActivityEntryController {
       activityRecorder?.adjustRepetitionCount(delta);
   void endRepetitionSet() => activityRecorder?.endRepetitionSet();
   void startNextRepetitionSet() => activityRecorder?.startNextRepetitionSet();
+
+  /// Kotlin `ActivityEntryViewModel.updateRecordingDashboardLayout`.
+  void updateRecordingDashboardLayout(ActivityRecordingDashboardLayout layout) =>
+      activityRecorder?.updateDashboardLayout(layout);
 
   void discardGpsRecording() {
     activityRecorder?.discardRecording();

@@ -156,42 +156,16 @@ class _ManualEntryCell extends StatelessWidget {
       ],
     );
 
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != index,
-      onAcceptWithDetails: (details) => onReorder(details.data, index),
-      builder: (context, candidate, rejected) => AnimatedScale(
-        scale: candidate.isNotEmpty ? 1.04 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        child: LongPressDraggable<int>(
-          data: index,
-          feedback: _DragFeedback(spec: spec),
-          childWhenDragging: Opacity(opacity: 0.25, child: card),
-          child: card,
-        ),
-      ),
+    return ReorderableEditTile(
+      index: index,
+      onReorder: onReorder,
+      feedbackSize: const Size(104, 104),
+      feedbackBorderRadius: const BorderRadius.all(Radius.circular(16)),
+      child: card,
     );
   }
 }
 
-class _DragFeedback extends StatelessWidget {
-  const _DragFeedback({required this.spec});
-
-  final _ManualEntryWidgetSpec spec;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 104,
-      height: 104,
-      child: Material(
-        color: Colors.transparent,
-        elevation: 8,
-        borderRadius: BorderRadius.circular(16),
-        child: _ManualEntryTile(spec: spec),
-      ),
-    );
-  }
-}
 
 /// The manual-entry widgets the installed provider can accept writes for. A
 /// widget needs *all* of its write permissions defined on the device; anything

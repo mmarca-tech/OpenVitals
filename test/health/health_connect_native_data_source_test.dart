@@ -29,6 +29,14 @@ class FakeHostApi extends HealthConnectHostApi {
 
   Map<String, double?> aggregateValues = {};
   List<String> periodBuckets = const [];
+  List<String> durationBuckets = const [];
+  List<ActivityCadenceSampleMsg> cadenceSamples = const [];
+  List<PlannedExerciseSessionMsg> plannedSessions = const [];
+  PlannedExerciseWriteRequestMsg? writtenPlan;
+
+  /// The arguments the last `aggregateGroupByDurationJson` call was made with.
+  ({List<String> metrics, int startEpochMs, int endEpochMs, int bucketMinutes})?
+      lastDurationQuery;
   List<String> existingClientIds = const [];
 
   final List<({String type, List<String> ids})> filterQueries = [];
@@ -78,6 +86,44 @@ class FakeHostApi extends HealthConnectHostApi {
     String bucketType,
   ) async =>
       periodBuckets;
+
+  @override
+  Future<List<ActivityCadenceSampleMsg>> readActivityCadenceSamples(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      cadenceSamples;
+
+  @override
+  Future<List<PlannedExerciseSessionMsg>> readPlannedExerciseSessions(
+    int startEpochMs,
+    int endEpochMs,
+  ) async =>
+      plannedSessions;
+
+  @override
+  Future<String> writePlannedExerciseSession(
+    PlannedExerciseWriteRequestMsg request,
+  ) async {
+    writtenPlan = request;
+    return 'plan-1';
+  }
+
+  @override
+  Future<List<String>> aggregateGroupByDurationJson(
+    List<String> aggregateMetrics,
+    int startEpochMs,
+    int endEpochMs,
+    int bucketMinutes,
+  ) async {
+    lastDurationQuery = (
+      metrics: aggregateMetrics,
+      startEpochMs: startEpochMs,
+      endEpochMs: endEpochMs,
+      bucketMinutes: bucketMinutes,
+    );
+    return durationBuckets;
+  }
 
   @override
   Future<List<String>> filterExistingClientIds(
@@ -706,6 +752,355 @@ void main() {
       expect(matched, {'apple_health_a'});
       // SleepSessionRecord maps to the schema record type "Sleep".
       expect(api.filterQueries.single.type, 'Sleep');
+    });
+  });
+
+  group('readRawActivityProgress', () {
+    /// One hourly bucket ending at [hour] o'clock on [date].
+    String bucket(LocalDate date, int hour, Map<String, num?> values) {
+      final end = DateTime(date.year, date.month, date.day, hour);
+      return jsonEncode({
+        'startEpochMs':
+            end.subtract(const Duration(hours: 1)).millisecondsSinceEpoch,
+        'endEpochMs': end.millisecondsSinceEpoch,
+        'values': values,
+      });
+    }
+
+    test('accumulates each hourly bucket into a running total', () async {
+      final api = FakeHostApi();
+      final date = LocalDate(2026, 7, 5);
+      api.durationBuckets = [
+        bucket(date, 9, {'Steps.count': 1200, 'Distance.distance': 800.0}),
+        bucket(date, 10, {'Steps.count': 800, 'Distance.distance': 500.0}),
+        bucket(date, 11, {'Steps.count': 2000, 'Distance.distance': 1400.0}),
+      ];
+
+      final points = await _source(api).readRawActivityProgress(date);
+
+      expect(points, hasLength(3));
+      // Cumulative, not per-bucket.
+      expect([for (final p in points) p.totalSteps], [1200, 2000, 4000]);
+      expect(points.last.totalDistanceMeters, 2700.0);
+      expect(points.last.time, DateTime(2026, 7, 5, 11));
+    });
+
+    test('a metric the device never reports stays null, not a zero line',
+        () async {
+      final api = FakeHostApi();
+      final date = LocalDate(2026, 7, 5);
+      api.durationBuckets = [
+        bucket(date, 9, {'Steps.count': 1000, 'FloorsClimbed.floors': null}),
+      ];
+
+      final point = (await _source(api).readRawActivityProgress(date)).single;
+
+      expect(point.totalSteps, 1000);
+      expect(point.totalFloorsClimbed, isNull);
+      expect(point.totalElevationGainedMeters, isNull);
+      expect(point.totalWheelchairPushes, isNull);
+    });
+
+    test('a metric stays non-null from the bucket it first appears in',
+        () async {
+      final api = FakeHostApi();
+      final date = LocalDate(2026, 7, 5);
+      api.durationBuckets = [
+        bucket(date, 9, {'Steps.count': 1000}),
+        bucket(date, 10, {'Steps.count': 500, 'FloorsClimbed.floors': 3}),
+        bucket(date, 11, {'Steps.count': 500}),
+      ];
+
+      final points = await _source(api).readRawActivityProgress(date);
+
+      expect(points[0].totalFloorsClimbed, isNull);
+      expect(points[1].totalFloorsClimbed, 3);
+      // The running total carries forward even though this bucket had none.
+      expect(points[2].totalFloorsClimbed, 3);
+    });
+
+    test('asks for hourly buckets across the whole of a past day', () async {
+      final api = FakeHostApi();
+      final date = LocalDate(2026, 7, 5);
+      await _source(api).readRawActivityProgress(date);
+
+      final query = api.lastDurationQuery!;
+      expect(query.bucketMinutes, 60);
+      expect(
+        DateTime.fromMillisecondsSinceEpoch(query.startEpochMs),
+        DateTime(2026, 7, 5),
+      );
+      // A past day runs to midnight.
+      expect(
+        DateTime.fromMillisecondsSinceEpoch(query.endEpochMs),
+        DateTime(2026, 7, 6),
+      );
+      expect(query.metrics, contains('Steps.count'));
+    });
+
+    test('today stops at now rather than running on to midnight', () async {
+      final api = FakeHostApi();
+      final before = DateTime.now();
+      await _source(api).readRawActivityProgress(LocalDate.now());
+      final after = DateTime.now();
+
+      final end = DateTime.fromMillisecondsSinceEpoch(
+        api.lastDurationQuery!.endEpochMs,
+      );
+      expect(end.isBefore(before.subtract(const Duration(seconds: 1))), isFalse);
+      expect(end.isAfter(after.add(const Duration(seconds: 1))), isFalse);
+    });
+
+    test('no buckets means no points', () async {
+      final api = FakeHostApi()..durationBuckets = const [];
+      expect(
+        await _source(api).readRawActivityProgress(LocalDate(2026, 7, 5)),
+        isEmpty,
+      );
+    });
+  });
+
+  group('elevation + wheelchair aggregates', () {
+    test('return the aggregated value', () async {
+      final api = FakeHostApi()
+        ..aggregateValues = {
+          'ElevationGained.elevation': 123.5,
+          'WheelchairPushes.count': 1240.0,
+        };
+      final source = _source(api);
+
+      expect(await source.readElevationGained(LocalDate(2026, 7, 5)), 123.5);
+      expect(await source.readWheelchairPushes(LocalDate(2026, 7, 5)), 1240);
+    });
+
+    test('stay null when the device records neither', () async {
+      final api = FakeHostApi()
+        ..aggregateValues = {
+          'ElevationGained.elevation': null,
+          'WheelchairPushes.count': null,
+        };
+      final source = _source(api);
+
+      // Null, not 0: the metric screens show "no data" rather than a zero day.
+      expect(await source.readElevationGained(LocalDate(2026, 7, 5)), isNull);
+      expect(await source.readWheelchairPushes(LocalDate(2026, 7, 5)), isNull);
+    });
+
+    test('a wheelchair count is rounded to whole pushes', () async {
+      final api = FakeHostApi()
+        ..aggregateValues = {'WheelchairPushes.count': 1240.6};
+      expect(await _source(api).readWheelchairPushes(LocalDate(2026, 7, 5)), 1241);
+    });
+  });
+
+  group('readActivityCadenceSamples', () {
+    test('maps cycling and steps samples to their own kinds', () async {
+      final api = FakeHostApi()
+        ..cadenceSamples = [
+          ActivityCadenceSampleMsg(
+            timeEpochMs: _ms(2026, 7, 5, 9),
+            rate: 82.0,
+            isCycling: true,
+            source: 'garmin',
+          ),
+          ActivityCadenceSampleMsg(
+            timeEpochMs: _ms(2026, 7, 5, 10),
+            rate: 164.0,
+            isCycling: false,
+            source: 'phone',
+          ),
+        ];
+
+      final samples = await _source(api).readActivityCadenceSamples(
+        DateTime(2026, 7, 5),
+        DateTime(2026, 7, 6),
+      );
+
+      expect(samples, hasLength(2));
+      // 82 rpm on a bike; 164 steps/min running. Same shape, different unit.
+      expect(samples[0].kind, ActivityCadenceKind.cycling);
+      expect(samples[0].rate, 82.0);
+      expect(samples[0].source, 'garmin');
+      expect(samples[1].kind, ActivityCadenceKind.steps);
+      expect(samples[1].rate, 164.0);
+    });
+
+    test('is empty when the device records no cadence', () async {
+      expect(
+        await _source(FakeHostApi()).readActivityCadenceSamples(
+          DateTime(2026, 7, 5),
+          DateTime(2026, 7, 6),
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  group('planned exercise sessions', () {
+    PlannedExerciseStepMsg step(
+      PlannedExerciseCompletionKindMsg kind, {
+      int? reps,
+      int? seconds,
+    }) =>
+        PlannedExerciseStepMsg(
+          exerciseType: 79,
+          exercisePhase: 2,
+          description: 'set',
+          completionKind: kind,
+          completionRepetitions: reps,
+          completionSeconds: seconds,
+        );
+
+    /// The feature is optional; a provider that lacks it must not be called.
+    Future<HealthConnectNativeDataSource> enabledSource(FakeHostApi api) async {
+      api.availableFeatures = {'PLANNED_EXERCISE'};
+      final source = _source(api);
+      await source.resolveFeatureFlags();
+      return source;
+    }
+
+    test('reads sessions with their blocks, steps and completion goals',
+        () async {
+      final api = FakeHostApi()
+        ..plannedSessions = [
+          PlannedExerciseSessionMsg(
+            id: 'p1',
+            title: 'Push day',
+            exerciseType: 79,
+            startEpochMs: _ms(2026, 7, 5, 9),
+            endEpochMs: _ms(2026, 7, 5, 10),
+            hasExplicitTime: true,
+            completedExerciseSessionId: null,
+            notes: 'go easy',
+            source: 'openvitals',
+            blocks: [
+              PlannedExerciseBlockMsg(
+                repetitions: 3,
+                description: 'main',
+                steps: [
+                  step(PlannedExerciseCompletionKindMsg.repetitions, reps: 12),
+                  step(PlannedExerciseCompletionKindMsg.durationSeconds,
+                      seconds: 60),
+                  step(PlannedExerciseCompletionKindMsg.manual),
+                  step(PlannedExerciseCompletionKindMsg.unknown),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+      final plans = await (await enabledSource(api))
+          .readPlannedExerciseSessions(DateTime(2026, 7, 5), DateTime(2026, 7, 6));
+
+      final plan = plans.single;
+      expect(plan.title, 'Push day');
+      expect(plan.hasExplicitTime, isTrue);
+      expect(plan.blockCount, 1);
+
+      final steps = plan.blocks.single.steps;
+      expect(plan.blocks.single.repetitions, 3);
+      expect(
+        steps[0].completion,
+        const PlannedExerciseCompletionRepetitions(12),
+      );
+      expect(
+        steps[1].completion,
+        const PlannedExerciseCompletionDurationSeconds(60),
+      );
+      expect(steps[2].completion, isA<PlannedExerciseCompletionManual>());
+      expect(steps[3].completion, isA<PlannedExerciseCompletionUnknown>());
+    });
+
+    test('a write round-trips every completion kind', () async {
+      final api = FakeHostApi();
+      final source = await enabledSource(api);
+
+      final id = await source.writePlannedExerciseSession(
+        PlannedExerciseWriteRequest(
+          exerciseType: 79,
+          startTime: DateTime.fromMillisecondsSinceEpoch(_ms(2026, 7, 5, 9)),
+          endTime: DateTime.fromMillisecondsSinceEpoch(_ms(2026, 7, 5, 10)),
+          title: 'Push day',
+          blocks: const [
+            PlannedExerciseBlockData(
+              repetitions: 3,
+              description: 'main',
+              steps: [
+                PlannedExerciseStepData(
+                  exerciseType: 79,
+                  exercisePhase: 2,
+                  description: null,
+                  completion: PlannedExerciseCompletionRepetitions(12),
+                ),
+                PlannedExerciseStepData(
+                  exerciseType: 79,
+                  exercisePhase: 3,
+                  description: null,
+                  completion: PlannedExerciseCompletionDurationSeconds(60),
+                ),
+                PlannedExerciseStepData(
+                  exerciseType: 79,
+                  exercisePhase: 2,
+                  description: null,
+                  completion: PlannedExerciseCompletionManual(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      expect(id, 'plan-1');
+      final sent = api.writtenPlan!;
+      expect(sent.title, 'Push day');
+      final steps = sent.blocks.single.steps;
+      expect(steps[0].completionKind,
+          PlannedExerciseCompletionKindMsg.repetitions);
+      expect(steps[0].completionRepetitions, 12);
+      expect(steps[0].completionSeconds, isNull);
+      expect(steps[1].completionKind,
+          PlannedExerciseCompletionKindMsg.durationSeconds);
+      expect(steps[1].completionSeconds, 60);
+      expect(steps[1].completionRepetitions, isNull);
+      expect(steps[2].completionKind, PlannedExerciseCompletionKindMsg.manual);
+    });
+
+    test('an unsupported provider reads empty and refuses to write', () async {
+      final api = FakeHostApi()
+        ..plannedSessions = [
+          PlannedExerciseSessionMsg(
+            id: 'p1',
+            title: null,
+            exerciseType: 79,
+            startEpochMs: _ms(2026, 7, 5, 9),
+            endEpochMs: _ms(2026, 7, 5, 10),
+            hasExplicitTime: false,
+            completedExerciseSessionId: null,
+            notes: null,
+            source: 'x',
+            blocks: const [],
+          ),
+        ];
+      // Feature flag left unresolved → unavailable.
+      final source = _source(api);
+
+      expect(
+        await source.readPlannedExerciseSessions(
+            DateTime(2026, 7, 5), DateTime(2026, 7, 6)),
+        isEmpty,
+      );
+      await expectLater(
+        source.writePlannedExerciseSession(
+          PlannedExerciseWriteRequest(
+            exerciseType: 79,
+            startTime: DateTime(2026, 7, 5, 9),
+            endTime: DateTime(2026, 7, 5, 10),
+            blocks: const [],
+          ),
+        ),
+        throwsUnsupportedError,
+      );
+      expect(api.writtenPlan, isNull);
     });
   });
 }

@@ -4,9 +4,8 @@ import '../../../../core/presentation/unit_formatter.dart';
 import '../../../../domain/model/ble_sensor_models.dart';
 import '../../../../domain/model/heart_models.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../../ui/charts/sparkline_chart.dart';
 import '../../../../ui/components/ov_surface.dart';
-import '../../../../ui/theme/app_colors.dart';
+import '../../../activity/activity_heart_rate_chart_card.dart';
 
 /// Port of the Kotlin `ActivityRecordedSensorSummary` (in
 /// `recording/ActivityRecordingSensorUi.kt`): what a finished recording — or an
@@ -19,11 +18,19 @@ class ActivityRecordedSensorSummary extends StatelessWidget {
     super.key,
     required this.samples,
     required this.unitFormatter,
+    this.sessionStart,
+    this.sessionEnd,
     this.savedHeartRateSamples = const <HeartRateSample>[],
   });
 
   final BleRecordingSampleBuffer samples;
   final UnitFormatter unitFormatter;
+
+  /// The session range the heart-rate chart's time axis spans. When null (the
+  /// entry's date / time / duration fields do not parse yet) the axis falls
+  /// back to the first and last sample times, as in Kotlin.
+  final DateTime? sessionStart;
+  final DateTime? sessionEnd;
 
   /// Heart-rate samples read back from a saved session, used when this entry is
   /// being edited rather than freshly recorded.
@@ -54,12 +61,30 @@ class ActivityRecordedSensorSummary extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // Kotlin falls back to the sample range when the caller has no session
+    // range to offer.
+    DateTime? chartStart = sessionStart;
+    DateTime? chartEnd = sessionEnd;
+    if (heartRateSamples.isNotEmpty) {
+      chartStart ??= heartRateSamples
+          .map((sample) => sample.time)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      chartEnd ??= heartRateSamples
+          .map((sample) => sample.time)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 8,
       children: [
-        if (heartRateSamples.isNotEmpty)
-          _HeartRateSummaryCard(samples: heartRateSamples),
+        if (heartRateSamples.isNotEmpty && chartStart != null && chartEnd != null)
+          ActivityHeartRateChartCard(
+            samples: heartRateSamples,
+            sessionStart: chartStart,
+            sessionEnd: chartEnd,
+            unitFormatter: unitFormatter,
+          ),
         if (hasOtherSamples)
           OpenVitalsSurface(
             style: OpenVitalsSurfaceStyle.metric,
@@ -112,50 +137,4 @@ class ActivityRecordedSensorSummary extends StatelessWidget {
 
   static double _average(List<double> values) =>
       values.reduce((a, b) => a + b) / values.length;
-}
-
-/// A compact heart-rate trace plus its min/avg/max.
-///
-/// The Kotlin app renders `ActivityHeartRateChartCard`, a full time-axis chart
-/// keyed to the session range. No equivalent chart widget exists in this app
-/// yet, so this shows a sparkline over the samples in order. Replacing it with
-/// the real chart belongs with the recording pass, where the chart is also
-/// needed live.
-class _HeartRateSummaryCard extends StatelessWidget {
-  const _HeartRateSummaryCard({required this.samples});
-
-  final List<HeartRateSample> samples;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bpms = [for (final sample in samples) sample.beatsPerMinute];
-    final min = bpms.reduce((a, b) => a < b ? a : b);
-    final max = bpms.reduce((a, b) => a > b ? a : b);
-    final average = (bpms.reduce((a, b) => a + b) / bpms.length).round();
-
-    return OpenVitalsSurface(
-      style: OpenVitalsSurfaceStyle.metric,
-      contentPadding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 8,
-        children: [
-          Text('Heart rate', style: theme.textTheme.titleSmall),
-          if (bpms.length > 1)
-            SizedBox(
-              height: 56,
-              child: SparklineChart(
-                values: [for (final bpm in bpms) bpm.toDouble()],
-                accentColor: AppColors.heart,
-              ),
-            ),
-          Text(
-            'Avg $average bpm • min $min bpm • max $max bpm',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
 }

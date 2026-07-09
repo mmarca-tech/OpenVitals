@@ -14,6 +14,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.request.AggregateGroupByDurationRequest
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -833,6 +834,27 @@ class HealthConnectNativePlugin :
     requireActivityReader().readSpeedSamples(instant(startEpochMs), instant(endEpochMs))
   }
 
+  override fun readActivityCadenceSamples(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<ActivityCadenceSampleMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireActivityReader().readActivityCadenceSamples(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun readPlannedExerciseSessions(
+    startEpochMs: Long,
+    endEpochMs: Long,
+    callback: (Result<List<PlannedExerciseSessionMsg>>) -> Unit,
+  ) = launchCatching(callback) {
+    requireActivityReader().readPlannedExerciseSessions(instant(startEpochMs), instant(endEpochMs))
+  }
+
+  override fun writePlannedExerciseSession(
+    request: PlannedExerciseWriteRequestMsg,
+    callback: (Result<String>) -> Unit,
+  ) = launchCatching(callback) { requireActivityReader().writePlannedExerciseSession(request) }
+
   override fun writeActivityEntry(
     request: ActivityWriteRequestMsg,
     callback: (Result<String>) -> Unit,
@@ -1100,6 +1122,50 @@ class HealthConnectNativePlugin :
           JSONObject()
             .put("startEpochMs", bucket.startTime.atZone(zone).toInstant().toEpochMilli())
             .put("endEpochMs", bucket.endTime.atZone(zone).toInstant().toEpochMilli())
+            .put("values", values)
+            .toString()
+        }
+      }
+    }
+  }
+
+  override fun aggregateGroupByDurationJson(
+    aggregateMetrics: List<String>,
+    startEpochMs: Long,
+    endEpochMs: Long,
+    bucketMinutes: Long,
+    callback: (Result<List<String>>) -> Unit,
+  ) {
+    launchCatching(callback) {
+      val specs = aggregateMetrics.mapNotNull { key ->
+        HealthAggregateMetrics.specFor(key)?.let { key to it }
+      }
+      if (specs.isEmpty()) return@launchCatching emptyList()
+
+      // A zero or negative slice would make Health Connect throw.
+      val slice = Duration.ofMinutes(bucketMinutes.coerceAtLeast(1L))
+      val timeRangeFilter = TimeRangeFilter.between(
+        Instant.ofEpochMilli(startEpochMs),
+        Instant.ofEpochMilli(endEpochMs),
+      )
+      val metricSet = specs.map { it.second.metric }.toSet()
+      withContext(Dispatchers.IO) {
+        val buckets = client().aggregateGroupByDuration(
+          AggregateGroupByDurationRequest(
+            metrics = metricSet,
+            timeRangeFilter = timeRangeFilter,
+            timeRangeSlicer = slice,
+          ),
+        )
+        buckets.map { bucket ->
+          val values = JSONObject()
+          for ((key, spec) in specs) {
+            val value = runCatching { spec.extract(bucket.result) }.getOrNull()
+            values.put(key, value ?: JSONObject.NULL)
+          }
+          JSONObject()
+            .put("startEpochMs", bucket.startTime.toEpochMilli())
+            .put("endEpochMs", bucket.endTime.toEpochMilli())
             .put("values", values)
             .toString()
         }

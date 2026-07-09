@@ -14,7 +14,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ActivityMetricState {
 
- LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; ScreenError? get error; ActivityPeriodData? get data;
+ LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; ScreenError? get error; ActivityPeriodData? get data;/// The metric's persisted daily goal, moved by the goal card's steppers.
+ double get dailyGoal;
 /// Create a copy of ActivityMetricState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +26,16 @@ $ActivityMetricStateCopyWith<ActivityMetricState> get copyWith => _$ActivityMetr
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.data, data) || other.data == data));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.data, data) || other.data == data)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,data);
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,data,dailyGoal);
 
 @override
 String toString() {
-  return 'ActivityMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, data: $data)';
+  return 'ActivityMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, data: $data, dailyGoal: $dailyGoal)';
 }
 
 
@@ -45,7 +46,7 @@ abstract mixin class $ActivityMetricStateCopyWith<$Res>  {
   factory $ActivityMetricStateCopyWith(ActivityMetricState value, $Res Function(ActivityMetricState) _then) = _$ActivityMetricStateCopyWithImpl;
 @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, ActivityPeriodData? data
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, ActivityPeriodData? data, double dailyGoal
 });
 
 
@@ -62,14 +63,15 @@ class _$ActivityMetricStateCopyWithImpl<$Res>
 
 /// Create a copy of ActivityMetricState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? data = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? data = freezed,Object? dailyGoal = null,}) {
   return _then(_self.copyWith(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
 as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
-as ActivityPeriodData?,
+as ActivityPeriodData?,dailyGoal: null == dailyGoal ? _self.dailyGoal : dailyGoal // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 /// Create a copy of ActivityMetricState
@@ -166,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data,  double dailyGoal)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ActivityMetricState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data,_that.dailyGoal);case _:
   return orElse();
 
 }
@@ -187,10 +189,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data,  double dailyGoal)  $default,) {final _that = this;
 switch (_that) {
 case _ActivityMetricState():
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data,_that.dailyGoal);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +209,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  ActivityPeriodData? data,  double dailyGoal)?  $default,) {final _that = this;
 switch (_that) {
 case _ActivityMetricState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.data,_that.dailyGoal);case _:
   return null;
 
 }
@@ -222,7 +224,7 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 
 
 class _ActivityMetricState extends ActivityMetricState {
-  const _ActivityMetricState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.error, this.data}): super._();
+  const _ActivityMetricState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.error, this.data, this.dailyGoal = 0.0}): super._();
   
 
 @override final  LocalDate selectedDate;
@@ -230,6 +232,8 @@ class _ActivityMetricState extends ActivityMetricState {
 @override@JsonKey() final  bool isLoading;
 @override final  ScreenError? error;
 @override final  ActivityPeriodData? data;
+/// The metric's persisted daily goal, moved by the goal card's steppers.
+@override@JsonKey() final  double dailyGoal;
 
 /// Create a copy of ActivityMetricState
 /// with the given fields replaced by the non-null parameter values.
@@ -241,16 +245,16 @@ _$ActivityMetricStateCopyWith<_ActivityMetricState> get copyWith => __$ActivityM
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.data, data) || other.data == data));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.data, data) || other.data == data)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,data);
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,data,dailyGoal);
 
 @override
 String toString() {
-  return 'ActivityMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, data: $data)';
+  return 'ActivityMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, data: $data, dailyGoal: $dailyGoal)';
 }
 
 
@@ -261,7 +265,7 @@ abstract mixin class _$ActivityMetricStateCopyWith<$Res> implements $ActivityMet
   factory _$ActivityMetricStateCopyWith(_ActivityMetricState value, $Res Function(_ActivityMetricState) _then) = __$ActivityMetricStateCopyWithImpl;
 @override @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, ActivityPeriodData? data
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, ActivityPeriodData? data, double dailyGoal
 });
 
 
@@ -278,14 +282,15 @@ class __$ActivityMetricStateCopyWithImpl<$Res>
 
 /// Create a copy of ActivityMetricState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? data = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? data = freezed,Object? dailyGoal = null,}) {
   return _then(_ActivityMetricState(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
 as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
-as ActivityPeriodData?,
+as ActivityPeriodData?,dailyGoal: null == dailyGoal ? _self.dailyGoal : dailyGoal // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 

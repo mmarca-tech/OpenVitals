@@ -10,6 +10,7 @@ import '../../di/providers.dart';
 import '../../domain/model/refresh_mode.dart';
 import '../../domain/query/activity_period_data.dart';
 import 'activity_metric.dart';
+import 'activity_metric_display.dart';
 
 part 'activity_metric_notifier.freezed.dart';
 
@@ -26,6 +27,8 @@ abstract class ActivityMetricState with _$ActivityMetricState {
     @Default(true) bool isLoading,
     ScreenError? error,
     ActivityPeriodData? data,
+    /// The metric's persisted daily goal, moved by the goal card's steppers.
+    @Default(0.0) double dailyGoal,
   }) = _ActivityMetricState;
 }
 
@@ -44,8 +47,28 @@ class ActivityMetricNotifier extends Notifier<ActivityMetricState> {
   int _generation = 0;
 
   @override
-  ActivityMetricState build() =>
-      ActivityMetricState(selectedDate: LocalDate.now());
+  ActivityMetricState build() => ActivityMetricState(
+        selectedDate: LocalDate.now(),
+        dailyGoal: ref
+            .read(preferencesRepositoryProvider)
+            .dailyGoalFor(activityMetricGoalKey(metric)),
+      );
+
+  /// Kotlin `ActivityViewModel.increaseDailyGoal` / `decreaseDailyGoal`: step the
+  /// goal by its metric's step, clamped to the metric's own bounds, and persist.
+  void _nudgeDailyGoal(double delta) {
+    final key = activityMetricGoalKey(metric);
+    final next = key.normalize(state.dailyGoal + delta);
+    if (next == state.dailyGoal) return;
+    ref.read(preferencesRepositoryProvider).setDailyGoalFor(key, next);
+    state = state.copyWith(dailyGoal: next);
+  }
+
+  void increaseDailyGoal() =>
+      _nudgeDailyGoal(activityMetricGoalKey(metric).step);
+
+  void decreaseDailyGoal() =>
+      _nudgeDailyGoal(-activityMetricGoalKey(metric).step);
 
   /// Loads the metric data for [selection] (the scaffold's current period).
   Future<void> load(

@@ -609,37 +609,15 @@ class _MetricCarouselState extends State<_MetricCarousel> {
       );
     }
 
-    final card = _editCard(context, tile);
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != flatIndex,
-      onAcceptWithDetails: (details) =>
-          widget.onReorder?.call(details.data, flatIndex),
-      builder: (context, candidate, rejected) {
-        return AnimatedScale(
-          scale: candidate.isNotEmpty ? 1.04 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          child: LongPressDraggable<int>(
-            data: flatIndex,
-            onDragStarted: () => setState(() => _draggingIndex = flatIndex),
-            onDragUpdate: (details) =>
-                _maybeEdgeScroll(details.globalPosition, pageCount),
-            onDragEnd: (_) => _endDrag(),
-            onDraggableCanceled: (_, _) => _endDrag(),
-            feedback: SizedBox(
-              width: cellWidth,
-              height: _MetricCarousel._tileHeight,
-              child: Material(
-                color: Colors.transparent,
-                elevation: 8,
-                borderRadius: BorderRadius.circular(20),
-                child: _editCard(context, tile),
-              ),
-            ),
-            childWhenDragging: Opacity(opacity: 0.25, child: card),
-            child: card,
-          ),
-        );
-      },
+    return ReorderableEditTile(
+      index: flatIndex,
+      onReorder: (from, to) => widget.onReorder?.call(from, to),
+      feedbackSize: Size(cellWidth, _MetricCarousel._tileHeight),
+      onDragStarted: () => setState(() => _draggingIndex = flatIndex),
+      onDragUpdate: (details) =>
+          _maybeEdgeScroll(details.globalPosition, pageCount),
+      onDragEnd: _endDrag,
+      child: _editCard(context, tile),
     );
   }
 
@@ -709,31 +687,13 @@ class _HeroRingEditRow extends StatelessWidget {
 
   Widget _cell(BuildContext context, int index, double cellWidth) {
     final ring = rings[index];
-    final card = _card(context, ring);
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != index,
-      onAcceptWithDetails: (details) => onReorder(details.data, index),
-      builder: (context, candidate, rejected) {
-        return AnimatedScale(
-          scale: candidate.isNotEmpty ? 1.03 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          child: LongPressDraggable<int>(
-            data: index,
-            feedback: SizedBox(
-              width: cellWidth,
-              height: cellWidth,
-              child: Material(
-                color: Colors.transparent,
-                elevation: 8,
-                borderRadius: BorderRadius.circular(24),
-                child: _card(context, ring),
-              ),
-            ),
-            childWhenDragging: Opacity(opacity: 0.25, child: card),
-            child: card,
-          ),
-        );
-      },
+    return ReorderableEditTile(
+      index: index,
+      onReorder: onReorder,
+      feedbackSize: Size(cellWidth, cellWidth),
+      feedbackBorderRadius: const BorderRadius.all(Radius.circular(24)),
+      highlightScale: 1.03,
+      child: _card(context, ring),
     );
   }
 

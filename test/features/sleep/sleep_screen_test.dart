@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:openvitals/features/sleep/sleep_metric_sections.dart';
+import 'package:openvitals/features/sleep/sleep_schedule_chart.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/components/cross_metric_insight_card.dart';
+import 'package:openvitals/ui/components/daily_goal_components.dart';
+import 'package:openvitals/ui/components/data_confidence_card.dart';
+import 'package:openvitals/ui/components/metric_interpretation_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:openvitals/core/period/period_load_query.dart';
@@ -25,6 +33,7 @@ class _FakeSleepRepository implements SleepRepository {
 
   final List<SleepData> sessions;
 
+
   @override
   Future<SleepPeriodData> loadSleepPeriod(
     PeriodLoadQuery query,
@@ -40,20 +49,24 @@ class _FakeSleepRepository implements SleepRepository {
 /// A fake [HeartRepository]; only the cross-metric HRV load the sleep use case
 /// issues is exercised.
 class _FakeHeartRepository implements HeartRepository {
+  _FakeHeartRepository({this.hrv = const <DailyHrv>[]});
+
+  final List<DailyHrv> hrv;
+
   @override
   Future<List<DailyHrv>> loadDailyHRV(LocalDate start, LocalDate end) async =>
-      const <DailyHrv>[];
+      hrv;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-SleepData _session() {
-  final now = DateTime.now();
+SleepData _session({int daysAgo = 0, int hours = 8}) {
+  final now = DateTime.now().subtract(Duration(days: daysAgo));
   final end = DateTime(now.year, now.month, now.day, 7).toUtc();
-  final start = end.subtract(const Duration(hours: 8));
+  final start = end.subtract(Duration(hours: hours));
   return SleepData(
-    id: 's1',
+    id: 's$daysAgo',
     startTime: start,
     endTime: end,
     durationMs: const Duration(hours: 8).inMilliseconds,
@@ -81,6 +94,7 @@ SleepData _session() {
 Future<Widget> _bootstrap({
   required _FakeSleepRepository sleepRepository,
   required Set<String> granted,
+  List<DailyHrv> hrv = const <DailyHrv>[],
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
@@ -88,18 +102,26 @@ Future<Widget> _bootstrap({
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       sleepRepositoryProvider.overrideWithValue(sleepRepository),
-      heartRepositoryProvider.overrideWithValue(_FakeHeartRepository()),
+      heartRepositoryProvider.overrideWithValue(_FakeHeartRepository(hrv: hrv)),
       healthConnectAvailabilityProvider
           .overrideWith((ref) async => HealthConnectAvailability.available),
       grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
     ],
-    child: const MaterialApp(home: SleepScreen()),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const SleepScreen(),
+    ),
   );
 }
 
 void main() {
-  testWidgets('Sleep screen renders the overview + duration chart once loaded',
-      (tester) async {
+  testWidgets('Sleep screen renders the Kotlin ordered sections', (tester) async {
+    tester.view.physicalSize = const Size(1200, 5000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       await _bootstrap(
         sleepRepository: _FakeSleepRepository(sessions: [_session()]),
@@ -109,8 +131,99 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(MetricBarChart), findsOneWidget);
+
+    // A week whose nights know their bedtimes gets the schedule chart, not the
+    // duration bars — Kotlin's `useScheduleChart` rule.
+    expect(find.byType(SleepScheduleStageChart), findsOneWidget);
+    expect(find.byType(MetricBarChart), findsNothing);
     expect(find.text('Sleep score'), findsOneWidget);
+
+    // ...plus the sections Kotlin adds and the old screen lacked entirely.
+    expect(find.byType(DailyGoalCard), findsOneWidget);
+    expect(find.text('Daily goal'), findsOneWidget);
+    expect(find.byType(DailyGoalStatistics), findsOneWidget);
+    expect(find.text('Nights logged'), findsOneWidget);
+    expect(find.text('Longest sleep'), findsOneWidget);
+    expect(find.byType(DataConfidenceCard), findsOneWidget);
+    expect(find.text('Sleep sessions'), findsOneWidget);
+    expect(find.byType(SleepSessionItem), findsOneWidget);
+
+    // The sleep-target reading, from the configured 8 h goal.
+    expect(find.byType(MetricInterpretationCard), findsOneWidget);
+    expect(find.text('Sleep target'), findsOneWidget);
+  });
+
+  testWidgets('the goal steppers move and persist the sleep target',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 5000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      await _bootstrap(
+        sleepRepository: _FakeSleepRepository(sessions: [_session()]),
+        granted: {HcPermissions.readSleep},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The sleep goal defaults to 8 h and steps by a quarter hour.
+    expect(find.text('8h 00m'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Increase daily goal'));
+    await tester.pumpAndSettle();
+    expect(find.text('8h 15m'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Decrease daily goal'));
+    await tester.tap(find.byTooltip('Decrease daily goal'));
+    await tester.pumpAndSettle();
+    expect(find.text('7h 45m'), findsWidgets);
+  });
+
+  testWidgets('the sleep-vs-HRV card needs enough paired nights',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 5000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // One night with one HRV reading cannot correlate with anything.
+    await tester.pumpWidget(
+      await _bootstrap(
+        sleepRepository: _FakeSleepRepository(sessions: [_session()]),
+        granted: {HcPermissions.readSleep},
+        hrv: [DailyHrv(date: LocalDate.now(), rmssdMs: 45)],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(CrossMetricInsightCard), findsNothing);
+  });
+
+  testWidgets('a week of nights paired with HRV shows the correlation card',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final today = LocalDate.now();
+    await tester.pumpWidget(
+      await _bootstrap(
+        sleepRepository: _FakeSleepRepository(sessions: [
+          for (var i = 0; i < 5; i++) _session(daysAgo: i, hours: 6 + i),
+        ]),
+        granted: {HcPermissions.readSleep},
+        hrv: [
+          for (var i = 0; i < 5; i++)
+            DailyHrv(date: today.minusDays(i), rmssdMs: 40.0 + i * 3),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CrossMetricInsightCard), findsOneWidget);
+    expect(find.text('Sleep vs HRV'), findsOneWidget);
   });
 
   testWidgets('Sleep screen shows the access gate when permission missing',

@@ -1,30 +1,38 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show Locale, PlatformDispatcher;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import '../../../../core/presentation/unit_formatter.dart';
 import '../../../../data/prefs/preferences_repository.dart';
 import '../../../../domain/model/activity_models.dart';
 import '../../../../domain/model/ble_sensor_models.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
 import '../../../../domain/preferences/activity_recording_preferences.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../navigation/app_routes.dart';
 import '../../../../sensors/ble/ble_sensor_coordinator.dart';
 import '../activity_entry_types.dart';
 import '../repetition_recognizers.dart';
 import 'activity_recording.dart';
+import 'activity_recording_announcements.dart';
+import 'activity_recording_device_support.dart';
+import 'activity_recording_native_sensors.dart';
 import 'activity_recording_serialization.dart';
 import 'activity_recording_splits.dart';
+import 'activity_recording_task_handler.dart';
 
 /// Device-bound port of the Kotlin `ActivityRecordingController` +
 /// `ActivityRecordingService`, wiring GPS ([Geolocator]), motion/barometer
-/// ([sensors_plus]), the foreground service ([flutter_foreground_task]),
-/// notifications ([flutter_local_notifications]) and voice announcements
-/// ([flutter_tts]) onto the pure [ActivityRecordingState] model.
+/// ([sensors_plus]), the foreground service ([flutter_foreground_task], which
+/// posts its own ongoing notification) and voice announcements ([flutter_tts])
+/// onto the pure [ActivityRecordingState] model.
 ///
 /// The pure state transitions (distance/pace/elevation accumulation, pause /
 /// rest / repetition bookkeeping, snapshot building) are shared with the tested
@@ -35,41 +43,98 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     required this.preferencesRepository,
     required this.bleSensorCoordinator,
     required this.recordingStore,
+    required this.unitFormatter,
+    required this.deviceSupport,
+    this.nativeSensors = const ActivityRecordingNativeSensors(),
   }) {
     _state = ValueNotifier<ActivityRecordingState>(recordingStore.restore());
     _bleSub =
         bleSensorCoordinator.metricsStream.listen(acceptBleMetrics);
     _scheduleRestCompletion(_state.value);
+    FlutterForegroundTask.addTaskDataCallback(_onNotificationAction);
+    _resumeRestoredRecording();
   }
 
   final PreferencesRepository preferencesRepository;
   final BleSensorCoordinator bleSensorCoordinator;
   final ActivityRecordingStore recordingStore;
+  final UnitFormatter unitFormatter;
+  final ActivityRecordingDeviceSupport deviceSupport;
+  final ActivityRecordingNativeSensors nativeSensors;
 
   late final ValueNotifier<ActivityRecordingState> _state;
   @override
   ValueListenable<ActivityRecordingState> get state => _state;
 
   final FlutterTts _tts = FlutterTts();
-  final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  bool _ttsLanguageConfigured = false;
+  final ActivityRecordingAnnouncementTracker _announcementTracker =
+      ActivityRecordingAnnouncementTracker();
 
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<BarometerEvent>? _barometerSub;
   StreamSubscription<AccelerometerEvent>? _accelSub;
+  StreamSubscription<double>? _proximitySub;
+  StreamSubscription<int>? _stepSub;
   StreamSubscription<BleRecordingMetrics>? _bleSub;
   Timer? _restCompletionTimer;
+  Timer? _gpsLostTimer;
   int _recordingGeneration = 0;
   JumpRepetitionRecognizer? _jumpRecognizer;
   PullUpRepetitionRecognizer? _pullRecognizer;
+  PushUpProximityRecognizer? _pushUpRecognizer;
+  StepDetectorRepetitionRecognizer? _stepRecognizer;
+  String? _lastNotificationSignature;
 
   void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onNotificationAction);
     _positionSub?.cancel();
     _barometerSub?.cancel();
     _accelSub?.cancel();
+    _proximitySub?.cancel();
+    _stepSub?.cancel();
     _bleSub?.cancel();
     _restCompletionTimer?.cancel();
+    _gpsLostTimer?.cancel();
     _state.dispose();
+  }
+
+  /// The device locale's localizations, for texts spoken/posted while no
+  /// BuildContext exists (TTS, the service notification). Kotlin reads the
+  /// same strings through the service's Context.
+  AppLocalizations _l10n() {
+    try {
+      return lookupAppLocalizations(PlatformDispatcher.instance.locale);
+    } on FlutterError {
+      return lookupAppLocalizations(const Locale('en'));
+    }
+  }
+
+  /// Kotlin `ActivityRecordingService.observeRecordingState` restart path: a
+  /// recording restored from disk after process death re-attaches its device
+  /// streams and re-enters the foreground, instead of silently going numb.
+  void _resumeRestoredRecording() {
+    final current = _state.value;
+    if (!current.isActive) return;
+    if (current.status == ActivityRecordingStatus.recording) {
+      _startDeviceStreamsFor(current);
+    }
+    bleSensorCoordinator.startRecording();
+    _startForegroundService(current);
+  }
+
+  /// Port of `ActivityRecordingService.onStartCommand`'s pause/resume/discard
+  /// intent handling, receiving the notification-button presses relayed from
+  /// the service isolate.
+  void _onNotificationAction(Object data) {
+    switch (data) {
+      case kActivityRecordingActionPause:
+        pauseRecording();
+      case kActivityRecordingActionResume:
+        resumeRecording();
+      case kActivityRecordingActionDiscard:
+        discardRecording();
+    }
   }
 
   // ── Preparation ──────────────────────────────────────────────────────────
@@ -126,11 +191,11 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
   // ── Start ────────────────────────────────────────────────────────────────
 
   @override
-  bool startRecording(
+  Future<bool> startRecording(
     ActivityEntryType activityType,
     ActivityRecordingInitialFix? initialFix, {
     int repetitionRestSeconds = 0,
-  }) {
+  }) async {
     if (activityType.supportsGpsRoute) {
       return _startGpsRecording(activityType, initialFix);
     }
@@ -141,22 +206,56 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
       return _startTimedRecording(activityType);
     }
     _updateAndPersist(_state.value
-        .copyWith(errorMessage: 'This activity type cannot be recorded live.'));
+        .copyWith(errorMessage: _l10n().activityRecordingErrorUnsupportedType));
     return false;
   }
 
-  bool _startGpsRecording(
-      ActivityEntryType activityType, ActivityRecordingInitialFix? initialFix) {
+  /// Kotlin `startGpsRecording` re-validates permissions and the locked fix at
+  /// the very start; a stale or imprecise fix must not seed a route.
+  Future<bool> _startGpsRecording(
+      ActivityEntryType activityType, ActivityRecordingInitialFix? initialFix) async {
     final preferences = preferencesRepository.activityRecordingPreferences();
     final dashboardLayout =
         preferencesRepository.activityRecordingDashboardLayout(activityType.id);
-    final now = DateTime.now().toUtc();
-    if (initialFix == null) {
-      _updateAndPersist(_state.value
-          .copyWith(errorMessage: 'Waiting for a precise GPS fix.'));
+    if (!await deviceSupport.hasPreciseLocationPermission()) {
+      _updateAndPersist(_state.value.copyWith(
+          errorMessage:
+              _l10n().activityRecordingErrorPreciseLocationPermission));
       return false;
     }
+    if (!await deviceSupport.hasNotificationPermission()) {
+      _updateAndPersist(_state.value.copyWith(
+          errorMessage: _l10n().activityRecordingErrorNotificationPermission));
+      return false;
+    }
+    final now = DateTime.now().toUtc();
+    if (initialFix == null || !_isPreciseInitialFix(initialFix, preferences, now)) {
+      _updateAndPersist(_state.value
+          .copyWith(errorMessage: _l10n().activityRecordingErrorWaitingForGps));
+      return false;
+    }
+    await recordingStore.clear();
     _recordingGeneration += 1;
+    _announcementTracker.reset();
+    // Kotlin seeds the route by feeding the locked fix through acceptLocation
+    // with its time bumped to the session start — which MSL-converts its
+    // altitude like every other fix.
+    final seedAltitude = initialFix.altitudeMeters;
+    final seedMslAltitude = seedAltitude == null || seedAltitude == 0.0
+        ? null
+        : await _mslAltitudeMeters(
+            latitude: initialFix.latitude,
+            longitude: initialFix.longitude,
+            altitudeMeters: seedAltitude,
+          );
+    final seedPoint = ExerciseRoutePoint(
+      time: now,
+      latitude: initialFix.latitude,
+      longitude: initialFix.longitude,
+      altitudeMeters: seedMslAltitude ?? seedAltitude,
+      horizontalAccuracyMeters: initialFix.accuracyMeters,
+      verticalAccuracyMeters: null,
+    );
     _updateAndPersist(
       ActivityRecordingState(
         status: ActivityRecordingStatus.recording,
@@ -164,6 +263,8 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
         activityTypeId: activityType.id,
         exerciseType: activityType.exerciseType,
         startTime: now,
+        points: [seedPoint],
+        latestUiPoint: seedPoint,
         gpsStatus: ActivityGpsStatus.fix,
         keepScreenOnDuringRecording: preferences.keepScreenOnDuringRecording,
         autoIdleEnabled: preferences.autoIdleEnabled,
@@ -176,19 +277,50 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     );
     _startLocationUpdates(preferences);
     _startBarometerUpdates(preferences);
+    // Kotlin's service registers the step detector alongside GPS for
+    // step-counting route types (walking), so steps count while the route
+    // records.
+    if (activityType.supportsStepCounting) _startMotionRecognizer(activityType);
     bleSensorCoordinator.startRecording();
     acceptBleMetrics(bleSensorCoordinator.metrics);
-    _startForegroundService(activityType.label);
+    _startForegroundService(_state.value);
     return true;
   }
 
-  bool _startRepetitionRecording(
-      ActivityEntryType activityType, int repetitionRestSeconds) {
+  /// The freshness half of Kotlin `Location.activityGpsFixQuality` applied to
+  /// the plugin-free initial fix (there is no start time yet at this point).
+  bool _isPreciseInitialFix(
+    ActivityRecordingInitialFix fix,
+    ActivityRecordingPreferences preferences,
+    DateTime now,
+  ) {
+    final accuracy = fix.accuracyMeters;
+    if (accuracy == null ||
+        accuracy > preferences.requiredGpsAccuracyMeters.toDouble()) {
+      return false;
+    }
+    final timeMillis = fix.timeMillis;
+    if (timeMillis == null) return false;
+    final fixTime = DateTime.fromMillisecondsSinceEpoch(timeMillis, isUtc: true);
+    return now.difference(fixTime).inMilliseconds <= kMaxLocationAgeMillis &&
+        !fixTime.isAfter(
+            now.add(const Duration(seconds: kMaxLocationFutureSkewSeconds)));
+  }
+
+  Future<bool> _startRepetitionRecording(
+      ActivityEntryType activityType, int repetitionRestSeconds) async {
+    if (!await deviceSupport.hasNotificationPermission()) {
+      _updateAndPersist(_state.value.copyWith(
+          errorMessage: _l10n().activityRecordingErrorNotificationPermission));
+      return false;
+    }
     final preferences = preferencesRepository.activityRecordingPreferences();
     final dashboardLayout =
         preferencesRepository.activityRecordingDashboardLayout(activityType.id);
     final now = DateTime.now().toUtc();
+    await recordingStore.clear();
     _recordingGeneration += 1;
+    _announcementTracker.reset();
     _updateAndPersist(
       ActivityRecordingState(
         status: ActivityRecordingStatus.recording,
@@ -206,16 +338,23 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     _startMotionRecognizer(activityType);
     bleSensorCoordinator.startRecording();
     acceptBleMetrics(bleSensorCoordinator.metrics);
-    _startForegroundService(activityType.label);
+    _startForegroundService(_state.value);
     return true;
   }
 
-  bool _startTimedRecording(ActivityEntryType activityType) {
+  Future<bool> _startTimedRecording(ActivityEntryType activityType) async {
+    if (!await deviceSupport.hasNotificationPermission()) {
+      _updateAndPersist(_state.value.copyWith(
+          errorMessage: _l10n().activityRecordingErrorNotificationPermission));
+      return false;
+    }
     final preferences = preferencesRepository.activityRecordingPreferences();
     final dashboardLayout =
         preferencesRepository.activityRecordingDashboardLayout(activityType.id);
     final now = DateTime.now().toUtc();
+    await recordingStore.clear();
     _recordingGeneration += 1;
+    _announcementTracker.reset();
     _updateAndPersist(
       ActivityRecordingState(
         status: ActivityRecordingStatus.recording,
@@ -229,7 +368,7 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     );
     bleSensorCoordinator.startRecording();
     acceptBleMetrics(bleSensorCoordinator.metrics);
-    _startForegroundService(activityType.label);
+    _startForegroundService(_state.value);
     return true;
   }
 
@@ -265,6 +404,55 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
       pausedStartedAt: DateTime.now().toUtc(),
       errorMessage: null,
     ));
+    // Kotlin's service stops location/sensor/pressure updates whenever the
+    // status leaves RECORDING; mirror that so a paused session stops draining
+    // GPS and cannot trip the GPS-lost watchdog.
+    _stopDeviceStreams();
+  }
+
+  void _stopDeviceStreams() {
+    _positionSub?.cancel();
+    _positionSub = null;
+    _barometerSub?.cancel();
+    _barometerSub = null;
+    _stopMotionSensors();
+    _gpsLostTimer?.cancel();
+    _gpsLostTimer = null;
+  }
+
+  /// Kotlin `ActivityRecordingService.stopSensorUpdates`: unregister and drop
+  /// the recognizers so a later session starts from a clean state machine.
+  void _stopMotionSensors() {
+    _accelSub?.cancel();
+    _accelSub = null;
+    _proximitySub?.cancel();
+    _proximitySub = null;
+    _stepSub?.cancel();
+    _stepSub = null;
+    _jumpRecognizer = null;
+    _pullRecognizer = null;
+    _pushUpRecognizer = null;
+    _stepRecognizer = null;
+  }
+
+  void _startDeviceStreamsFor(ActivityRecordingState state) {
+    final preferences = preferencesRepository.activityRecordingPreferences();
+    final activityType = activityEntryTypeById(state.activityTypeId);
+    switch (state.recordingKind) {
+      case ActivityRecordingKind.gpsRoute:
+        _startLocationUpdates(preferences);
+        _startBarometerUpdates(preferences);
+        // Kotlin's GPS_ROUTE branch of observeRecordingState also registers
+        // the step detector for step-counting route types (walking), so live
+        // step counting runs alongside the location updates.
+        if (activityType != null && activityType.supportsStepCounting) {
+          _startMotionRecognizer(activityType);
+        }
+      case ActivityRecordingKind.repetition:
+        if (activityType != null) _startMotionRecognizer(activityType);
+      case ActivityRecordingKind.timed:
+        break;
+    }
   }
 
   @override
@@ -286,6 +474,7 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
       pauseIntervals: [...current.pauseIntervals, ?closedPause],
       errorMessage: null,
     ));
+    _startDeviceStreamsFor(_state.value);
   }
 
   // ── Laps / markers ─────────────────────────────────────────────────────────
@@ -530,41 +719,113 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
 
   // ── Location processing ────────────────────────────────────────────────────
 
+  /// Kotlin samples GPS_PROVIDER at a fixed 1 s / 0 m and filters in the
+  /// controller (`minimumSampleDistanceMeters`), so the OS-level distance
+  /// filter stays at zero here too.
   void _startLocationUpdates(ActivityRecordingPreferences preferences) {
     _positionSub?.cancel();
+    // Stale callbacks from a cancelled subscription must not leak into a newer
+    // session: the generation is captured when the stream starts, mirroring
+    // Kotlin's capture in acceptLocation before the async hop.
+    final generation = _recordingGeneration;
     _positionSub = Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
+      locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.best,
-        distanceFilter: preferences.recordingDistanceIntervalMeters ?? 0,
+        distanceFilter: 0,
       ),
-    ).listen(_acceptPosition, onError: (Object _) {});
+    ).listen(
+      (position) => _acceptPosition(position, generation),
+      onError: (Object error) {
+        // Kotlin's LocationListener.onProviderDisabled path.
+        if (error is LocationServiceDisabledException) {
+          _reportGpsDisabled();
+          _reportRecordingError(_l10n().activityRecordingErrorProvider);
+        }
+      },
+    );
+    _scheduleGpsLostTimeout();
   }
 
-  void _acceptPosition(Position position) {
-    final generation = _recordingGeneration;
+  /// Kotlin `ActivityRecordingService.scheduleGpsLostTimeout`: 30 s without a
+  /// fix flips the GPS status to LOST. Re-armed on every incoming position.
+  void _scheduleGpsLostTimeout() {
+    _gpsLostTimer?.cancel();
+    _gpsLostTimer = Timer(const Duration(milliseconds: kGpsLostTimeoutMillis),
+        _reportGpsLost);
+  }
+
+  /// Kotlin `ActivityRecordingController.reportGpsLost`.
+  void _reportGpsLost() {
+    final current = _state.value;
+    if (current.status != ActivityRecordingStatus.recording ||
+        current.recordingKind != ActivityRecordingKind.gpsRoute) {
+      return;
+    }
+    _updateAndPersist(current.copyWith(gpsStatus: ActivityGpsStatus.lost));
+  }
+
+  /// Kotlin `ActivityRecordingController.reportGpsDisabled`.
+  void _reportGpsDisabled() {
+    final current = _state.value;
+    if (!current.isActive ||
+        current.recordingKind != ActivityRecordingKind.gpsRoute) {
+      return;
+    }
+    _updateAndPersist(current.copyWith(gpsStatus: ActivityGpsStatus.disabled));
+  }
+
+  /// Kotlin `ActivityRecordingController.reportRecordingError`.
+  void _reportRecordingError(String message) {
+    _updateAndPersist(_state.value.copyWith(errorMessage: message));
+  }
+
+  Future<void> _acceptPosition(Position position, int generation) async {
+    _scheduleGpsLostTimeout();
+    if (generation != _recordingGeneration) return;
+    // Kotlin `acceptLocation` hops to a background coroutine, converts the
+    // fix's WGS84 ellipsoid altitude to mean sea level (`withMslAltitude`) and
+    // only then processes the converted location under the generation captured
+    // before the hop; this await is that hop.
+    final mslAltitudeMeters = position.altitude == 0.0
+        ? null
+        : await _mslAltitudeMeters(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            altitudeMeters: position.altitude,
+          );
     if (generation != _recordingGeneration) return;
     final preferences = preferencesRepository.activityRecordingPreferences();
     final current = _state.value;
     if (current.status != ActivityRecordingStatus.recording) return;
     if (current.recordingKind != ActivityRecordingKind.gpsRoute) return;
 
-    final accuracy = position.accuracy;
-    final locationTime = position.timestamp.toUtc();
-    final requiredAccuracy = preferences.requiredGpsAccuracyMeters.toDouble();
-    final isPrecise = accuracy <= requiredAccuracy;
-    final point = _toRoutePoint(position, locationTime);
+    // Kotlin gates every live fix through activityGpsFixQuality: accuracy,
+    // staleness (10 s), pre-start timestamps and future clock skew all make a
+    // fix imprecise, not just poor reported accuracy.
+    final fixQuality = activityGpsFixQuality(
+      position,
+      startTime: current.startTime,
+      now: DateTime.now().toUtc(),
+      requiredAccuracyMeters: preferences.requiredGpsAccuracyMeters.toDouble(),
+    );
+    final locationTime = fixQuality.locationTime ?? position.timestamp.toUtc();
+    final point = _toRoutePoint(position, locationTime, mslAltitudeMeters);
 
-    if (!isPrecise) {
+    if (!fixQuality.isPrecise) {
       _updateAndPersist(
         withDroppedLocation(
           current,
-          accuracy,
+          fixQuality.accuracyMeters,
           locationTime: locationTime,
-          gpsStatus: ActivityGpsStatus.poorAccuracy,
+          gpsStatus: fixQuality.accuracyMeters == null
+              ? ActivityGpsStatus.waitingForFix
+              : ActivityGpsStatus.poorAccuracy,
         ).copyWith(latestUiPoint: point),
       );
       return;
     }
+    final accuracy = fixQuality.accuracyMeters;
+    if (accuracy == null) return;
 
     final lastPoint = current.points.isNotEmpty ? current.points.last : null;
     var distanceIncrement = 0.0;
@@ -650,15 +911,45 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
         errorMessage: null,
       ),
     );
-    _maybeAnnounce(current);
   }
 
-  ExerciseRoutePoint _toRoutePoint(Position position, DateTime time) =>
+  /// Kotlin `Location.withMslAltitude` (via the native `AltitudeConverter`,
+  /// API 34+, off the platform thread), applied per fix like Kotlin — no
+  /// caching. Best-effort: null (raw ellipsoid altitude stays in use) below
+  /// API 34, on conversion failure, or when the conversion's first geoid-grid
+  /// disk read takes longer than the route can wait.
+  Future<double?> _mslAltitudeMeters({
+    required double latitude,
+    required double longitude,
+    required double altitudeMeters,
+  }) async {
+    try {
+      return await nativeSensors
+          .convertToMsl(
+            latitude: latitude,
+            longitude: longitude,
+            altitudeMeters: altitudeMeters,
+          )
+          .timeout(const Duration(seconds: 1));
+    } on TimeoutException {
+      return null;
+    }
+  }
+
+  /// Kotlin `Location.toRoutePoint`: prefer the converted MSL altitude,
+  /// falling back to the raw (ellipsoid) altitude; geolocator reports 0.0
+  /// where Kotlin has `hasAltitude() == false`. Deviation: Kotlin's preferred
+  /// `mslAltitudeAccuracyMeters` never exists here, because the conversion is
+  /// fed a bare lat/lon/altitude Location and the platform only computes MSL
+  /// accuracy when the input carries a vertical accuracy.
+  ExerciseRoutePoint _toRoutePoint(
+          Position position, DateTime time, double? mslAltitudeMeters) =>
       ExerciseRoutePoint(
         time: time,
         latitude: position.latitude,
         longitude: position.longitude,
-        altitudeMeters: position.altitude == 0.0 ? null : position.altitude,
+        altitudeMeters: mslAltitudeMeters ??
+            (position.altitude == 0.0 ? null : position.altitude),
         horizontalAccuracyMeters: position.accuracy,
         verticalAccuracyMeters:
             position.altitudeAccuracy == 0.0 ? null : position.altitudeAccuracy,
@@ -714,22 +1005,94 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
 
   // ── Motion recognizers (repetition sensors) ──────────────────────────────
 
+  /// Kotlin `ActivityRecordingService.startSensorUpdates`: resolve which
+  /// sensor this activity counts with — step-counting types always use the
+  /// step detector, even GPS ones like walking — and wire the matching
+  /// recognizer onto its event stream.
   void _startMotionRecognizer(ActivityEntryType activityType) {
-    _jumpRecognizer = null;
-    _pullRecognizer = null;
-    if (activityType.recordingSensor != ActivityRecordingSensor.accelerometer) {
-      // Proximity + step-detector sensors are not exposed by sensors_plus; those
-      // recording kinds fall back to manual counting.
+    _stopMotionSensors();
+    final sensorKind = activityType.supportsStepCounting
+        ? ActivityRecordingSensor.stepDetector
+        : activityType.recordingSensor;
+    switch (sensorKind) {
+      case ActivityRecordingSensor.accelerometer:
+        if (activityType.segmentType == ExerciseSegmentType.pullUp) {
+          _pullRecognizer = PullUpRepetitionRecognizer();
+        } else {
+          // Kotlin gives trampoline jumps a wider window than rope skips.
+          _jumpRecognizer = JumpRepetitionRecognizer(
+              maxJumpDurationMillis:
+                  activityType.id == 'trampoline_jumping' ? 2500 : 1250);
+        }
+        _accelSub = accelerometerEventStream().listen(_acceptAcceleration,
+            onError: (Object _) {});
+      case ActivityRecordingSensor.proximity:
+      case ActivityRecordingSensor.stepDetector:
+        unawaited(_startNativeMotionSensor(sensorKind));
+      case ActivityRecordingSensor.gps:
+      case ActivityRecordingSensor.ble:
+      case ActivityRecordingSensor.none:
+        return;
+    }
+  }
+
+  /// The async half of Kotlin `startSensorUpdates` for the two sensors that
+  /// need platform queries first: the step detector is gated on the
+  /// ACTIVITY_RECOGNITION runtime permission, and a missing sensor reports its
+  /// per-sensor error instead of silently never counting. The generation is
+  /// re-checked after every await so a stop/discard during the checks wins.
+  Future<void> _startNativeMotionSensor(
+      ActivityRecordingSensor sensorKind) async {
+    final generation = _recordingGeneration;
+    if (sensorKind == ActivityRecordingSensor.stepDetector &&
+        !await deviceSupport.hasActivityRecognitionPermission()) {
+      if (generation != _recordingGeneration) return;
+      _reportRecordingError(
+          _l10n().activityRecordingErrorActivityRecognitionPermission);
       return;
     }
-    if (activityType.segmentType == ExerciseSegmentType.pullUp) {
-      _pullRecognizer = PullUpRepetitionRecognizer();
-    } else {
-      _jumpRecognizer = JumpRepetitionRecognizer(maxJumpDurationMillis: 1250);
+    if (!await nativeSensors.hasSensor(sensorKind)) {
+      if (generation != _recordingGeneration) return;
+      _reportRecordingError(sensorKind == ActivityRecordingSensor.proximity
+          ? _l10n().activityRecordingErrorProximitySensor
+          : _l10n().activityRecordingErrorStepDetector);
+      return;
     }
-    _accelSub?.cancel();
-    _accelSub = accelerometerEventStream().listen(_acceptAcceleration,
-        onError: (Object _) {});
+    // A pause during the checks already cancelled these streams; do not
+    // resubscribe behind its back (resume restarts them).
+    if (generation != _recordingGeneration ||
+        _state.value.status != ActivityRecordingStatus.recording) {
+      return;
+    }
+    if (sensorKind == ActivityRecordingSensor.proximity) {
+      _pushUpRecognizer = PushUpProximityRecognizer();
+      _proximitySub?.cancel();
+      _proximitySub = nativeSensors
+          .proximityEvents()
+          .listen(_acceptProximity, onError: (Object _) {});
+    } else {
+      _stepRecognizer = StepDetectorRepetitionRecognizer();
+      _stepSub?.cancel();
+      _stepSub = nativeSensors
+          .stepDetectorEvents()
+          .listen(_acceptStep, onError: (Object _) {});
+    }
+  }
+
+  /// Kotlin `sensorListener.onSensorChanged` for `TYPE_PROXIMITY`.
+  void _acceptProximity(double valueCentimeters) {
+    if (_state.value.status != ActivityRecordingStatus.recording) return;
+    final recognized = _pushUpRecognizer?.onProximity(
+        valueCentimeters, DateTime.now().millisecondsSinceEpoch);
+    if (recognized != null) adjustRepetitionCount(1);
+  }
+
+  /// Kotlin `sensorListener.onSensorChanged` for `TYPE_STEP_DETECTOR`: one
+  /// event per detected step, stamped with the native receipt time.
+  void _acceptStep(int timestampMillis) {
+    if (_state.value.status != ActivityRecordingStatus.recording) return;
+    final recognized = _stepRecognizer?.onStep(timestampMillis);
+    if (recognized != null) adjustRepetitionCount(1);
   }
 
   void _acceptAcceleration(AccelerometerEvent event) {
@@ -747,23 +1110,32 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
 
   // ── Voice announcements (best effort) ───────────────────────────────────────
 
-  DateTime? _lastAnnouncementAt;
-
-  void _maybeAnnounce(ActivityRecordingState previous) {
+  /// Kotlin `ActivityRecordingVoiceAnnouncer.onRecordingState`, evaluated on
+  /// every state change like the service's state observer does.
+  void _maybeAnnounce(ActivityRecordingState state) {
     final preferences = preferencesRepository.activityRecordingPreferences();
-    if (!preferences.voiceAnnouncementsEnabled) return;
-    final interval = preferences.voiceAnnouncementTimeIntervalMinutes;
-    if (interval == null) return;
-    final now = DateTime.now().toUtc();
-    final last = _lastAnnouncementAt;
-    if (last != null && now.difference(last).inMinutes < interval) return;
-    _lastAnnouncementAt = now;
-    final distanceKm = (_state.value.distanceMeters / 1000.0).toStringAsFixed(1);
-    unawaited(_speak('Distance $distanceKm kilometers.'));
+    if (!preferences.voiceAnnouncementsEnabled ||
+        state.recordingKind != ActivityRecordingKind.gpsRoute) {
+      return;
+    }
+    final text = _announcementTracker.announcementFor(
+      state,
+      preferences,
+      now: DateTime.now().toUtc(),
+      l10n: _l10n(),
+      unitFormatter: unitFormatter,
+    );
+    if (text != null) unawaited(_speak(text));
   }
 
   Future<void> _speak(String text) async {
     try {
+      if (!_ttsLanguageConfigured) {
+        _ttsLanguageConfigured = true;
+        // Kotlin sets `textToSpeech.language = Locale.getDefault()`.
+        await _tts
+            .setLanguage(PlatformDispatcher.instance.locale.toLanguageTag());
+      }
       await _tts.speak(text);
     } catch (_) {
       // Voice output is best-effort.
@@ -772,21 +1144,136 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
 
   // ── Foreground service + notification ────────────────────────────────────
 
-  void _startForegroundService(String activityLabel) {
+  /// Kotlin `ActivityRecordingState.foregroundServiceType`: location only for
+  /// GPS routes, health for step-counting/repetition/timed kinds, and
+  /// connected-device only while BLE sensors are attached. Must stay a subset
+  /// of the `android:foregroundServiceType` list in the manifest.
+  static List<ForegroundServiceTypes> _serviceTypesFor(
+      ActivityRecordingState state) {
+    final hasBleDevices = state.bleDeviceStatuses.isNotEmpty;
+    if (state.recordingKind == ActivityRecordingKind.gpsRoute) {
+      return [
+        ForegroundServiceTypes.location,
+        if (activityEntryTypeById(state.activityTypeId)?.supportsStepCounting ==
+            true)
+          ForegroundServiceTypes.health,
+        if (hasBleDevices) ForegroundServiceTypes.connectedDevice,
+      ];
+    }
+    return [
+      ForegroundServiceTypes.health,
+      if (hasBleDevices) ForegroundServiceTypes.connectedDevice,
+    ];
+  }
+
+  /// Kotlin's notification action buttons: pause/resume by status, always
+  /// discard. Presses come back through [_onNotificationAction].
+  static List<NotificationButton> _notificationButtonsFor(
+      ActivityRecordingState state, AppLocalizations l10n) {
+    return [
+      if (state.status == ActivityRecordingStatus.recording)
+        NotificationButton(
+            id: kActivityRecordingActionPause, text: l10n.actionPause)
+      else if (state.status == ActivityRecordingStatus.paused)
+        NotificationButton(
+            id: kActivityRecordingActionResume, text: l10n.actionResume),
+      NotificationButton(
+          id: kActivityRecordingActionDiscard, text: l10n.actionDiscard),
+    ];
+  }
+
+  /// Keeps GPS alive with the screen off. Without this the OS suspends the
+  /// process a few seconds after backgrounding and the route simply stops.
+  ///
+  /// `startService` throws `ServiceNotInitializedException` unless `init` ran
+  /// first, so the two must stay together — an earlier version called only
+  /// `startService` inside a swallow-all `catch`, which silently meant no
+  /// foreground service at all.
+  void _startForegroundService(ActivityRecordingState state) {
     unawaited(() async {
       try {
-        await _notifications.initialize(
-          settings: const InitializationSettings(
-            android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-            iOS: DarwinInitializationSettings(),
+        final l10n = _l10n();
+        FlutterForegroundTask.init(
+          androidNotificationOptions: AndroidNotificationOptions(
+            channelId: 'activity_recording',
+            channelName: l10n.activityRecordingNotificationChannel,
+            channelImportance: NotificationChannelImportance.LOW,
+            priority: NotificationPriority.LOW,
+            onlyAlertOnce: true,
+          ),
+          iosNotificationOptions: const IOSNotificationOptions(
+            showNotification: true,
+            playSound: false,
+          ),
+          foregroundTaskOptions: ForegroundTaskOptions(
+            // The recorder drives itself from the geolocator stream in the
+            // main isolate; the service isolate only relays notification
+            // button presses, so it needs no repeat events.
+            eventAction: ForegroundTaskEventAction.nothing(),
+            allowWakeLock: true,
+            autoRunOnBoot: false,
           ),
         );
-        await FlutterForegroundTask.startService(
-          notificationTitle: 'Recording $activityLabel',
-          notificationText: 'OpenVitals is recording your activity.',
+        final text = activityRecordingNotificationText(
+          state,
+          now: DateTime.now().toUtc(),
+          l10n: l10n,
+          unitFormatter: unitFormatter,
         );
-      } catch (_) {
-        // Foreground service is best-effort in this batch.
+        if (await FlutterForegroundTask.isRunningService) {
+          // Process-death restart with the service still alive (START_STICKY
+          // equivalent): refresh instead of double-starting.
+          await FlutterForegroundTask.updateService(
+            notificationTitle: l10n.activityRecordingNotificationTitle,
+            notificationText: text,
+            notificationButtons: _notificationButtonsFor(state, l10n),
+          );
+          return;
+        }
+        await FlutterForegroundTask.startService(
+          serviceTypes: _serviceTypesFor(state),
+          notificationTitle: l10n.activityRecordingNotificationTitle,
+          notificationText: text,
+          notificationButtons: _notificationButtonsFor(state, l10n),
+          // Tapping the notification opens the activity entry screen, the
+          // Kotlin content intent's deep link.
+          notificationInitialRoute: AppRoutes.activityEntry,
+          callback: activityRecordingTaskCallback,
+        );
+      } catch (error) {
+        // A recording without the service still works in the foreground, so
+        // surface the failure rather than tearing the session down.
+        debugPrint('Activity recording foreground service failed: $error');
+      }
+    }());
+  }
+
+  /// Kotlin `ActivityRecordingService.updateNotification`, driven off every
+  /// state change so the ongoing notification shows live time/distance/GPS
+  /// status and the correct pause/resume action.
+  void _updateForegroundNotification(ActivityRecordingState state) {
+    if (!state.isActive) return;
+    final l10n = _l10n();
+    final text = activityRecordingNotificationText(
+      state,
+      now: DateTime.now().toUtc(),
+      l10n: l10n,
+      unitFormatter: unitFormatter,
+    );
+    final buttons = _notificationButtonsFor(state, l10n);
+    final signature = '$text|${buttons.map((b) => b.id).join(',')}';
+    if (signature == _lastNotificationSignature) return;
+    _lastNotificationSignature = signature;
+    unawaited(() async {
+      try {
+        if (!await FlutterForegroundTask.isRunningService) return;
+        await FlutterForegroundTask.updateService(
+          notificationTitle: l10n.activityRecordingNotificationTitle,
+          notificationText: text,
+          notificationButtons: buttons,
+        );
+      } catch (error) {
+        debugPrint('Activity recording notification update failed: $error');
       }
     }());
   }
@@ -795,9 +1282,8 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     unawaited(() async {
       try {
         await FlutterForegroundTask.stopService();
-        await _notifications.cancelAll();
-      } catch (_) {
-        // Best-effort.
+      } catch (error) {
+        debugPrint('Activity recording foreground service stop failed: $error');
       }
     }());
   }
@@ -818,24 +1304,46 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
       if (current.status == ActivityRecordingStatus.resting &&
           current.restStartedAt == state.restStartedAt) {
         _restCompletionTimer = null;
-        if (preferencesRepository
-            .activityRecordingPreferences()
-            .restTimerBellEnabled) {
-          unawaited(_speak('Rest complete.'));
-        }
+        _playRestTimerBellIfEnabled();
         _startNextRepetitionSet(current, DateTime.now().toUtc());
       }
     });
   }
 
+  /// Kotlin `RestTimerBellVolume`.
+  static const double _restTimerBellVolume = 0.42;
+
+  /// Kotlin `playRestTimerBellIfEnabled`: the same struck-bowl sample the
+  /// mindfulness timer uses, not a spoken phrase.
+  void _playRestTimerBellIfEnabled() {
+    if (!preferencesRepository
+        .activityRecordingPreferences()
+        .restTimerBellEnabled) {
+      return;
+    }
+    unawaited(() async {
+      final player = AudioPlayer();
+      try {
+        player.onPlayerComplete.listen(
+          (_) => player.dispose(),
+          onError: (Object _) => player.dispose(),
+        );
+        await player.setVolume(_restTimerBellVolume);
+        await player.play(AssetSource('sounds/bowl_struck.ogg'));
+      } catch (_) {
+        unawaited(player.dispose());
+      }
+    }());
+  }
+
   // ── Persistence ──────────────────────────────────────────────────────────
 
   void _clearRecording() {
-    _positionSub?.cancel();
-    _barometerSub?.cancel();
-    _accelSub?.cancel();
+    _stopDeviceStreams();
     _restCompletionTimer?.cancel();
     _recordingGeneration += 1;
+    _announcementTracker.reset();
+    _lastNotificationSignature = null;
     _state.value = const ActivityRecordingState();
     unawaited(recordingStore.clear());
   }
@@ -844,6 +1352,10 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     _state.value = state;
     unawaited(recordingStore.storeMetadata(state));
     _scheduleRestCompletion(state);
+    // Kotlin's service observes the state flow and refreshes the notification
+    // and voice announcer on every emission; this is that observer.
+    _updateForegroundNotification(state);
+    _maybeAnnounce(state);
   }
 
   ActivityRecordingKind _recordingKind(ActivityEntryType activityType) {
