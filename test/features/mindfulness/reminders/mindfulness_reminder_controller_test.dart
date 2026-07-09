@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvitals/core/reminders/reminder_controller.dart';
 import 'package:openvitals/core/time/local_date.dart';
 import 'package:openvitals/data/prefs/preferences_repository.dart';
 import 'package:openvitals/data/repository/contract/mindfulness_repository.dart';
@@ -37,7 +38,7 @@ class _FakeMindfulnessRepository implements MindfulnessRepository {
       super.noSuchMethod(invocation);
 }
 
-class _RecordingScheduler implements MindfulnessReminderScheduler {
+class _RecordingScheduler implements ReminderScheduler {
   int scheduleCount = 0;
   int cancelCount = 0;
 
@@ -48,19 +49,16 @@ class _RecordingScheduler implements MindfulnessReminderScheduler {
   Future<void> cancel() async => cancelCount++;
 }
 
-class _RecordingNotifier implements MindfulnessReminderNotifier {
+class _RecordingNotifier implements ReminderNotifier {
   final List<(double, double)> shown = [];
   int cancelCount = 0;
 
   @override
-  Future<void> showMindfulnessReminder(
-    double currentMinutes,
-    double dailyGoalMinutes,
-  ) async =>
-      shown.add((currentMinutes, dailyGoalMinutes));
+  Future<void> show(ReminderGoalProgress progress) async =>
+      shown.add((progress.current, progress.target));
 
   @override
-  Future<void> cancelReminderNotification() async => cancelCount++;
+  Future<void> cancel() async => cancelCount++;
 }
 
 Future<PreferencesRepository> newPrefs([

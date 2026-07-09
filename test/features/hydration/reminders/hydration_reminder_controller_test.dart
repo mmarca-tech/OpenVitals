@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvitals/core/reminders/reminder_controller.dart';
 import 'package:openvitals/core/time/local_date.dart';
 import 'package:openvitals/data/prefs/preferences_repository.dart';
 import 'package:openvitals/data/repository/contract/hydration_repository.dart';
@@ -10,23 +11,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Ported from the Kotlin `HydrationReminderControllerTest`, with the device
 /// scheduler / notifier replaced by recording fakes.
 class _FakeHydrationRepository implements HydrationRepository {
-  _FakeHydrationRepository(this.litersToday);
+  _FakeHydrationRepository(this.litersToday, {this.throwsOnLoad = false});
 
   final double litersToday;
+  final bool throwsOnLoad;
 
   @override
   Future<List<DailyHydration>> loadDailyHydration(
     LocalDate start,
     LocalDate end,
-  ) async =>
-      [DailyHydration(date: LocalDate.now(), liters: litersToday)];
+  ) async {
+    if (throwsOnLoad) throw StateError('health connect unavailable');
+    return [DailyHydration(date: LocalDate.now(), liters: litersToday)];
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       super.noSuchMethod(invocation);
 }
 
-class _RecordingScheduler implements HydrationReminderScheduler {
+class _RecordingScheduler implements ReminderScheduler {
   int scheduleCount = 0;
   int cancelCount = 0;
 
@@ -37,19 +41,16 @@ class _RecordingScheduler implements HydrationReminderScheduler {
   Future<void> cancel() async => cancelCount++;
 }
 
-class _RecordingNotifier implements HydrationReminderNotifier {
+class _RecordingNotifier implements ReminderNotifier {
   final List<(double, double)> shown = [];
   int cancelCount = 0;
 
   @override
-  Future<void> showHydrationReminder(
-    double currentLiters,
-    double dailyGoalLiters,
-  ) async =>
-      shown.add((currentLiters, dailyGoalLiters));
+  Future<void> show(ReminderGoalProgress progress) async =>
+      shown.add((progress.current, progress.target));
 
   @override
-  Future<void> cancelReminderNotification() async => cancelCount++;
+  Future<void> cancel() async => cancelCount++;
 }
 
 Future<PreferencesRepository> newPrefs([
@@ -73,10 +74,14 @@ void main() {
   HydrationReminderController controller(
     PreferencesRepository prefs, {
     double litersToday = 0.0,
+    bool repositoryThrows = false,
   }) =>
       HydrationReminderController(
         preferences: prefs,
-        hydrationRepository: _FakeHydrationRepository(litersToday),
+        hydrationRepository: _FakeHydrationRepository(
+          litersToday,
+          throwsOnLoad: repositoryThrows,
+        ),
         notifier: notifier,
         scheduler: scheduler,
       );
@@ -138,5 +143,33 @@ void main() {
 
     expect(notifier.shown, isEmpty);
     expect(scheduler.scheduleCount, 1);
+  });
+
+  test('an intake read failure counts as zero, never as a met goal', () async {
+    // Kotlin's `runCatching { … }.getOrDefault(0.0)`: the user still gets
+    // reminded when Health Connect cannot be read.
+    final prefs = await newPrefs();
+    prefs.hydrationDailyGoalLiters = 2.0;
+    prefs.setHydrationReminderConfig(
+      const HydrationReminderConfig(
+        enabled: true,
+        activeStartTime: LocalTime(0, 0),
+        activeEndTime: LocalTime(0, 0),
+      ),
+    );
+
+    await controller(prefs, repositoryThrows: true).handleReminderAlarm();
+
+    expect(notifier.shown, [(0.0, 2.0)]);
+    expect(scheduler.scheduleCount, 1);
+  });
+
+  test('hiding the reminder leaves the alarm chain armed', () async {
+    final prefs = await newPrefs();
+
+    await controller(prefs).hideReminderNotification();
+
+    expect(notifier.cancelCount, 1);
+    expect(scheduler.cancelCount, 0);
   });
 }

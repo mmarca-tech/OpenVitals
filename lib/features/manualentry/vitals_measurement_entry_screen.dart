@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/screen_error.dart';
+import '../../core/presentation/measurement_input.dart';
+import '../../core/presentation/unit_formatter.dart';
 import '../../di/providers.dart';
 import '../../domain/model/vitals_models.dart';
 import '../../domain/preferences/unit_system.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
@@ -41,7 +44,12 @@ class VitalsMeasurementEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _VitalsMeasurementEntryScreenState
-    extends ConsumerState<VitalsMeasurementEntryScreen> {
+    extends ConsumerState<VitalsMeasurementEntryScreen>
+    with RefreshPermissionOnResume {
+
+  @override
+  void refreshPermission() => ref.read(_provider.notifier).refreshPermission();
+
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _secondaryController = TextEditingController();
   bool _syncedFromState = false;
@@ -69,6 +77,7 @@ class _VitalsMeasurementEntryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     ref.listen(_provider.select((s) => s.saveCompleted), (previous, next) {
       if (next) {
         ref.read(_provider.notifier).onSaveCompletedHandled();
@@ -92,7 +101,7 @@ class _VitalsMeasurementEntryScreenState
         ref.watch(vitalsRepositoryProvider).vitalsWritePermissions(_type);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_vitalsTitle(_type))),
+      appBar: AppBar(title: Text(vitalsMeasurementTitle(_type, l10n))),
       body: HealthConnectGate(
         requiredPermissions: writePermissions,
         child: _VitalsEntryForm(
@@ -123,11 +132,12 @@ class _VitalsEntryForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
-    final imperial = ref.watch(unitSystemProvider) == UnitSystem.imperial;
-    final title = _vitalsTitle(type);
-    final unitLabel = _vitalsUnitLabel(type, imperial: imperial);
+    final formatter = ref.watch(unitFormatterProvider);
+    final title = vitalsMeasurementTitle(type, l10n);
+    final unitLabel = _vitalsUnitLabel(type, formatter);
     final isBloodPressure = type == VitalsMeasurementType.bloodPressure;
     final enabled =
         state.canWrite && !state.isSavingEntry && !state.isCheckingPermission;
@@ -155,8 +165,8 @@ class _VitalsEntryForm extends ConsumerWidget {
                             Text(title, style: theme.textTheme.titleSmall),
                             Text(
                               state.canWrite
-                                  ? 'Log a $title measurement'
-                                  : 'Grant permission to log $title',
+                                  ? l10n.vitalsEntrySubtitle(title)
+                                  : l10n.vitalsEntryPermissionNeeded(title),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -173,7 +183,7 @@ class _VitalsEntryForm extends ConsumerWidget {
                         Expanded(
                           child: _valueField(
                             controller: controller,
-                            label: 'Systolic',
+                            label: l10n.vitalsEntrySystolicLabel,
                             enabled: !state.isSavingEntry,
                             onChanged: notifier.updateInput,
                           ),
@@ -182,7 +192,7 @@ class _VitalsEntryForm extends ConsumerWidget {
                         Expanded(
                           child: _valueField(
                             controller: secondaryController,
-                            label: 'Diastolic',
+                            label: l10n.vitalsEntryDiastolicLabel,
                             enabled: !state.isSavingEntry,
                             onChanged: notifier.updateSecondaryInput,
                           ),
@@ -192,7 +202,7 @@ class _VitalsEntryForm extends ConsumerWidget {
                   else
                     _valueField(
                       controller: controller,
-                      label: '$title ($unitLabel)',
+                      label: l10n.vitalsEntryValueLabel(title, unitLabel),
                       enabled: !state.isSavingEntry,
                       onChanged: notifier.updateInput,
                     ),
@@ -208,11 +218,7 @@ class _VitalsEntryForm extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: enabled
                         ? () => notifier.addEntry(
-                              canonicalVitalsValue(
-                                state.inputText,
-                                type,
-                                imperial: imperial,
-                              ),
+                              _canonicalValue(state.inputText, type, formatter),
                               secondaryValue: isBloodPressure
                                   ? parseVitalsDouble(state.secondaryInputText)
                                   : null,
@@ -220,13 +226,15 @@ class _VitalsEntryForm extends ConsumerWidget {
                         : null,
                     icon: Icon(state.isEditMode ? Icons.check : Icons.add,
                         size: 18),
-                    label: Text(state.isEditMode ? 'Save' : 'Add $title'),
+                    label: Text(state.isEditMode
+                        ? l10n.actionSave
+                        : l10n.vitalsEntryAddSelected(title)),
                   ),
                   if (state.entryError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _errorText(state.entryError!, state.writeError, title),
+                        _errorText(state.entryError!, state.writeError, title, l10n),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.error),
                       ),
@@ -249,6 +257,7 @@ class _VitalsEntryForm extends ConsumerWidget {
       TextField(
         controller: controller,
         enabled: enabled,
+        maxLines: 1,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: onChanged,
         decoration: InputDecoration(
@@ -261,32 +270,52 @@ class _VitalsEntryForm extends ConsumerWidget {
     VitalsMeasurementEntryError error,
     ScreenError? writeError,
     String title,
+    AppLocalizations l10n,
   ) {
     switch (error) {
       case VitalsMeasurementEntryError.invalidValue:
-        return 'Enter a valid $title value.';
+        return l10n.vitalsEntryInvalidValue;
       case VitalsMeasurementEntryError.missingWritePermission:
-        return 'Grant permission to log $title.';
+        return l10n.vitalsEntryPermissionNeeded(title);
       case VitalsMeasurementEntryError.writeFailed:
-        return 'Could not save the entry. ${screenErrorText(writeError)}';
+        return l10n.vitalsEntryWriteFailed(screenErrorText(writeError, l10n));
     }
   }
 }
 
-String _vitalsTitle(VitalsMeasurementType type) => switch (type) {
-      VitalsMeasurementType.bloodPressure => 'Blood pressure',
-      VitalsMeasurementType.spo2 => 'Blood oxygen',
-      VitalsMeasurementType.respiratoryRate => 'Respiratory rate',
-      VitalsMeasurementType.bodyTemperature => 'Body temperature',
+/// The localized metric name for [type], shared by the app bar, the field labels
+/// and the error copy.
+String vitalsMeasurementTitle(
+  VitalsMeasurementType type,
+  AppLocalizations l10n,
+) =>
+    switch (type) {
+      VitalsMeasurementType.bloodPressure => l10n.metricBloodPressure,
+      VitalsMeasurementType.spo2 => l10n.metricSpo2,
+      VitalsMeasurementType.respiratoryRate => l10n.metricRespiratoryRate,
+      VitalsMeasurementType.bodyTemperature => l10n.metricBodyTemp,
     };
 
-String _vitalsUnitLabel(VitalsMeasurementType type, {required bool imperial}) =>
+/// Port of the Kotlin `VitalsMeasurementType.inputUnitLabel`. Only temperature
+/// varies by unit system, and that label lives in [MeasurementInput].
+String _vitalsUnitLabel(VitalsMeasurementType type, UnitFormatter formatter) =>
     switch (type) {
       VitalsMeasurementType.bloodPressure => 'mmHg',
       VitalsMeasurementType.spo2 => '%',
       VitalsMeasurementType.respiratoryRate => 'br/min',
-      VitalsMeasurementType.bodyTemperature => imperial ? 'deg F' : 'deg C',
+      VitalsMeasurementType.bodyTemperature => formatter.temperatureInputUnit,
     };
+
+/// The typed value in its stored (metric) unit. Port of the Kotlin
+/// `canonicalVitalsValue`.
+double? _canonicalValue(
+  String input,
+  VitalsMeasurementType type,
+  UnitFormatter formatter,
+) =>
+    type == VitalsMeasurementType.bodyTemperature
+        ? formatter.temperatureInputToCelsius(input)
+        : parseDecimalInput(input);
 
 IconData _vitalsIcon(VitalsMeasurementType type) => switch (type) {
       VitalsMeasurementType.bloodPressure => Icons.favorite,

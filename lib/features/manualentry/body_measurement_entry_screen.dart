@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/screen_error.dart';
+import '../../core/presentation/measurement_input.dart';
+import '../../core/presentation/unit_formatter.dart';
 import '../../di/providers.dart';
 import '../../domain/model/body_models.dart';
 import '../../domain/preferences/unit_system.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
@@ -36,7 +39,8 @@ class BodyMeasurementEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _BodyMeasurementEntryScreenState
-    extends ConsumerState<BodyMeasurementEntryScreen> {
+    extends ConsumerState<BodyMeasurementEntryScreen>
+    with RefreshPermissionOnResume {
   final TextEditingController _controller = TextEditingController();
   bool _syncedFromState = false;
 
@@ -55,6 +59,9 @@ class _BodyMeasurementEntryScreenState
   );
 
   @override
+  void refreshPermission() => ref.read(_provider.notifier).refreshPermission();
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -62,6 +69,7 @@ class _BodyMeasurementEntryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     ref.listen(_provider.select((s) => s.saveCompleted), (previous, next) {
       if (next) {
         ref.read(_provider.notifier).onSaveCompletedHandled();
@@ -81,7 +89,7 @@ class _BodyMeasurementEntryScreenState
         ref.watch(bodyRepositoryProvider).bodyWritePermissions(_type);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_bodyTitle(_type))),
+      appBar: AppBar(title: Text(bodyMeasurementTitle(_type, l10n))),
       body: HealthConnectGate(
         requiredPermissions: writePermissions,
         child: _BodyEntryForm(
@@ -109,11 +117,12 @@ class _BodyEntryForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
-    final imperial = ref.watch(unitSystemProvider) == UnitSystem.imperial;
-    final title = _bodyTitle(type);
-    final unitLabel = _bodyUnitLabel(type, imperial: imperial);
+    final formatter = ref.watch(unitFormatterProvider);
+    final title = bodyMeasurementTitle(type, l10n);
+    final unitLabel = _bodyUnitLabel(type, formatter);
     final enabled =
         state.canWrite && !state.isSavingEntry && !state.isCheckingPermission;
 
@@ -140,8 +149,8 @@ class _BodyEntryForm extends ConsumerWidget {
                             Text(title, style: theme.textTheme.titleSmall),
                             Text(
                               state.canWrite
-                                  ? 'Log a $title measurement'
-                                  : 'Grant permission to log $title',
+                                  ? l10n.bodyEntrySubtitle(title)
+                                  : l10n.bodyEntryPermissionNeeded(title),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -155,13 +164,14 @@ class _BodyEntryForm extends ConsumerWidget {
                   TextField(
                     controller: controller,
                     enabled: !state.isSavingEntry,
+                    maxLines: 1,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     onChanged: notifier.updateInput,
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
-                      labelText: '$title ($unitLabel)',
+                      labelText: l10n.bodyEntryValueLabel(title, unitLabel),
                     ),
                   ),
                   if (state.isEditMode) ...[
@@ -175,23 +185,21 @@ class _BodyEntryForm extends ConsumerWidget {
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: enabled
-                        ? () => notifier.addEntry(
-                              canonicalBodyMeasurementValue(
-                                state.inputText,
-                                type,
-                                imperial: imperial,
-                              ),
-                            )
+                        ? () => notifier
+                            .addEntry(_canonicalValue(state.inputText, type, formatter))
                         : null,
                     icon: Icon(state.isEditMode ? Icons.check : Icons.add,
                         size: 18),
-                    label: Text(state.isEditMode ? 'Save' : 'Add $title'),
+                    label: Text(state.isEditMode
+                        ? l10n.actionSave
+                        : l10n.bodyEntryAddSelected(title)),
                   ),
                   if (state.entryError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _errorText(state.entryError!, state.writeError, title),
+                        _errorText(
+                            state.entryError!, state.writeError, title, l10n),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.error),
                       ),
@@ -209,29 +217,48 @@ class _BodyEntryForm extends ConsumerWidget {
     BodyMeasurementEntryError error,
     ScreenError? writeError,
     String title,
+    AppLocalizations l10n,
   ) {
     switch (error) {
       case BodyMeasurementEntryError.invalidValue:
-        return 'Enter a valid $title value.';
+        return l10n.bodyEntryInvalidValue;
       case BodyMeasurementEntryError.missingWritePermission:
-        return 'Grant permission to log $title.';
+        return l10n.bodyEntryPermissionNeeded(title);
       case BodyMeasurementEntryError.writeFailed:
-        return 'Could not save the entry. ${screenErrorText(writeError)}';
+        return l10n.bodyEntryWriteFailed(screenErrorText(writeError, l10n));
     }
   }
 }
 
-String _bodyTitle(BodyMeasurementType type) => switch (type) {
-      BodyMeasurementType.weight => 'Weight',
-      BodyMeasurementType.height => 'Height',
-      BodyMeasurementType.bodyFat => 'Body fat',
+/// The localized metric name for [type], shared by the app bar, the field label
+/// and the error copy.
+String bodyMeasurementTitle(BodyMeasurementType type, AppLocalizations l10n) =>
+    switch (type) {
+      BodyMeasurementType.weight => l10n.metricWeight,
+      BodyMeasurementType.height => l10n.metricHeight,
+      BodyMeasurementType.bodyFat => l10n.metricBodyFat,
     };
 
-String _bodyUnitLabel(BodyMeasurementType type, {required bool imperial}) =>
+/// Port of the Kotlin `BodyMeasurementType.inputUnitLabel`. The unit table and
+/// its conversions live in [MeasurementInput], not here.
+String _bodyUnitLabel(BodyMeasurementType type, UnitFormatter formatter) =>
     switch (type) {
-      BodyMeasurementType.weight => imperial ? 'lb' : 'kg',
-      BodyMeasurementType.height => imperial ? 'in' : 'cm',
+      BodyMeasurementType.weight => formatter.weightInputUnit,
+      BodyMeasurementType.height => formatter.heightInputUnit,
       BodyMeasurementType.bodyFat => '%',
+    };
+
+/// The typed value in its stored (metric) unit. Port of the Kotlin
+/// `canonicalBodyMeasurementValue`.
+double? _canonicalValue(
+  String input,
+  BodyMeasurementType type,
+  UnitFormatter formatter,
+) =>
+    switch (type) {
+      BodyMeasurementType.weight => formatter.weightInputToKilograms(input),
+      BodyMeasurementType.height => formatter.heightInputToCentimeters(input),
+      BodyMeasurementType.bodyFat => parseDecimalInput(input),
     };
 
 IconData _bodyIcon(BodyMeasurementType type) => switch (type) {

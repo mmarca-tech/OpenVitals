@@ -14,9 +14,11 @@ import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/domain/model/nutrition_models.dart';
 import 'package:openvitals/domain/model/vitals_models.dart';
 import 'package:openvitals/features/manualentry/body_measurement_entry_screen.dart';
+import 'package:openvitals/features/manualentry/carbs_entry_screen.dart';
 import 'package:openvitals/features/manualentry/hydration_entry_screen.dart';
 import 'package:openvitals/features/manualentry/vitals_measurement_entry_screen.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 
 // ── Fake repositories capturing the write requests ────────────────────────────
@@ -91,7 +93,7 @@ class _FakeHydrationRepository implements HydrationRepository {
   void setLastCustomHydrationAmountMilliliters(double milliliters) {}
 
   @override
-  List<CustomHydrationDrink> customHydrationDrinks() =>
+  Future<List<CustomHydrationDrink>> customHydrationDrinks() async =>
       const <CustomHydrationDrink>[];
 
   @override
@@ -118,12 +120,16 @@ class _FakeHydrationRepository implements HydrationRepository {
 class _FakeNutritionRepository implements NutritionRepository {
   NutritionWriteRequest? written;
   int writeCount = 0;
+  int permissionChecks = 0;
 
   @override
   Set<String> get nutritionWritePermissions => {HcPermissions.writeNutrition};
 
   @override
-  Future<bool> hasNutritionWritePermission() async => true;
+  Future<bool> hasNutritionWritePermission() async {
+    permissionChecks++;
+    return true;
+  }
 
   @override
   Future<String> writeCarbsEntry(NutritionWriteRequest request) async {
@@ -168,6 +174,8 @@ void main() {
           bodyRepositoryProvider.overrideWithValue(repo),
         ],
         child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: BodyMeasurementEntryScreen(bodyMeasurementType: 'WEIGHT'),
         ),
       ),
@@ -199,6 +207,8 @@ void main() {
           bodyRepositoryProvider.overrideWithValue(repo),
         ],
         child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: BodyMeasurementEntryScreen(bodyMeasurementType: 'WEIGHT'),
         ),
       ),
@@ -210,7 +220,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.writeCount, 0);
-    expect(find.text('Enter a valid Weight value.'), findsOneWidget);
+    // Localized copy, shared across all three body measurements.
+    expect(find.text('Enter a valid value for this measurement.'), findsOneWidget);
   });
 
   testWidgets('Blood pressure form writes systolic + diastolic on save',
@@ -228,6 +239,8 @@ void main() {
           vitalsRepositoryProvider.overrideWithValue(repo),
         ],
         child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: VitalsMeasurementEntryScreen(
             vitalsMeasurementType: 'BLOOD_PRESSURE',
           ),
@@ -263,6 +276,8 @@ void main() {
           vitalsRepositoryProvider.overrideWithValue(repo),
         ],
         child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: VitalsMeasurementEntryScreen(
             vitalsMeasurementType: 'BLOOD_PRESSURE',
           ),
@@ -278,11 +293,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.writeCount, 0);
-    expect(find.text('Enter a valid Blood pressure value.'), findsOneWidget);
+    expect(find.text('Enter a valid value for this vital.'), findsOneWidget);
   });
 
-  testWidgets('Hydration form writes the selected container volume on save',
+  testWidgets('Hydration form shows the tracker card, not container presets',
       (tester) async {
+    // The Kotlin tracker card dropped the container chips and the custom-amount
+    // field; everything is logged through the drink catalog now.
     final hydrationRepo = _FakeHydrationRepository();
     final nutritionRepo = _FakeNutritionRepository();
     final prefs = await _prefs();
@@ -297,51 +314,59 @@ void main() {
           hydrationRepositoryProvider.overrideWithValue(hydrationRepo),
           nutritionRepositoryProvider.overrideWithValue(nutritionRepo),
         ],
-        child: const MaterialApp(home: HydrationEntryScreen()),
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: HydrationEntryScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
 
-    // Default selected container is the 100 mL coffee cup (0.1 L).
-    final addButton = find.widgetWithText(FilledButton, 'Add 100 mL');
-    await tester.ensureVisible(addButton);
-    await tester.tap(addButton);
-    await tester.pumpAndSettle();
-
-    expect(hydrationRepo.writeCount, 1);
-    expect(hydrationRepo.written!.volumeLiters, closeTo(0.1, 1e-9));
-  });
-
-  testWidgets('Hydration form blocks the write on an invalid custom amount',
-      (tester) async {
-    final hydrationRepo = _FakeHydrationRepository();
-    final nutritionRepo = _FakeNutritionRepository();
-    final prefs = await _prefs();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-          healthConnectAvailabilityProvider
-              .overrideWith((ref) async => HealthConnectAvailability.available),
-          grantedHealthPermissionsProvider
-              .overrideWith((ref) async => {HcPermissions.writeHydration}),
-          hydrationRepositoryProvider.overrideWithValue(hydrationRepo),
-          nutritionRepositoryProvider.overrideWithValue(nutritionRepo),
-        ],
-        child: const MaterialApp(home: HydrationEntryScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final field = find.byType(TextField);
-    await tester.ensureVisible(field);
-    await tester.enterText(field, '0');
-    final addButton = find.widgetWithText(FilledButton, 'Add');
-    await tester.ensureVisible(addButton);
-    await tester.tap(addButton);
-    await tester.pumpAndSettle();
-
+    expect(find.text('Log beverage'), findsOneWidget);
+    expect(find.text('Drink catalog'), findsOneWidget);
+    expect(find.text('New drink'), findsOneWidget);
+    // No container presets, no "Add 100 mL", no custom-amount field.
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.textContaining('Add 100'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Amount (mL)'), findsNothing);
+    // The only field is the catalog search.
+    expect(find.widgetWithText(TextField, 'Search drinks'), findsOneWidget);
     expect(hydrationRepo.writeCount, 0);
-    expect(find.text('Enter a valid amount.'), findsOneWidget);
+  });
+
+  testWidgets('re-checks the write permission when the screen resumes',
+      (tester) async {
+    // Port of the Kotlin `LifecycleEventEffect(ON_RESUME) { refreshPermission() }`:
+    // a user who leaves to grant the permission must come back to a live form.
+    final repo = _FakeNutritionRepository();
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          healthConnectAvailabilityProvider
+              .overrideWith((ref) async => HealthConnectAvailability.available),
+          grantedHealthPermissionsProvider
+              .overrideWith((ref) async => {HcPermissions.writeNutrition}),
+          nutritionRepositoryProvider.overrideWithValue(repo),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: CarbsEntryScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final afterBuild = repo.permissionChecks;
+    expect(afterBuild, greaterThan(0));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(repo.permissionChecks, greaterThan(afterBuild));
   });
 }

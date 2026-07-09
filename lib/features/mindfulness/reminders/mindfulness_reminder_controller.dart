@@ -1,47 +1,36 @@
+import '../../../core/reminders/reminder_controller.dart';
+import '../../../core/reminders/reminder_schedule.dart';
 import '../../../core/time/local_date.dart';
 import '../../../data/prefs/preferences_repository.dart';
 import '../../../data/repository/contract/mindfulness_repository.dart';
 import '../../../domain/insights/daily_goals.dart';
 import '../../../domain/model/mindfulness_reminder_config.dart';
-import 'mindfulness_reminder_schedule.dart';
 
-/// Schedules the OS-level alarm for the next mindfulness reminder.
-/// Device-specific; kept behind an interface so the controller stays testable.
-abstract interface class MindfulnessReminderScheduler {
-  Future<void> schedule(DateTime triggerAt);
-
-  Future<void> cancel();
-}
-
-/// Posts / clears the mindfulness reminder notification. Device-specific.
-abstract interface class MindfulnessReminderNotifier {
-  Future<void> showMindfulnessReminder(
-    double currentMinutes,
-    double dailyGoalMinutes,
-  );
-
-  Future<void> cancelReminderNotification();
-}
-
-/// Orchestrates the daily mindfulness reminder, ported from the Kotlin
-/// `MindfulnessReminderController`. Pure scheduling math lives in
-/// [calculateNextMindfulnessReminderTime]; device seams are injected.
+/// The daily mindfulness reminder, expressed against the generic
+/// [ReminderController]. Only the config, its single-daily-time schedule and
+/// today's mindful minutes are mindfulness-specific.
 class MindfulnessReminderController {
   MindfulnessReminderController({
     required this.preferences,
     required this.mindfulnessRepository,
-    required this.notifier,
-    required this.scheduler,
-    this.now = DateTime.now,
-    this.hasNotificationPermission = _permissionGranted,
-  });
+    required ReminderNotifier notifier,
+    required ReminderScheduler scheduler,
+    DateTime Function() now = DateTime.now,
+    Future<bool> Function()? hasNotificationPermission,
+  }) : reminders = ReminderController(
+          loadSettings: () =>
+              _settingsFor(preferences.mindfulnessReminderConfig()),
+          readProgress: () => _readProgress(preferences, mindfulnessRepository),
+          scheduler: scheduler,
+          notifier: notifier,
+          now: now,
+          hasNotificationPermission:
+              hasNotificationPermission ?? _alwaysGranted,
+        );
 
   final PreferencesRepository preferences;
   final MindfulnessRepository mindfulnessRepository;
-  final MindfulnessReminderNotifier notifier;
-  final MindfulnessReminderScheduler scheduler;
-  final DateTime Function() now;
-  final bool Function() hasNotificationPermission;
+  final ReminderController reminders;
 
   static const double _millisPerMinute = 60000.0;
 
@@ -53,86 +42,49 @@ class MindfulnessReminderController {
     await applyConfig(normalized);
   }
 
-  Future<void> applyConfig([MindfulnessReminderConfig? config]) async {
-    final normalized =
-        (config ?? preferences.mindfulnessReminderConfig()).normalized();
-    if (!normalized.enabled || !hasNotificationPermission()) {
-      await _clearReminder();
-      return;
-    }
-    await _scheduleNextReminder(
-      normalized,
-      dailyGoalMet: await _isDailyGoalMet(),
+  Future<void> applyConfig([MindfulnessReminderConfig? config]) =>
+      reminders.apply(config == null ? null : _settingsFor(config));
+
+  Future<void> handleReminderAlarm() => reminders.handleAlarm();
+
+  Future<void> restoreSchedule() => reminders.restoreSchedule();
+
+  Future<void> hideReminderNotification() => reminders.hideNotification();
+
+  static ReminderSettings _settingsFor(MindfulnessReminderConfig config) {
+    final normalized = config.normalized();
+    return ReminderSettings(
+      enabled: normalized.enabled,
+      // A single daily time, so there are no quiet hours to respect — this is
+      // exactly where the Kotlin controllers diverged.
+      schedule: DailyTimeReminderSchedule(normalized.reminderTime),
     );
   }
 
-  Future<void> handleReminderAlarm() async {
-    final config = preferences.mindfulnessReminderConfig().normalized();
-    if (!config.enabled || !hasNotificationPermission()) {
-      await _clearReminder();
-      return;
-    }
-
-    final currentMinutes = await _todayMindfulnessMinutes();
-    final dailyGoalMinutes =
+  /// Today's mindful minutes against the daily goal. A read failure counts as
+  /// zero minutes, not as a met goal.
+  static Future<ReminderGoalProgress> _readProgress(
+    PreferencesRepository preferences,
+    MindfulnessRepository repository,
+  ) async {
+    final target =
         preferences.dailyGoalFor(MetricDailyGoalKey.mindfulnessMinutes);
-    final goalMet = dailyGoalMinutes > 0.0 && currentMinutes >= dailyGoalMinutes;
-    if (!goalMet) {
-      await notifier.showMindfulnessReminder(currentMinutes, dailyGoalMinutes);
-    }
-    await _scheduleNextReminder(config, dailyGoalMet: goalMet);
-  }
-
-  Future<void> restoreSchedule() async {
-    final config = preferences.mindfulnessReminderConfig();
-    if (config.enabled) {
-      await applyConfig(config);
-    } else {
-      await _clearReminder();
-    }
-  }
-
-  Future<void> hideReminderNotification() =>
-      notifier.cancelReminderNotification();
-
-  Future<bool> _isDailyGoalMet() async {
-    final dailyGoalMinutes =
-        preferences.dailyGoalFor(MetricDailyGoalKey.mindfulnessMinutes);
-    return dailyGoalMinutes > 0.0 &&
-        await _todayMindfulnessMinutes() >= dailyGoalMinutes;
-  }
-
-  Future<double> _todayMindfulnessMinutes() async {
     final today = LocalDate.now();
     try {
-      final sessions =
-          await mindfulnessRepository.loadMindfulnessSessions(today, today);
+      final sessions = await repository.loadMindfulnessSessions(today, today);
       final totalMs = sessions.fold<int>(
         0,
-        (sum, session) => sum + (session.durationMs < 0 ? 0 : session.durationMs),
+        (sum, session) =>
+            sum + (session.durationMs < 0 ? 0 : session.durationMs),
       );
-      return totalMs / _millisPerMinute;
+      return ReminderGoalProgress(
+        current: totalMs / _millisPerMinute,
+        target: target,
+      );
     } catch (_) {
-      return 0.0;
+      return ReminderGoalProgress(current: 0.0, target: target);
     }
-  }
-
-  Future<void> _scheduleNextReminder(
-    MindfulnessReminderConfig config, {
-    required bool dailyGoalMet,
-  }) async {
-    final triggerAt = calculateNextMindfulnessReminderTime(
-      now(),
-      config,
-      dailyGoalMet: dailyGoalMet,
-    );
-    await scheduler.schedule(triggerAt);
-  }
-
-  Future<void> _clearReminder() async {
-    await scheduler.cancel();
-    await notifier.cancelReminderNotification();
   }
 }
 
-bool _permissionGranted() => true;
+Future<bool> _alwaysGranted() async => true;

@@ -75,7 +75,9 @@ dependencies:
   # the former `health` package.
   health_connect_native:
     path: packages/health_connect_native
-
+  flutter_timezone: ^5.1.0
+  audioplayers: ^6.8.1
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -133,6 +135,11 @@ flutter:
   # Enables Flutter's `gen-l10n` synthesis of `AppLocalizations` from the ARB
   # catalogs in `lib/l10n` (configured by `l10n.yaml`).
   generate: true
+
+  assets:
+    # Singing-bowl bells + ambient loops for the mindfulness timer, copied from
+    # the Kotlin app's `res/raw`.
+    - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

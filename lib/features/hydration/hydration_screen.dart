@@ -16,13 +16,14 @@ import '../../ui/components/ov_card.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../health/health_permissions.dart';
 import 'hydration_notifier.dart';
+import 'reminders/hydration_reminder_card.dart';
 
 /// The hydration period-detail screen, ported from the Kotlin `HydrationScreen`.
 ///
 /// A [MetricDetailScaffold] (HYDRATION range key) rendering the daily hydration
-/// bar chart, the goal-progress card, the drink-type breakdown and the period
-/// statistics. The "+ add drink" action routes to the (existing) add-entry
-/// screen; inline quick-add and reminders are Phase 6.
+/// bar chart, the goal-progress card, the drink-type breakdown, the period
+/// statistics and the reminder settings card. The "+ add drink" action routes to
+/// the (existing) add-entry screen; inline quick-add is Phase 6.
 class HydrationScreen extends ConsumerWidget {
   const HydrationScreen({super.key});
 
@@ -91,6 +92,9 @@ List<Widget> _content(
               : 'No hydration added for this period.',
         ),
       ),
+      // Reminders are configurable with no data logged yet — that is exactly
+      // when a user wants to switch them on.
+      _padded(const HydrationReminderCard()),
     ];
   }
 
@@ -146,6 +150,7 @@ List<Widget> _content(
       _padded(_HydrationDrinkBreakdownCard(state: state, formatter: formatter)),
     const SectionHeader('Statistics'),
     _padded(_HydrationStatisticsCard(state: state, formatter: formatter)),
+    _padded(const HydrationReminderCard()),
   ];
 }
 

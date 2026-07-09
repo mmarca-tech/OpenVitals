@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/screen_error.dart';
 import '../../di/providers.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/theme/app_colors.dart';
 import 'manual_entry_form_scaffold.dart';
 import 'manual_entry_timestamp_fields.dart';
+import 'mindfulness/mindfulness_sound_effects.dart';
+import 'mindfulness/mindfulness_timer_card.dart';
 import 'mindfulness_entry_notifier.dart';
 
 /// Mindfulness manual-entry screen pushed over the shell. Handles both the
@@ -28,7 +31,11 @@ class MindfulnessEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _MindfulnessEntryScreenState
-    extends ConsumerState<MindfulnessEntryScreen> {
+    extends ConsumerState<MindfulnessEntryScreen>
+    with RefreshPermissionOnResume {
+  @override
+  void refreshPermission() => ref.read(_provider.notifier).refreshPermission();
+
   final TextEditingController _controller = TextEditingController();
   bool _syncedFromState = false;
 
@@ -47,6 +54,7 @@ class _MindfulnessEntryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     ref.listen(_provider.select((s) => s.saveCompleted), (previous, next) {
       if (next) {
         ref.read(_provider.notifier).onSaveCompletedHandled();
@@ -64,11 +72,16 @@ class _MindfulnessEntryScreenState
         ref.watch(mindfulnessRepositoryProvider).mindfulnessWritePermissions;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mindfulness')),
+      appBar: AppBar(title: Text(l10n.screenMindfulnessEntry)),
       body: HealthConnectGate(
         requiredPermissions: writePermissions,
-        child:
-            _MindfulnessEntryForm(provider: _provider, controller: _controller),
+        child: MindfulnessSoundEffects(
+          provider: _provider,
+          child: _MindfulnessEntryForm(
+            provider: _provider,
+            controller: _controller,
+          ),
+        ),
       ),
     );
   }
@@ -87,6 +100,7 @@ class _MindfulnessEntryForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
     final enabled = state.canWrite &&
@@ -97,6 +111,13 @@ class _MindfulnessEntryForm extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
+        // The timer is hidden while editing an existing session — there is
+        // nothing to time, only a duration to correct.
+        if (!state.isEditMode)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: MindfulnessTimerCard(provider: provider),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: OpenVitalsCard(
@@ -114,12 +135,12 @@ class _MindfulnessEntryForm extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Mindfulness',
+                            Text(l10n.mindfulnessEntryManualTitle,
                                 style: theme.textTheme.titleSmall),
                             Text(
                               state.canWrite
-                                  ? 'Log a completed session by duration'
-                                  : 'Grant permission to log sessions',
+                                  ? l10n.mindfulnessEntrySubtitle
+                                  : l10n.mindfulnessEntryPermissionNeeded,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -135,9 +156,10 @@ class _MindfulnessEntryForm extends ConsumerWidget {
                     enabled: !state.isSavingEntry,
                     keyboardType: TextInputType.number,
                     onChanged: notifier.updateManualMinutes,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Duration (minutes)',
+                    maxLines: 1,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      labelText: l10n.mindfulnessEntryMinutes,
                     ),
                   ),
                   if (state.isEditMode) ...[
@@ -153,13 +175,15 @@ class _MindfulnessEntryForm extends ConsumerWidget {
                     onPressed: enabled ? notifier.addManualEntry : null,
                     icon: Icon(state.isEditMode ? Icons.check : Icons.add,
                         size: 18),
-                    label: Text(state.isEditMode ? 'Save' : 'Log session'),
+                    label: Text(state.isEditMode
+                        ? l10n.actionSave
+                        : l10n.mindfulnessEntryAddMinutes),
                   ),
                   if (state.entryError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _errorText(state.entryError!, state.writeError),
+                        _errorText(state.entryError!, state.writeError, l10n),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.error),
                       ),
@@ -173,16 +197,26 @@ class _MindfulnessEntryForm extends ConsumerWidget {
     );
   }
 
-  String _errorText(MindfulnessEntryError error, ScreenError? writeError) {
+  String _errorText(
+    MindfulnessEntryError error,
+    ScreenError? writeError,
+    AppLocalizations l10n,
+  ) {
     switch (error) {
+      case MindfulnessEntryError.invalidTimer:
+        return l10n.mindfulnessEntryInvalidTimer;
       case MindfulnessEntryError.invalidManualEntry:
-        return 'Enter a duration between 1 and 1440 minutes.';
+        return l10n.mindfulnessEntryInvalidManual;
+      case MindfulnessEntryError.timerTooShort:
+        return l10n.mindfulnessEntryTimerTooShort;
       case MindfulnessEntryError.missingWritePermission:
-        return 'Grant permission to log sessions.';
+        return l10n.mindfulnessEntryPermissionNeeded;
       case MindfulnessEntryError.unavailable:
-        return 'Mindfulness is not available on this device.';
+        return l10n.mindfulnessEntryUnavailable;
       case MindfulnessEntryError.writeFailed:
-        return 'Could not save the session. ${screenErrorText(writeError)}';
+        return l10n.mindfulnessEntryWriteFailed(
+          screenErrorText(writeError, l10n),
+        );
     }
   }
 }

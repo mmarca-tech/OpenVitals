@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/screen_error.dart';
+import '../../core/presentation/measurement_input.dart';
 import '../../di/providers.dart';
-import '../../domain/preferences/unit_system.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
@@ -22,13 +23,17 @@ class CarbsEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<CarbsEntryScreen> createState() => _CarbsEntryScreenState();
 }
 
-class _CarbsEntryScreenState extends ConsumerState<CarbsEntryScreen> {
+class _CarbsEntryScreenState extends ConsumerState<CarbsEntryScreen>
+    with RefreshPermissionOnResume {
   late final NotifierProvider<CarbsEntryNotifier, CarbsEntryState> _provider =
       NotifierProvider.autoDispose<CarbsEntryNotifier, CarbsEntryState>(
     CarbsEntryNotifier.new,
   );
 
   final TextEditingController _controller = TextEditingController();
+
+  @override
+  void refreshPermission() => ref.read(_provider.notifier).refreshPermission();
 
   @override
   void dispose() {
@@ -38,9 +43,12 @@ class _CarbsEntryScreenState extends ConsumerState<CarbsEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     ref.listen(_provider.select((s) => s.saveCompleted), (previous, next) {
       if (next) {
         ref.read(_provider.notifier).onSaveCompletedHandled();
+        // Kotlin just navigates back; the confirmation snackbar is a Flutter
+        // addition and has no ARB key (the catalogs are generated from Kotlin).
         onManualEntrySaved(context, 'Carbs entry saved');
       }
     });
@@ -49,7 +57,7 @@ class _CarbsEntryScreenState extends ConsumerState<CarbsEntryScreen> {
         ref.watch(nutritionRepositoryProvider).nutritionWritePermissions;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Carbs entry')),
+      appBar: AppBar(title: Text(l10n.screenCarbsEntry)),
       body: HealthConnectGate(
         requiredPermissions: writePermissions,
         child: _CarbsEntryForm(provider: _provider, controller: _controller),
@@ -67,10 +75,11 @@ class _CarbsEntryForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
-    final imperial = ref.watch(unitSystemProvider) == UnitSystem.imperial;
-    final unitLabel = imperial ? 'oz' : 'g';
+    final formatter = ref.watch(unitFormatterProvider);
+    final unitLabel = formatter.carbsInputUnit;
     final enabled =
         state.canWrite && !state.isSavingEntry && !state.isCheckingPermission;
 
@@ -94,11 +103,12 @@ class _CarbsEntryForm extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Carbs', style: theme.textTheme.titleSmall),
+                            Text(l10n.metricCarbs,
+                                style: theme.textTheme.titleSmall),
                             Text(
                               state.canWrite
-                                  ? 'Log a carbohydrate amount'
-                                  : 'Grant permission to log carbs',
+                                  ? l10n.carbsEntrySubtitle
+                                  : l10n.carbsEntryPermissionNeeded,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -112,33 +122,30 @@ class _CarbsEntryForm extends ConsumerWidget {
                   TextField(
                     controller: controller,
                     enabled: !state.isSavingEntry,
+                    maxLines: 1,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     onChanged: notifier.updateInput,
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
-                      labelText: 'Carbs ($unitLabel)',
+                      labelText: l10n.carbsEntryValueLabel(unitLabel),
                     ),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: enabled
-                        ? () => notifier.addEntry(
-                              canonicalCarbsGrams(
-                                state.inputText,
-                                imperial: imperial,
-                              ),
-                            )
+                        ? () => notifier
+                            .addEntry(formatter.carbsInputToGrams(state.inputText))
                         : null,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add carbs'),
+                    label: Text(l10n.carbsEntryAdd),
                   ),
                   if (state.entryError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _errorText(state.entryError!, state.writeError),
+                        _errorText(state.entryError!, state.writeError, l10n),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.error),
                       ),
@@ -152,14 +159,18 @@ class _CarbsEntryForm extends ConsumerWidget {
     );
   }
 
-  String _errorText(CarbsEntryError error, ScreenError? writeError) {
+  String _errorText(
+    CarbsEntryError error,
+    ScreenError? writeError,
+    AppLocalizations l10n,
+  ) {
     switch (error) {
       case CarbsEntryError.invalidValue:
-        return 'Enter a valid carbs amount.';
+        return l10n.carbsEntryInvalidValue;
       case CarbsEntryError.missingWritePermission:
-        return 'Grant permission to log carbs.';
+        return l10n.carbsEntryPermissionNeeded;
       case CarbsEntryError.writeFailed:
-        return 'Could not save the entry. ${screenErrorText(writeError)}';
+        return l10n.carbsEntryWriteFailed(screenErrorText(writeError, l10n));
     }
   }
 }

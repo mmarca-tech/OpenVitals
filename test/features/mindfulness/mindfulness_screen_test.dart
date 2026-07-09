@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/core/period/period_load_query.dart';
 import 'package:openvitals/data/repository/contract/mindfulness_repository.dart';
 import 'package:openvitals/di/providers.dart';
@@ -55,7 +56,11 @@ Future<Widget> _bootstrap({
           .overrideWith((ref) async => HealthConnectAvailability.available),
       grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
     ],
-    child: const MaterialApp(home: MindfulnessScreen()),
+    child: const MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: MindfulnessScreen(),
+    ),
   );
 }
 

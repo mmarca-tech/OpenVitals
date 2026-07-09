@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/insights/daily_goals.dart';
 import '../../domain/model/nutrition_models.dart';
+import '../../l10n/app_localizations.dart';
 import 'nutrition_formatting.dart';
 
 /// The four keyed nutrition metrics surfaced by the shared metric-detail screen,
@@ -38,7 +39,9 @@ enum NutritionMetric {
   final NutritionNutrient nutrient;
   final MetricDailyGoalKey dailyGoalKey;
 
-  String get title => nutrientTitle(nutrient);
+  /// Localized display title. Takes [l10n] because the nutrient names come from
+  /// the shared `metric_*` strings (Kotlin `titleRes`).
+  String title(AppLocalizations l10n) => nutrientTitle(nutrient, l10n);
 
   Color get accentColor => nutrientColor(nutrient);
 

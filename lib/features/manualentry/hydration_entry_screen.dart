@@ -2,22 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/screen_error.dart';
+import '../../core/presentation/unit_formatter.dart';
 import '../../di/providers.dart';
+import '../../domain/model/nutrition_models.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/theme/app_colors.dart';
+import 'hydration_catalog_widgets.dart';
+import 'hydration_drink_dialogs.dart';
 import 'hydration_entry_notifier.dart';
 import 'manual_entry_form_scaffold.dart';
 import 'manual_entry_timestamp_fields.dart';
 
 /// Hydration manual-entry screen pushed over the shell. Backs three routes:
 /// new entry, edit (carries [hydrationEntryId]) and log-drink (carries
-/// [logDrinkId], which pre-selects a saved custom drink).
+/// [logDrinkId], which opens straight into that saved drink's entry dialog).
 ///
-/// Riverpod/Flutter port of the Kotlin `HydrationEntryScreen`: container presets,
-/// a custom amount field and saved-drink logging writing `HydrationWriteRequest`
-/// (plus an associated `NutritionWriteRequest` for drinks that carry nutrients).
+/// Riverpod/Flutter port of the Kotlin `HydrationEntryScreen` +
+/// `HydrationTrackerCard`: today's counter, then either the drink catalog and a
+/// "New drink" action, or — when editing an existing record — the entry-time
+/// fields and Save.
+///
+/// The screen is deliberately *not* gated on the write permissions: a user
+/// without nutrition-write can still log plain water, so the permission state is
+/// reported in the card's subtitle with a Grant action, as in Kotlin.
 class HydrationEntryScreen extends ConsumerStatefulWidget {
   const HydrationEntryScreen({
     super.key,
@@ -33,8 +43,10 @@ class HydrationEntryScreen extends ConsumerStatefulWidget {
       _HydrationEntryScreenState();
 }
 
-class _HydrationEntryScreenState extends ConsumerState<HydrationEntryScreen> {
-  final TextEditingController _customController = TextEditingController();
+class _HydrationEntryScreenState extends ConsumerState<HydrationEntryScreen>
+    with RefreshPermissionOnResume {
+  @override
+  void refreshPermission() => ref.read(_provider.notifier).refreshPermission();
 
   late final NotifierProvider<HydrationEntryNotifier, HydrationEntryState>
       _provider = NotifierProvider.autoDispose<HydrationEntryNotifier,
@@ -42,67 +54,90 @@ class _HydrationEntryScreenState extends ConsumerState<HydrationEntryScreen> {
     () => HydrationEntryNotifier(editRecordId: widget.hydrationEntryId),
   );
 
-  @override
-  void initState() {
-    super.initState();
-    final last = ref.read(_provider).lastCustomAmountMilliliters;
-    if (last != null) {
-      _customController.text = _trim(last);
-    }
+  /// Guards the deep link against re-firing, as the Kotlin
+  /// `handledInitialLogDrinkId` does.
+  bool _handledInitialLogDrink = false;
+
+  /// Opens the "log this drink" deep link once its drink appears.
+  ///
+  /// The catalog loads asynchronously from the beverage store, so the drink is
+  /// not there on the first frame. Kotlin keys its `LaunchedEffect` on
+  /// `state.customDrinkOptions` for exactly this reason.
+  void _maybeOpenInitialLogDrink(List<CustomHydrationDrink> drinks) {
+    final drinkId = widget.logDrinkId;
+    if (drinkId == null || _handledInitialLogDrink) return;
+    final drink = drinks.where((it) => it.id == drinkId).firstOrNull;
+    if (drink == null) return;
+    _handledInitialLogDrink = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openLogDrinkDialog(drink);
+    });
   }
 
-  @override
-  void dispose() {
-    _customController.dispose();
-    super.dispose();
+  Future<void> _openLogDrinkDialog(CustomHydrationDrink drink) async {
+    final result = await showSavedDrinkEntryDialog(
+      context,
+      drink,
+      ref.read(unitFormatterProvider),
+    );
+    if (result == null || !mounted) return;
+    await ref.read(_provider.notifier).addSavedCustomDrinkEntry(
+          drink,
+          amountMilliliters: result.amountMilliliters,
+          entryTime: result.entryTime,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    ref.listen(_provider.select((s) => s.customDrinkOptions),
+        (previous, next) => _maybeOpenInitialLogDrink(next));
+    // The catalog may already be loaded when this screen rebuilds.
+    _maybeOpenInitialLogDrink(ref.read(_provider).customDrinkOptions);
     ref.listen(_provider.select((s) => s.saveCompleted), (previous, next) {
-      if (next) {
-        ref.read(_provider.notifier).onSaveCompletedHandled();
-        onManualEntrySaved(context, 'Hydration entry saved');
-      }
+      if (!next) return;
+      final notifier = ref.read(_provider.notifier);
+      notifier.onSaveCompletedHandled();
+      // Editing an existing record is a one-shot, so it returns. Logging a new
+      // drink keeps the catalog open — the today counter updates in place and
+      // the user can log another.
+      final isEdit = ref.read(_provider).isEditMode;
+      onManualEntrySaved(context, 'Hydration entry saved', pop: isEdit);
     });
 
-    final writePermissions =
-        ref.watch(hydrationRepositoryProvider).hydrationWritePermissions;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Hydration entry')),
+      appBar: AppBar(title: Text(l10n.screenHydrationEntry)),
       body: HealthConnectGate(
-        requiredPermissions: writePermissions,
-        child: _HydrationEntryForm(
-          provider: _provider,
-          customController: _customController,
-        ),
+        // Availability only; the write permissions are handled in-card.
+        child: _HydrationEntryForm(provider: _provider),
       ),
     );
   }
 }
 
 class _HydrationEntryForm extends ConsumerWidget {
-  const _HydrationEntryForm({
-    required this.provider,
-    required this.customController,
-  });
+  const _HydrationEntryForm({required this.provider});
 
   final NotifierProvider<HydrationEntryNotifier, HydrationEntryState> provider;
-  final TextEditingController customController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final enabled = state.canWriteHydration &&
-        !state.isSavingEntry &&
-        !state.isCheckingPermission;
 
-    final today = formatter.hydration(state.todayHydrationLiters);
-    final goal = formatter.hydration(state.dailyGoalLiters);
+    final canInteract = !state.isSavingEntry && !state.isCheckingPermission;
+    final canLogHydrationEntry = state.canWriteHydration && canInteract;
+    final needsPermission = !state.canWriteHydration || !state.canWriteNutrition;
+
+    final subtitle = !state.canWriteHydration
+        ? l10n.hydrationTrackerPermissionNeeded
+        : (!state.canWriteNutrition
+            ? l10n.hydrationNutritionPermissionNeeded
+            : l10n.hydrationTrackerSubtitle);
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -117,18 +152,25 @@ class _HydrationEntryForm extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.local_drink_outlined,
-                          color: AppColors.hydration, size: 22),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.hydration.withValues(alpha: 0.16),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.local_drink_outlined,
+                            size: 20, color: AppColors.hydration),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Hydration',
-                                style: theme.textTheme.titleSmall),
+                            Text(l10n.hydrationTrackerTitle,
+                                style: theme.textTheme.titleMedium),
                             Text(
-                              'Today ${today.value} ${today.unit} '
-                              '/ ${goal.value} ${goal.unit}',
+                              subtitle,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -136,121 +178,69 @@ class _HydrationEntryForm extends ConsumerWidget {
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Containers', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final option in state.containerOptions)
-                        ChoiceChip(
-                          label: Text(_containerLabel(option)),
-                          selected: option.id == state.selectedContainer.id,
-                          onSelected: state.isSavingEntry
-                              ? null
-                              : (_) => notifier.selectContainer(option),
+                      if (needsPermission && !state.isCheckingPermission)
+                        OutlinedButton(
+                          onPressed: () => _requestWritePermissions(ref, state),
+                          child: Text(l10n.actionGrant),
                         ),
                     ],
                   ),
-                  if (state.isEditMode) ...[
+                  const SizedBox(height: 12),
+                  HydrationTodayCounter(
+                    liters: state.todayHydrationLiters,
+                    dailyGoalLiters: state.dailyGoalLiters,
+                    formatter: formatter,
+                  ),
+                  if (state.entryNotice != null) ...[
                     const SizedBox(height: 12),
+                    HydrationEntryNoticeCallout(notice: state.entryNotice!),
+                  ],
+                  const SizedBox(height: 12),
+                  if (state.isEditMode) ...[
+                    // Editing an existing record only changes when it happened —
+                    // its volume came from the record itself.
                     ManualEntryTimestampFields(
                       timestamp: state.editTime,
                       enabled: !state.isSavingEntry,
                       onChanged: notifier.updateEntryTime,
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed:
-                        enabled ? notifier.addSelectedHydrationEntry : null,
-                    icon: Icon(state.isEditMode ? Icons.check : Icons.add,
-                        size: 18),
-                    label: Text(
-                      state.isEditMode
-                          ? 'Save'
-                          : 'Add ${_containerLabel(state.selectedContainer)}',
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: canLogHydrationEntry
+                          ? notifier.addSelectedHydrationEntry
+                          : null,
+                      icon: const Icon(Icons.check, size: 18),
+                      label: Text(l10n.actionSave),
                     ),
-                  ),
-                  if (!state.isEditMode) ...[
-                    const Divider(height: 32),
-                    Text('Custom amount', style: theme.textTheme.labelLarge),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: customController,
-                            enabled: !state.isSavingEntry,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'Amount (mL)',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton.tonal(
-                          onPressed: enabled
-                              ? () {
-                                  final ml = double.tryParse(
-                                    customController.text
-                                        .trim()
-                                        .replaceAll(',', '.'),
-                                  );
-                                  notifier.addCustomHydrationEntry(ml ?? -1);
-                                }
-                              : null,
-                          child: const Text('Add'),
-                        ),
-                      ],
+                  ] else ...[
+                    HydrationCatalogCarousel(
+                      savedDrinks: state.customDrinkOptions,
+                      frequentDrinks: state.frequentDrinkOptions,
+                      formatter: formatter,
+                      canEditSavedDrinks: canInteract,
+                      canSelectDrink: (drink) => _canLogDrink(state, drink),
+                      onSelectDrink: (drink) =>
+                          _logDrink(context, notifier, formatter, drink),
+                      onEditDrink: (drink) =>
+                          _editDrink(context, notifier, formatter, drink),
+                      onDeleteDrink: notifier.deleteCustomDrink,
+                      onMoveDrinkToTarget: notifier.moveCustomDrinkToTarget,
+                      onMoveDrinkToCategory: notifier.moveCustomDrinkToCategory,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: canInteract
+                          ? () => _createDrink(context, notifier, formatter)
+                          : null,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(l10n.hydrationNewDrinkAction),
                     ),
                   ],
-                  if (state.customDrinkOptions.isNotEmpty &&
-                      !state.isEditMode) ...[
-                    const Divider(height: 32),
-                    Text('Saved drinks', style: theme.textTheme.labelLarge),
-                    const SizedBox(height: 8),
-                    for (final drink in state.customDrinkOptions)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: OutlinedButton.icon(
-                          onPressed: enabled
-                              ? () => notifier.addSavedCustomDrinkEntry(drink)
-                              : null,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${drink.name} · '
-                              '${_trim(drink.volumeMilliliters)} mL',
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                  if (state.entryNotice ==
-                      HydrationEntryNotice.nonHydratingDrinkSaved)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        'Saved nutrients for a non-hydrating drink.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
                   if (state.entryError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _errorText(state.entryError!, state.writeError),
+                        _errorText(state.entryError!, state.writeError, l10n),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.error),
                       ),
@@ -264,35 +254,81 @@ class _HydrationEntryForm extends ConsumerWidget {
     );
   }
 
-  String _containerLabel(HydrationContainerOption option) {
-    final ml = option.volumeMilliliters;
-    if (ml >= kMillilitersPerLiter) {
-      return '${_trim(ml / kMillilitersPerLiter)} L';
-    }
-    return '${_trim(ml)} mL';
+  Future<void> _requestWritePermissions(
+    WidgetRef ref,
+    HydrationEntryState state,
+  ) async {
+    await ref
+        .read(healthRepositoryProvider)
+        .requestPermissions(state.writePermissions);
+    await ref.read(provider.notifier).refreshPermission();
   }
 
-  String _errorText(HydrationEntryError error, ScreenError? writeError) {
+  /// Port of the Kotlin `canLogDrink`: a drink that writes only nutrients needs
+  /// the nutrition permission, not the hydration one.
+  bool _canLogDrink(HydrationEntryState state, CustomHydrationDrink drink) {
+    final canInteract = !state.isSavingEntry && !state.isCheckingPermission;
+    final writesHydration = drink.volumeLiters * drink.hydrationMultiplier > 0.0;
+    final writesNutrition =
+        drink.nutrientValues.values.any((it) => it > 0.0 && it.isFinite);
+    return canInteract &&
+        (!writesHydration || state.canWriteHydration) &&
+        (!writesNutrition || state.canWriteNutrition);
+  }
+
+  Future<void> _createDrink(
+    BuildContext context,
+    HydrationEntryNotifier notifier,
+    UnitFormatter formatter,
+  ) async {
+    final input = await showCustomDrinkDialog(context, formatter);
+    if (input != null) await notifier.saveCustomDrink(input);
+  }
+
+  Future<void> _editDrink(
+    BuildContext context,
+    HydrationEntryNotifier notifier,
+    UnitFormatter formatter,
+    CustomHydrationDrink drink,
+  ) async {
+    final input =
+        await showCustomDrinkDialog(context, formatter, existing: drink);
+    if (input != null) {
+      await notifier.saveCustomDrink(input, existingDrinkId: drink.id);
+    }
+  }
+
+  Future<void> _logDrink(
+    BuildContext context,
+    HydrationEntryNotifier notifier,
+    UnitFormatter formatter,
+    CustomHydrationDrink drink,
+  ) async {
+    final result = await showSavedDrinkEntryDialog(context, drink, formatter);
+    if (result == null) return;
+    await notifier.addSavedCustomDrinkEntry(
+      drink,
+      amountMilliliters: result.amountMilliliters,
+      entryTime: result.entryTime,
+    );
+  }
+
+  String _errorText(
+    HydrationEntryError error,
+    ScreenError? writeError,
+    AppLocalizations l10n,
+  ) {
     switch (error) {
       case HydrationEntryError.invalidAmount:
-        return 'Enter a valid amount.';
+        return l10n.hydrationInvalidAmount;
       case HydrationEntryError.invalidCustomDrink:
-        return 'This drink is not valid.';
+        return l10n.hydrationCustomDrinkInvalid;
       case HydrationEntryError.missingWritePermission:
-        return 'Grant permission to log hydration.';
+        return l10n.hydrationTrackerPermissionNeeded;
       case HydrationEntryError.missingNutritionWritePermission:
-        return 'Grant permission to log nutrition.';
+        return l10n.hydrationNutritionPermissionNeeded;
       case HydrationEntryError.writeFailed:
-        return 'Could not save the entry. ${screenErrorText(writeError)}';
+        return l10n.hydrationWriteFailed(screenErrorText(writeError, l10n));
     }
   }
-}
-
-/// Formats a double as a compact string (trailing zeros trimmed).
-String _trim(double value) {
-  var text = value.toStringAsFixed(2);
-  if (text.contains('.')) {
-    text = text.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
-  return text;
 }

@@ -11,9 +11,6 @@ part 'carbs_entry_notifier.freezed.dart';
 /// `MaxCarbsGrams`).
 const double kMaxCarbsGrams = 10000.0;
 
-/// Grams per ounce, used to canonicalise imperial carbohydrate input.
-const double kGramsPerOunce = 28.349523125;
-
 /// Port of the Kotlin `CarbsEntryError`.
 enum CarbsEntryError {
   invalidValue,
@@ -34,15 +31,6 @@ abstract class CarbsEntryState with _$CarbsEntryState {
     CarbsEntryError? entryError,
     ScreenError? writeError,
   }) = _CarbsEntryState;
-}
-
-/// Canonicalises the raw carbohydrate [input] into grams, honouring the imperial
-/// unit system (ounces → grams). Returns null when the text is not a number.
-/// Port of the Kotlin `canonicalCarbsGrams`.
-double? canonicalCarbsGrams(String input, {required bool imperial}) {
-  final value = double.tryParse(input.trim().replaceAll(',', '.'));
-  if (value == null) return null;
-  return imperial ? value * kGramsPerOunce : value;
 }
 
 /// Riverpod port of the Kotlin `CarbsEntryViewModel`.

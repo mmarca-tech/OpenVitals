@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../core/presentation/measurement_input.dart';
 import '../../core/presentation/screen_error.dart';
 import '../../di/providers.dart';
 import '../../domain/model/vitals_models.dart';
@@ -14,8 +15,6 @@ const double _maxDiastolicMmHg = 180.0;
 const double _maxPercent = 100.0;
 const double _maxRespiratoryRate = 1000.0;
 const double _maxBodyTemperatureCelsius = 100.0;
-const double _fahrenheitFreezingPoint = 32.0;
-const double _fahrenheitPerCelsius = 1.8;
 
 /// Port of the Kotlin `VitalsMeasurementEntryError`.
 enum VitalsMeasurementEntryError {
@@ -51,22 +50,6 @@ abstract class VitalsMeasurementEntryState with _$VitalsMeasurementEntryState {
 /// `String.toVitalsDoubleOrNull`.
 double? parseVitalsDouble(String input) =>
     double.tryParse(input.trim().replaceAll(',', '.'));
-
-/// Canonicalises the primary vitals [input] into its stored (metric) value for
-/// [type]. Body temperature converts Fahrenheit → Celsius when [imperial].
-/// Port of the Kotlin `canonicalVitalsValue`.
-double? canonicalVitalsValue(
-  String input,
-  VitalsMeasurementType type, {
-  required bool imperial,
-}) {
-  final value = parseVitalsDouble(input);
-  if (value == null) return null;
-  if (type == VitalsMeasurementType.bodyTemperature && imperial) {
-    return (value - _fahrenheitFreezingPoint) / _fahrenheitPerCelsius;
-  }
-  return value;
-}
 
 /// Whether ([value], [secondaryValue]) form a valid measurement for [type].
 /// Port of the Kotlin `isValidVitalsValue`.
@@ -276,7 +259,7 @@ class VitalsMeasurementEntryNotifier
   String _toDisplayInput(double value, VitalsMeasurementType type) {
     final display =
         type == VitalsMeasurementType.bodyTemperature && imperial
-            ? value * _fahrenheitPerCelsius + _fahrenheitFreezingPoint
+            ? value * kFahrenheitPerCelsius + kFahrenheitFreezingPoint
             : value;
     return _trimInput(display);
   }

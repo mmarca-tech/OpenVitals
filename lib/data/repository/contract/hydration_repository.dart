@@ -20,15 +20,21 @@ abstract interface class HydrationRepository {
 
   void setLastCustomHydrationAmountMilliliters(double milliliters);
 
-  List<CustomHydrationDrink> customHydrationDrinks();
+  /// The drink catalog: the seeded presets (still/gasified water plus the
+  /// CaffeineHealth beverage list) merged with the user's own drinks.
+  ///
+  /// Asynchronous because the drift-backed `BeverageStore` is. The Kotlin
+  /// `beverageStore.beverages()` is a blocking Room read, which is why its
+  /// contract is synchronous.
+  Future<List<CustomHydrationDrink>> customHydrationDrinks();
 
-  void saveCustomHydrationDrink(CustomHydrationDrink drink);
+  Future<void> saveCustomHydrationDrink(CustomHydrationDrink drink);
 
-  void deleteCustomHydrationDrink(String drinkId);
+  Future<void> deleteCustomHydrationDrink(String drinkId);
 
-  void reorderCustomHydrationDrinks(List<String> drinkIds);
+  Future<void> reorderCustomHydrationDrinks(List<String> drinkIds);
 
-  void moveCustomHydrationDrinkToCategory(
+  Future<void> moveCustomHydrationDrinkToCategory(
     String drinkId,
     CaffeineSourceCategory? category,
   );

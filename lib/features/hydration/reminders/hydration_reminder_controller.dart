@@ -1,53 +1,38 @@
+import '../../../core/reminders/reminder_controller.dart';
+import '../../../core/reminders/reminder_schedule.dart';
 import '../../../core/time/local_date.dart';
 import '../../../data/prefs/preferences_repository.dart';
 import '../../../data/repository/contract/hydration_repository.dart';
 import '../../../domain/model/hydration_reminder_config.dart';
-import 'hydration_reminder_schedule.dart';
 
-/// Schedules the OS-level alarm that wakes the app to fire the next hydration
-/// reminder. Device-specific; the concrete implementation
-/// ([HydrationReminderDeviceScheduler]) wraps a plugin and is kept out of this
-/// controller so the orchestration logic stays testable.
-abstract interface class HydrationReminderScheduler {
-  Future<void> schedule(DateTime triggerAt);
-
-  Future<void> cancel();
-}
-
-/// Posts / clears the hydration reminder notification. Device-specific.
-abstract interface class HydrationReminderNotifier {
-  Future<void> showHydrationReminder(
-    double currentLiters,
-    double dailyGoalLiters,
-  );
-
-  Future<void> cancelReminderNotification();
-}
-
-/// Orchestrates hydration reminders, ported from the Kotlin
-/// `HydrationReminderController`.
+/// The hydration reminder, expressed against the generic [ReminderController].
 ///
-/// The pure scheduling math lives in [calculateNextHydrationReminderTime]; this
-/// class wires it to persisted config ([PreferencesRepository]), today's intake
-/// ([HydrationRepository]) and the device [HydrationReminderScheduler] /
-/// [HydrationReminderNotifier]. Because those device seams are injected
-/// interfaces, the whole controller is unit-testable with fakes.
+/// This class owns only what is hydration-specific: the persisted
+/// [HydrationReminderConfig], the interval-in-a-window schedule it describes,
+/// and today's intake read from the [HydrationRepository]. Everything else —
+/// the enabled/permission gate, the fire-then-rearm chain, the goal-met pause —
+/// lives in the shared controller.
 class HydrationReminderController {
   HydrationReminderController({
     required this.preferences,
     required this.hydrationRepository,
-    required this.notifier,
-    required this.scheduler,
-    this.now = DateTime.now,
-    this.hasNotificationPermission = _permissionGranted,
-  });
+    required ReminderNotifier notifier,
+    required ReminderScheduler scheduler,
+    DateTime Function() now = DateTime.now,
+    Future<bool> Function()? hasNotificationPermission,
+  }) : reminders = ReminderController(
+          loadSettings: () => _settingsFor(preferences.hydrationReminderConfig()),
+          readProgress: () => _readProgress(preferences, hydrationRepository),
+          scheduler: scheduler,
+          notifier: notifier,
+          now: now,
+          hasNotificationPermission:
+              hasNotificationPermission ?? _alwaysGranted,
+        );
 
   final PreferencesRepository preferences;
   final HydrationRepository hydrationRepository;
-  final HydrationReminderNotifier notifier;
-  final HydrationReminderScheduler scheduler;
-  final DateTime Function() now;
-  final bool Function() hasNotificationPermission;
+  final ReminderController reminders;
 
   HydrationReminderConfig config() => preferences.hydrationReminderConfig();
 
@@ -58,92 +43,46 @@ class HydrationReminderController {
     await applyConfig(normalized);
   }
 
-  /// (Re)computes the next reminder from [config] (or the persisted config) and
-  /// arms the scheduler, or clears everything when disabled / permission-less.
-  Future<void> applyConfig([HydrationReminderConfig? config]) async {
-    final normalized =
-        (config ?? preferences.hydrationReminderConfig()).normalized();
-    if (!normalized.enabled || !hasNotificationPermission()) {
-      await _clearReminder();
-      return;
-    }
-    await _scheduleNextReminder(
-      normalized,
-      dailyGoalMet: await _isDailyGoalMet(),
+  /// (Re)arms from [config], or from the persisted config when omitted.
+  Future<void> applyConfig([HydrationReminderConfig? config]) =>
+      reminders.apply(config == null ? null : _settingsFor(config));
+
+  Future<void> handleReminderAlarm() => reminders.handleAlarm();
+
+  Future<void> restoreSchedule() => reminders.restoreSchedule();
+
+  /// Dismisses a visible reminder — the Kotlin behaviour where saving a
+  /// hydration entry hides the notification that prompted it.
+  Future<void> hideReminderNotification() => reminders.hideNotification();
+
+  static ReminderSettings _settingsFor(HydrationReminderConfig config) {
+    final normalized = config.normalized();
+    return ReminderSettings(
+      enabled: normalized.enabled,
+      schedule: IntervalWindowReminderSchedule(
+        intervalMinutes: normalized.intervalMinutes,
+        activeStartTime: normalized.activeStartTime,
+        activeEndTime: normalized.activeEndTime,
+      ),
     );
   }
 
-  /// Runs when an alarm fires: shows the reminder (unless the goal is met or the
-  /// current time is outside the active window) and arms the next one.
-  Future<void> handleReminderAlarm() async {
-    final config = preferences.hydrationReminderConfig().normalized();
-    if (!config.enabled || !hasNotificationPermission()) {
-      await _clearReminder();
-      return;
-    }
-
-    final currentLiters = await _todayHydrationLiters();
-    final dailyGoalLiters = preferences.hydrationDailyGoalLiters;
-    final goalMet = dailyGoalLiters > 0.0 && currentLiters >= dailyGoalLiters;
-    final moment = now();
-    final withinActiveHours = isWithinHydrationReminderActiveHours(
-      LocalTime(moment.hour, moment.minute),
-      config,
-    );
-    if (!goalMet && withinActiveHours) {
-      await notifier.showHydrationReminder(currentLiters, dailyGoalLiters);
-    }
-    await _scheduleNextReminder(config, dailyGoalMet: goalMet);
-  }
-
-  /// Re-arms (or clears) the schedule, e.g. after a device reboot.
-  Future<void> restoreSchedule() async {
-    final config = preferences.hydrationReminderConfig();
-    if (config.enabled) {
-      await applyConfig(config);
-    } else {
-      await _clearReminder();
-    }
-  }
-
-  Future<void> hideReminderNotification() =>
-      notifier.cancelReminderNotification();
-
-  Future<bool> _isDailyGoalMet() async {
-    final dailyGoalLiters = preferences.hydrationDailyGoalLiters;
-    return dailyGoalLiters > 0.0 &&
-        await _todayHydrationLiters() >= dailyGoalLiters;
-  }
-
-  Future<double> _todayHydrationLiters() async {
+  /// Today's litres against the daily goal. A read failure counts as zero
+  /// intake, not as a met goal (Kotlin `runCatching { … }.getOrDefault(0.0)`).
+  static Future<ReminderGoalProgress> _readProgress(
+    PreferencesRepository preferences,
+    HydrationRepository repository,
+  ) async {
+    final target = preferences.hydrationDailyGoalLiters;
     final today = LocalDate.now();
     try {
-      final daily = await hydrationRepository.loadDailyHydration(today, today);
-      return daily.fold<double>(0.0, (sum, day) => sum + day.liters);
+      final daily = await repository.loadDailyHydration(today, today);
+      final current = daily.fold<double>(0.0, (sum, day) => sum + day.liters);
+      return ReminderGoalProgress(current: current, target: target);
     } catch (_) {
-      return 0.0;
+      return ReminderGoalProgress(current: 0.0, target: target);
     }
-  }
-
-  Future<void> _scheduleNextReminder(
-    HydrationReminderConfig config, {
-    required bool dailyGoalMet,
-  }) async {
-    final triggerAt = calculateNextHydrationReminderTime(
-      now(),
-      config,
-      dailyGoalMet: dailyGoalMet,
-    );
-    await scheduler.schedule(triggerAt);
-  }
-
-  Future<void> _clearReminder() async {
-    await scheduler.cancel();
-    await notifier.cancelReminderNotification();
   }
 }
 
-/// Default permission gate. On-device the Android 13+ POST_NOTIFICATIONS check
-/// is wired in via the injected callback; the pure default assumes granted so
-/// tests and non-Android targets behave predictably.
-bool _permissionGranted() => true;
+Future<bool> _alwaysGranted() async => true;

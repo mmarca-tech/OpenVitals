@@ -62,30 +62,48 @@ class HydrationRepositoryImpl implements HydrationRepository {
   void setLastCustomHydrationAmountMilliliters(double milliliters) =>
       _preferences?.setLastCustomHydrationAmountMilliliters(milliliters);
 
+  /// The beverage store is the source of truth when it is wired: it seeds the
+  /// preset catalog on first read and migrates any drinks the preferences
+  /// repository holds from before it existed. Preferences are the fallback for
+  /// contexts with no database (the reminder's background isolate).
+  ///
+  /// Port of the Kotlin `beverageStore?.beverages() ?: preferencesRepository…`.
   @override
-  List<CustomHydrationDrink> customHydrationDrinks() =>
-      _preferences?.customHydrationDrinks() ?? const <CustomHydrationDrink>[];
+  Future<List<CustomHydrationDrink>> customHydrationDrinks() async {
+    final beverages = _beverages;
+    if (beverages != null) return beverages.beverages();
+    return _preferences?.customHydrationDrinks() ?? const <CustomHydrationDrink>[];
+  }
 
   @override
-  void saveCustomHydrationDrink(CustomHydrationDrink drink) =>
-      _preferences?.saveCustomHydrationDrink(drink);
+  Future<void> saveCustomHydrationDrink(CustomHydrationDrink drink) async {
+    final beverages = _beverages;
+    if (beverages != null) return beverages.save(drink);
+    _preferences?.saveCustomHydrationDrink(drink);
+  }
 
   @override
-  void deleteCustomHydrationDrink(String drinkId) =>
-      _preferences?.deleteCustomHydrationDrink(drinkId);
+  Future<void> deleteCustomHydrationDrink(String drinkId) async {
+    final beverages = _beverages;
+    if (beverages != null) return beverages.delete(drinkId);
+    _preferences?.deleteCustomHydrationDrink(drinkId);
+  }
 
   @override
-  void reorderCustomHydrationDrinks(List<String> drinkIds) =>
-      _preferences?.reorderCustomHydrationDrinks(drinkIds);
+  Future<void> reorderCustomHydrationDrinks(List<String> drinkIds) async {
+    final beverages = _beverages;
+    if (beverages != null) return beverages.reorder(drinkIds);
+    _preferences?.reorderCustomHydrationDrinks(drinkIds);
+  }
 
   @override
-  void moveCustomHydrationDrinkToCategory(
+  Future<void> moveCustomHydrationDrinkToCategory(
     String drinkId,
     CaffeineSourceCategory? category,
-  ) {
-    // BeverageStore.moveToCategory is async; fire without awaiting.
-    final future = _beverages?.moveToCategory(drinkId, category);
-    if (future != null) unawaited(future);
+  ) async {
+    final beverages = _beverages;
+    if (beverages != null) return beverages.moveToCategory(drinkId, category);
+    // Preferences have no category column; nothing to persist.
   }
 
   @override

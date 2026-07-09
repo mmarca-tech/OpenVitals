@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/presentation/reorder.dart';
 import '../../core/presentation/screen_error.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../domain/model/activity_models.dart';
@@ -20,6 +21,7 @@ import '../../ui/components/metric_stat_card.dart';
 import '../../ui/components/period_navigator.dart';
 import '../../ui/components/permission_callout.dart';
 import '../../ui/components/summary_ring_card.dart';
+import '../../ui/components/widget_edit_controls.dart';
 import '../../ui/theme/app_colors.dart';
 import '../activity/exercise_labels.dart';
 import 'dashboard_notifier.dart';
@@ -220,7 +222,7 @@ class _DashboardBody extends StatelessWidget {
           // Outside the tiles-exist gate: with every widget removed there is
           // nothing to reorder, but the user still needs a way to add them back.
           if (state.editing)
-            _HiddenWidgetsSection(
+            HiddenWidgetsSection(
               titles: [
                 for (final r in orderedRings)
                   if (state.hiddenTiles.contains(r.title)) r.title,
@@ -320,81 +322,6 @@ class _DashboardQuickActions extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// The ✕ overlaid on a hero ring / stat tile in edit mode, which removes the
-/// widget from the summary. Port of the Kotlin `onRemove` affordance.
-class _RemoveWidgetButton extends StatelessWidget {
-  const _RemoveWidgetButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return IconButton(
-      visualDensity: VisualDensity.compact,
-      iconSize: 18,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-      tooltip: AppLocalizations.of(context).cdRemoveWidget,
-      onPressed: onPressed,
-      icon: Icon(Icons.close, color: scheme.onSurfaceVariant),
-    );
-  }
-}
-
-/// The edit-mode "Add widgets" tray: every widget the user has removed, as a
-/// tap-to-restore row. Port of the Kotlin `DashboardHiddenWidgets`.
-class _HiddenWidgetsSection extends StatelessWidget {
-  const _HiddenWidgetsSection({required this.titles, required this.onAdd});
-
-  final List<String> titles;
-  final void Function(String title) onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            l10n.dashboardAddWidgets,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (titles.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                l10n.dashboardAllWidgetsAdded,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            )
-          else
-            for (final title in titles)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: OutlinedButton.icon(
-                  onPressed: () => onAdd(title),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(title),
-                  ),
-                ),
-              ),
-        ],
-      ),
     );
   }
 }
@@ -560,24 +487,9 @@ class _MetricCarouselState extends State<_MetricCarousel> {
     return Column(
       children: [
         if (widget.editing)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Row(
-              children: [
-                Icon(Icons.drag_indicator,
-                    size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Hold to drag & reorder · tap ✕ to remove',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: EditModeHint(),
           ),
         SizedBox(
           key: _pagerKey,
@@ -751,7 +663,7 @@ class _MetricCarouselState extends State<_MetricCarousel> {
         Positioned(
           top: 2,
           right: 2,
-          child: _RemoveWidgetButton(
+          child: RemoveWidgetButton(
             onPressed: () => widget.onRemove?.call(tile.title),
           ),
         ),
@@ -839,7 +751,7 @@ class _HeroRingEditRow extends StatelessWidget {
         Positioned(
           top: 2,
           right: 2,
-          child: _RemoveWidgetButton(onPressed: () => onRemove(ring.title)),
+          child: RemoveWidgetButton(onPressed: () => onRemove(ring.title)),
         ),
       ],
     );

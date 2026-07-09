@@ -12,6 +12,7 @@ import '../../domain/insights/daily_goals.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../state/app_providers.dart';
 import '../../ui/charts/period_chart.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
@@ -31,6 +32,7 @@ class NutritionMetricScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final provider = nutritionMetricProvider(metric);
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
@@ -39,7 +41,7 @@ class NutritionMetricScreen extends ConsumerWidget {
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(metric.title)),
+      appBar: AppBar(title: Text(metric.title(l10n))),
       body: HealthConnectGate(
         requiredPermissions: {HcPermissions.readNutrition},
         showInlineSyncBanner: false,
@@ -65,6 +67,7 @@ List<Widget> _content(
   UnitFormatter formatter,
   DatePeriod period,
 ) {
+  final l10n = AppLocalizations.of(context);
   if (!state.hasData) {
     if (state.isLoading) {
       return const [
@@ -77,7 +80,7 @@ List<Widget> _content(
     return [
       _padded(
         MetricCardPlaceholder(
-          title: metric.title,
+          title: metric.title(l10n),
           icon: metric.icon,
           accentColor: metric.accentColor,
           message: 'No nutrition logged for this period.',
@@ -111,7 +114,7 @@ List<Widget> _content(
   return [
     _padded(
       MetricCard(
-        title: metric.title,
+        title: metric.title(l10n),
         value: totalDisplay.value,
         unit: totalDisplay.unit,
         icon: metric.icon,
@@ -123,7 +126,7 @@ List<Widget> _content(
     ),
     _padded(
       MetricBarChart(
-        title: metric.title,
+        title: metric.title(l10n),
         values: values,
         selectedRange: state.selectedRange,
         period: period,

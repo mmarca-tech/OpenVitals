@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../core/presentation/measurement_input.dart';
 import '../../core/presentation/screen_error.dart';
 import '../../di/providers.dart';
 import '../../domain/model/body_models.dart';
@@ -10,8 +11,6 @@ part 'body_measurement_entry_notifier.freezed.dart';
 const double _maxWeightKg = 1000.0;
 const double _maxHeightCm = 300.0;
 const double _maxBodyFatPercent = 100.0;
-const double _poundsPerKilogram = 2.2046226218;
-const double _centimetersPerInch = 2.54;
 
 /// Port of the Kotlin `BodyMeasurementEntryError`.
 enum BodyMeasurementEntryError {
@@ -40,26 +39,6 @@ abstract class BodyMeasurementEntryState with _$BodyMeasurementEntryState {
   }) = _BodyMeasurementEntryState;
 
   bool get isEditMode => editRecordId != null;
-}
-
-/// Converts the raw display [input] into the canonical (metric) value for
-/// [type], honouring the imperial unit system. Port of the Kotlin
-/// `canonicalBodyMeasurementValue`.
-double? canonicalBodyMeasurementValue(
-  String input,
-  BodyMeasurementType type, {
-  required bool imperial,
-}) {
-  final value = double.tryParse(input.trim().replaceAll(',', '.'));
-  if (value == null) return null;
-  switch (type) {
-    case BodyMeasurementType.weight:
-      return imperial ? value / _poundsPerKilogram : value;
-    case BodyMeasurementType.height:
-      return imperial ? value * _centimetersPerInch : value;
-    case BodyMeasurementType.bodyFat:
-      return value;
-  }
 }
 
 /// Riverpod port of the Kotlin `BodyMeasurementEntryViewModel`. One instance per
@@ -227,9 +206,9 @@ class BodyMeasurementEntryNotifier extends Notifier<BodyMeasurementEntryState> {
   String _toDisplayInput(double value, BodyMeasurementType type) {
     final display = switch (type) {
       BodyMeasurementType.weight =>
-        imperial ? value * _poundsPerKilogram : value,
+        imperial ? value * kPoundsPerKilogram : value,
       BodyMeasurementType.height =>
-        imperial ? value / _centimetersPerInch : value,
+        imperial ? value / kCentimetersPerInch : value,
       BodyMeasurementType.bodyFat => value,
     };
     return _trimInput(display);

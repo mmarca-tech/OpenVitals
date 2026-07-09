@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'bootstrap/reminder_bootstrap.dart';
 import 'di/providers.dart';
 
 /// App entry point.
@@ -12,15 +15,26 @@ import 'di/providers.dart';
 /// bootstrap override pattern documented on that provider). Drift and the
 /// health data source resolve lazily from their own providers on first use, so
 /// they do not need to be awaited here.
+///
+/// The container is created explicitly rather than by [ProviderScope] so that
+/// [bootstrapReminders] can read it. Reminders come up *after* [runApp] and are
+/// never awaited: re-arming an alarm touches Health Connect and must not hold
+/// the first frame.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ],
+  );
+
   runApp(
-    ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: const OpenVitalsApp(),
     ),
   );
+
+  unawaited(bootstrapReminders(container));
 }

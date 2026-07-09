@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/presentation/display_value.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../domain/model/nutrition_models.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/theme/app_colors.dart';
 
 /// Per-nutrient presentation helpers, ported from the Kotlin
@@ -99,93 +100,51 @@ String nutrientGroupTitle(NutritionNutrientGroup group) {
   }
 }
 
-/// The display title for [nutrient], mirroring the Kotlin
-/// `NutritionNutrient.titleRes` (English strings).
-String nutrientTitle(NutritionNutrient nutrient) {
-  switch (nutrient) {
-    case NutritionNutrient.energy:
-      return 'Calories in';
-    case NutritionNutrient.protein:
-      return 'Protein';
-    case NutritionNutrient.totalCarbohydrate:
-      return 'Carbs';
-    case NutritionNutrient.totalFat:
-      return 'Fat';
-    case NutritionNutrient.dietaryFiber:
-      return 'Dietary fiber';
-    case NutritionNutrient.sugar:
-      return 'Sugar';
-    case NutritionNutrient.energyFromFat:
-      return 'Energy from fat';
-    case NutritionNutrient.monounsaturatedFat:
-      return 'Monounsaturated fat';
-    case NutritionNutrient.polyunsaturatedFat:
-      return 'Polyunsaturated fat';
-    case NutritionNutrient.saturatedFat:
-      return 'Saturated fat';
-    case NutritionNutrient.transFat:
-      return 'Trans fat';
-    case NutritionNutrient.unsaturatedFat:
-      return 'Unsaturated fat';
-    case NutritionNutrient.cholesterol:
-      return 'Cholesterol';
-    case NutritionNutrient.biotin:
-      return 'Biotin';
-    case NutritionNutrient.folate:
-      return 'Folate';
-    case NutritionNutrient.folicAcid:
-      return 'Folic acid';
-    case NutritionNutrient.niacin:
-      return 'Niacin';
-    case NutritionNutrient.pantothenicAcid:
-      return 'Pantothenic acid';
-    case NutritionNutrient.riboflavin:
-      return 'Riboflavin';
-    case NutritionNutrient.thiamin:
-      return 'Thiamin';
-    case NutritionNutrient.vitaminA:
-      return 'Vitamin A';
-    case NutritionNutrient.vitaminB12:
-      return 'Vitamin B12';
-    case NutritionNutrient.vitaminB6:
-      return 'Vitamin B6';
-    case NutritionNutrient.vitaminC:
-      return 'Vitamin C';
-    case NutritionNutrient.vitaminD:
-      return 'Vitamin D';
-    case NutritionNutrient.vitaminE:
-      return 'Vitamin E';
-    case NutritionNutrient.vitaminK:
-      return 'Vitamin K';
-    case NutritionNutrient.calcium:
-      return 'Calcium';
-    case NutritionNutrient.chloride:
-      return 'Chloride';
-    case NutritionNutrient.chromium:
-      return 'Chromium';
-    case NutritionNutrient.copper:
-      return 'Copper';
-    case NutritionNutrient.iodine:
-      return 'Iodine';
-    case NutritionNutrient.iron:
-      return 'Iron';
-    case NutritionNutrient.magnesium:
-      return 'Magnesium';
-    case NutritionNutrient.manganese:
-      return 'Manganese';
-    case NutritionNutrient.molybdenum:
-      return 'Molybdenum';
-    case NutritionNutrient.phosphorus:
-      return 'Phosphorus';
-    case NutritionNutrient.potassium:
-      return 'Potassium';
-    case NutritionNutrient.selenium:
-      return 'Selenium';
-    case NutritionNutrient.sodium:
-      return 'Sodium';
-    case NutritionNutrient.zinc:
-      return 'Zinc';
-    case NutritionNutrient.caffeine:
-      return 'Caffeine';
-  }
-}
+/// The localized display title for [nutrient]. Port of the Kotlin
+/// `NutritionNutrient.titleRes()` — the same `metric_*` strings, so a nutrient
+/// reads identically wherever it appears.
+String nutrientTitle(NutritionNutrient nutrient, AppLocalizations l10n) =>
+    switch (nutrient) {
+      NutritionNutrient.energy => l10n.metricCaloriesIn,
+      NutritionNutrient.protein => l10n.metricProtein,
+      NutritionNutrient.totalCarbohydrate => l10n.metricCarbs,
+      NutritionNutrient.totalFat => l10n.metricFat,
+      NutritionNutrient.dietaryFiber => l10n.metricDietaryFiber,
+      NutritionNutrient.sugar => l10n.metricSugar,
+      NutritionNutrient.energyFromFat => l10n.metricEnergyFromFat,
+      NutritionNutrient.monounsaturatedFat => l10n.metricMonounsaturatedFat,
+      NutritionNutrient.polyunsaturatedFat => l10n.metricPolyunsaturatedFat,
+      NutritionNutrient.saturatedFat => l10n.metricSaturatedFat,
+      NutritionNutrient.transFat => l10n.metricTransFat,
+      NutritionNutrient.unsaturatedFat => l10n.metricUnsaturatedFat,
+      NutritionNutrient.cholesterol => l10n.metricCholesterol,
+      NutritionNutrient.biotin => l10n.metricBiotin,
+      NutritionNutrient.folate => l10n.metricFolate,
+      NutritionNutrient.folicAcid => l10n.metricFolicAcid,
+      NutritionNutrient.niacin => l10n.metricNiacin,
+      NutritionNutrient.pantothenicAcid => l10n.metricPantothenicAcid,
+      NutritionNutrient.riboflavin => l10n.metricRiboflavin,
+      NutritionNutrient.thiamin => l10n.metricThiamin,
+      NutritionNutrient.vitaminA => l10n.metricVitaminA,
+      NutritionNutrient.vitaminB12 => l10n.metricVitaminB12,
+      NutritionNutrient.vitaminB6 => l10n.metricVitaminB6,
+      NutritionNutrient.vitaminC => l10n.metricVitaminC,
+      NutritionNutrient.vitaminD => l10n.metricVitaminD,
+      NutritionNutrient.vitaminE => l10n.metricVitaminE,
+      NutritionNutrient.vitaminK => l10n.metricVitaminK,
+      NutritionNutrient.calcium => l10n.metricCalcium,
+      NutritionNutrient.chloride => l10n.metricChloride,
+      NutritionNutrient.chromium => l10n.metricChromium,
+      NutritionNutrient.copper => l10n.metricCopper,
+      NutritionNutrient.iodine => l10n.metricIodine,
+      NutritionNutrient.iron => l10n.metricIron,
+      NutritionNutrient.magnesium => l10n.metricMagnesium,
+      NutritionNutrient.manganese => l10n.metricManganese,
+      NutritionNutrient.molybdenum => l10n.metricMolybdenum,
+      NutritionNutrient.phosphorus => l10n.metricPhosphorus,
+      NutritionNutrient.potassium => l10n.metricPotassium,
+      NutritionNutrient.selenium => l10n.metricSelenium,
+      NutritionNutrient.sodium => l10n.metricSodium,
+      NutritionNutrient.zinc => l10n.metricZinc,
+      NutritionNutrient.caffeine => l10n.metricCaffeine,
+    };

@@ -7,6 +7,7 @@ import '../../core/presentation/unit_formatter.dart';
 import '../../di/providers.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../state/app_providers.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
@@ -61,6 +62,7 @@ List<Widget> _content(
   NutritionState state,
   UnitFormatter formatter,
 ) {
+  final l10n = AppLocalizations.of(context);
   if (!state.hasData) {
     if (state.isLoading) {
       return const [
@@ -99,7 +101,7 @@ List<Widget> _content(
       if (group != NutritionNutrientGroup.overview && total <= 0.0) continue;
       tiles.add(
         _NutrientTile(
-          title: nutrientTitle(nutrient),
+          title: nutrientTitle(nutrient, l10n),
           value: nutrientDisplayValue(nutrient, total, formatter),
           color: nutrientColor(nutrient),
         ),

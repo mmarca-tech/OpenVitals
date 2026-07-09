@@ -22,6 +22,7 @@ import '../../ui/components/metric_detail_scaffold.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/theme/app_colors.dart';
 import 'mindfulness_notifier.dart';
+import 'reminders/mindfulness_reminder_card.dart';
 
 /// Mindfulness read-detail screen, ported from the Kotlin `MindfulnessScreen` +
 /// `MindfulnessPeriodContent`. Shows the period's total mindfulness time, a
@@ -92,6 +93,9 @@ List<Widget> _content(
           message: 'No mindfulness sessions for this period.',
         ),
       ),
+      // Reminders are configurable with no sessions logged yet — that is exactly
+      // when a user wants to switch them on.
+      _padded(const MindfulnessReminderCard()),
     ];
   }
 
@@ -156,6 +160,7 @@ List<Widget> _content(
       _padded(
         _MindfulnessSessionRow(session: session, formatter: formatter),
       ),
+    _padded(const MindfulnessReminderCard()),
   ];
 }
 
