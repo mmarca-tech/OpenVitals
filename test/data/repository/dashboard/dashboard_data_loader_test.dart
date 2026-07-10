@@ -1,8 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvitals/core/time/local_date.dart';
+import 'package:openvitals/data/prefs/preferences_repository.dart';
+import 'package:openvitals/data/repository/contract/body_energy_repository.dart';
 import 'package:openvitals/data/repository/dashboard/dashboard_data_loader.dart';
+import 'package:openvitals/domain/insights/body_energy_timeline.dart';
+import 'package:openvitals/domain/model/dashboard_data.dart';
 import 'package:openvitals/domain/model/dashboard_query.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/domain/preferences/body_energy_calibration.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/health/health_permissions.dart';
 
@@ -27,6 +33,44 @@ class _FakeSource extends HealthDataSource {
 
   @override
   Future<double?> readHydrationLiters(LocalDate date) async => 2.5;
+}
+
+/// A [BodyEnergyRepository] that returns a single canned day, and records
+/// whether it was asked to load at all.
+class _FakeBodyEnergyRepository implements BodyEnergyRepository {
+  _FakeBodyEnergyRepository(this._day);
+
+  final BodyEnergyTimeline _day;
+  bool loaded = false;
+
+  @override
+  Future<BodyEnergyTimelineResult> loadTimeline(
+    BodyEnergyTimelineQuery query,
+  ) async {
+    loaded = true;
+    return BodyEnergyTimelineResult(query: query, days: [_day]);
+  }
+}
+
+BodyEnergyTimeline _timeline(LocalDate date) => BodyEnergyTimeline(
+      date: date,
+      startScore: 60,
+      currentScore: 74,
+      charged: 30,
+      drained: 16,
+      points: const [],
+      confidence: BodyEnergyConfidence.medium,
+      confidenceReason: '',
+    );
+
+Future<PreferencesRepository> _prefsWithCalibration(
+    {required bool setupCompleted}) async {
+  SharedPreferences.setMockInitialValues(const <String, Object>{});
+  final prefs = PreferencesRepository(await SharedPreferences.getInstance());
+  prefs.setBodyEnergyCalibration(
+    BodyEnergyCalibration(setupCompleted: setupCompleted),
+  );
+  return prefs;
 }
 
 void main() {
@@ -162,5 +206,67 @@ void main() {
     // Availability gate short-circuits granted permissions, so nothing is read.
     expect(data.steps, 0);
     expect(data.missingPermissions, contains(HcPermissions.readSteps));
+  });
+
+  group('body energy timeline', () {
+    final date = LocalDate(2026, 1, 2);
+
+    Future<DashboardData> load(DashboardDataLoader loader) => loader.loadDashboard(
+          DashboardQuery(
+            date: date,
+            visibleMetrics: {DashboardMetric.bodyEnergy},
+            includeHistoricalBaselines: false,
+            includeWeeklyTrainingSignals: false,
+          ),
+        );
+
+    test('populates the timeline when set up and heart-rate is granted',
+        () async {
+      final source = _FakeSource({HcPermissions.readHeartRate});
+      final repo = _FakeBodyEnergyRepository(_timeline(date));
+      final loader = DashboardDataLoader(
+        source,
+        preferencesRepository: await _prefsWithCalibration(setupCompleted: true),
+        bodyEnergyRepository: repo,
+      );
+
+      final data = await load(loader);
+
+      expect(repo.loaded, isTrue);
+      expect(data.bodyEnergyTimeline, isNotNull);
+      expect(data.bodyEnergyTimeline!.currentScore, 74);
+      expect(data.bodyEnergyTimeline!.startScore, 60);
+    });
+
+    test('skips the load when calibration is not set up', () async {
+      final source = _FakeSource({HcPermissions.readHeartRate});
+      final repo = _FakeBodyEnergyRepository(_timeline(date));
+      final loader = DashboardDataLoader(
+        source,
+        preferencesRepository:
+            await _prefsWithCalibration(setupCompleted: false),
+        bodyEnergyRepository: repo,
+      );
+
+      final data = await load(loader);
+
+      expect(repo.loaded, isFalse);
+      expect(data.bodyEnergyTimeline, isNull);
+    });
+
+    test('skips the load when heart-rate read is not granted', () async {
+      final source = _FakeSource(const <String>{});
+      final repo = _FakeBodyEnergyRepository(_timeline(date));
+      final loader = DashboardDataLoader(
+        source,
+        preferencesRepository: await _prefsWithCalibration(setupCompleted: true),
+        bodyEnergyRepository: repo,
+      );
+
+      final data = await load(loader);
+
+      expect(repo.loaded, isFalse);
+      expect(data.bodyEnergyTimeline, isNull);
+    });
   });
 }

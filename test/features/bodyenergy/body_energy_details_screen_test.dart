@@ -10,7 +10,9 @@ import 'package:openvitals/domain/insights/body_energy_timeline.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/features/bodyenergy/body_energy_details_screen.dart';
 import 'package:openvitals/features/bodyenergy/body_energy_timeline_chart.dart';
+import 'package:openvitals/features/settings/cards/body_energy_calibration_card.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 
 class _FakeBodyEnergyRepository implements BodyEnergyRepository {
@@ -55,8 +57,11 @@ BodyEnergyTimeline _timeline(LocalDate date) => BodyEnergyTimeline(
 Future<Widget> _bootstrap({
   required BodyEnergyTimeline? timeline,
   required Set<String> granted,
+  bool setupCompleted = true,
 }) async {
-  SharedPreferences.setMockInitialValues(const <String, Object>{});
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    if (setupCompleted) 'body_energy_setup_completed': true,
+  });
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
@@ -67,7 +72,11 @@ Future<Widget> _bootstrap({
           .overrideWith((ref) async => HealthConnectAvailability.available),
       grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
     ],
-    child: MaterialApp(home: BodyEnergyDetailsScreen(date: '$today')),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: BodyEnergyDetailsScreen(date: '$today'),
+    ),
   );
 }
 
@@ -86,7 +95,72 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(BodyEnergyTimelineChart), findsOneWidget);
-    expect(find.text('Body energy'), findsWidgets);
+    expect(find.text('Body Energy'), findsWidgets);
+  });
+
+  testWidgets('Body Energy renders the "how it is estimated" card',
+      (tester) async {
+    // A tall surface so every card lays out in the viewport at once.
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      await _bootstrap(
+        timeline: _timeline(today),
+        granted: {HcPermissions.readHeartRate},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l10n.bodyEnergyCalculationTitle), findsOneWidget);
+    // Localized section labels are present (no hardcoded English literals).
+    expect(find.text(l10n.bodyEnergyWhyTitle), findsOneWidget);
+    expect(find.text(l10n.bodyEnergyInputsTitle), findsOneWidget);
+  });
+
+  testWidgets('Body Energy shows only the calibration card until setup completes',
+      (tester) async {
+    await tester.pumpWidget(
+      await _bootstrap(
+        timeline: _timeline(today),
+        granted: {HcPermissions.readHeartRate},
+        setupCompleted: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BodyEnergyCalibrationCard), findsOneWidget);
+    expect(find.byType(BodyEnergyTimelineChart), findsNothing);
+  });
+
+  testWidgets('Body Energy reveals the timeline after calibration is saved',
+      (tester) async {
+    await tester.pumpWidget(
+      await _bootstrap(
+        timeline: _timeline(today),
+        granted: {HcPermissions.readHeartRate},
+        setupCompleted: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.byType(BodyEnergyCalibrationCard), findsOneWidget);
+
+    // "Use automatic estimates" completes setup (setupCompleted = true).
+    await tester.tap(find.text(l10n.bodyEnergyCalibrationUseAuto));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BodyEnergyCalibrationCard), findsNothing);
+    expect(find.byType(BodyEnergyTimelineChart), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text(l10n.bodyEnergyCalculationTitle),
+      300,
+    );
+    expect(find.text(l10n.bodyEnergyCalculationTitle), findsOneWidget);
   });
 
   testWidgets('Body Energy shows the access gate when permission missing',
@@ -107,10 +181,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
     expect(find.byType(BodyEnergyTimelineChart), findsNothing);
-    expect(
-      find.text('No Body Energy timeline is available for this day.'),
-      findsOneWidget,
-    );
+    expect(find.text(l10n.bodyEnergyTimelineNoData), findsOneWidget);
   });
 }

@@ -78,6 +78,7 @@ class BodyEnergyInputRow {
 class BodyEnergyDisplay {
   const BodyEnergyDisplay({
     this.timeline,
+    this.inputSummary,
     this.chartPoints = const [],
     this.influenceBars = const [],
     this.legendInfluences = const [],
@@ -86,6 +87,7 @@ class BodyEnergyDisplay {
   });
 
   final BodyEnergyTimeline? timeline;
+  final BodyEnergyInputSummary? inputSummary;
   final List<BodyEnergyChartPoint> chartPoints;
   final List<BodyEnergyInfluenceBar> influenceBars;
   final List<BodyEnergyPrimaryInfluence> legendInfluences;
@@ -100,6 +102,7 @@ BodyEnergyDisplay buildBodyEnergyDisplay(BodyEnergyTimeline? timeline) {
   if (timeline.points.isEmpty) {
     return BodyEnergyDisplay(
       timeline: timeline,
+      inputSummary: timeline.inputSummary,
       inputRows: _inputRows(timeline.inputSummary),
     );
   }
@@ -140,6 +143,7 @@ BodyEnergyDisplay buildBodyEnergyDisplay(BodyEnergyTimeline? timeline) {
 
   return BodyEnergyDisplay(
     timeline: timeline,
+    inputSummary: timeline.inputSummary,
     chartPoints: chartPoints,
     influenceBars: influenceBars,
     legendInfluences: legend,

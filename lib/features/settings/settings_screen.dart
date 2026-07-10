@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -25,11 +26,17 @@ class SettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
+            // The debug-diagnostics section is surfaced only in debug builds —
+            // the Kotlin hub filters out DEBUG_DIAGNOSTICS unless
+            // BuildConfig.OPENVITALS_DIAGNOSTICS; kDebugMode is its analogue.
             for (final section in SettingsSection.values)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: _SettingsCategoryCard(section: section),
-              ),
+              if (kDebugMode ||
+                  section != SettingsSection.debugDiagnostics)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: _SettingsCategoryCard(section: section),
+                ),
             SectionHeader(l10n.sectionSupport),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),

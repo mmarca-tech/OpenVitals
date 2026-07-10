@@ -5,19 +5,22 @@ import '../../core/presentation/screen_error.dart';
 import '../../core/time/local_date.dart';
 import '../../domain/insights/body_energy_timeline.dart';
 import '../../health/health_permissions.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/health_date_picker.dart';
 import '../../ui/components/loading_state.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/period_navigator.dart';
+import '../settings/cards/body_energy_calibration_card.dart';
 import 'body_energy_display.dart';
 import 'body_energy_notifier.dart';
 import 'body_energy_timeline_chart.dart';
 
 /// Body-energy timeline detail pushed over the shell
 /// (`/daily_readiness/body_energy/:bodyEnergyDate`). Port of the Kotlin
-/// `BodyEnergyDetailsScreen`: a selected-day timeline chart + current-level and
-/// charge/drain summary + confidence + input availability.
+/// `BodyEnergyDetailsScreen`: a calibration gate for first-run setup, then a
+/// selected-day timeline chart + current-level and charge/drain summary +
+/// "what moved it" reasons + input availability + method explainer.
 class BodyEnergyDetailsScreen extends ConsumerStatefulWidget {
   const BodyEnergyDetailsScreen({super.key, required this.date});
 
@@ -42,11 +45,12 @@ class _BodyEnergyDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(bodyEnergyNotifierProvider);
     final notifier = ref.read(bodyEnergyNotifierProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Body energy')),
+      appBar: AppBar(title: Text(l10n.screenBodyEnergy)),
       body: HealthConnectGate(
         requiredPermissions: {HcPermissions.readHeartRate},
         showInlineSyncBanner: false,
@@ -62,7 +66,7 @@ class _BodyEnergyDetailsScreenState
   }
 }
 
-class _BodyEnergyBody extends StatelessWidget {
+class _BodyEnergyBody extends ConsumerWidget {
   const _BodyEnergyBody({
     required this.state,
     required this.onRefresh,
@@ -78,13 +82,28 @@ class _BodyEnergyBody extends StatelessWidget {
   final void Function(LocalDate) onSelectDate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+
+    // Calibration gate (Kotlin `BodyEnergyScreen.kt:74-84`): until setup is
+    // completed the screen shows only the calibration card, and the timeline is
+    // revealed after the user saves or picks automatic estimates.
+    final calibration = ref.watch(bodyEnergyCalibrationCardProvider);
+    if (!calibration.setupCompleted) {
+      return _MaxWidth(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: const [BodyEnergyCalibrationCard()],
+        ),
+      );
+    }
+
     final result = state.result;
     if (state.isLoading && result == null) {
       return const FullScreenLoading();
     }
     if (result == null && state.error != null) {
-      return ErrorMessage(screenErrorText(state.error!));
+      return ErrorMessage(_errorText(state.error!, l10n));
     }
 
     final timeline = result?.latestDay;
@@ -106,45 +125,43 @@ class _BodyEnergyBody extends StatelessWidget {
           },
         ),
       ),
-      if (timeline == null)
-        const _CardPad(
-          child: _SimpleCard(
-            title: 'Body energy',
-            body: 'No Body Energy timeline is available for this day.',
-          ),
-        )
-      else ...[
-        _CardPad(child: _SummaryCard(display: display)),
-        _CardPad(child: _TimelineCard(display: display)),
-        _CardPad(child: _ReasonsCard(display: display)),
-        _CardPad(child: _InputsCard(display: display)),
-        if (display.timeline?.confidence == BodyEnergyConfidence.low)
-          const _CardPad(
-            child: _SimpleCard(
-              title: 'Low confidence',
-              body:
-                  'Some timeline buckets have sparse Health Connect data, so this '
-                  'estimate is approximate.',
-            ),
-          ),
-      ],
+      _CardPad(child: _SummaryCard(display: display)),
+      _CardPad(child: _TimelineCard(display: display)),
+      _CardPad(child: _ReasonsCard(display: display)),
+      _CardPad(child: _InputsCard(display: display)),
+      const _CardPad(child: _CalculationCard()),
+      if (display.timeline?.confidence == BodyEnergyConfidence.low)
+        _CardPad(
+          child: _FootnoteCard(text: l10n.bodyEnergyTimelineLowConfidence),
+        ),
       const SizedBox(height: 16),
     ];
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: items,
-          ),
+      child: _MaxWidth(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: items,
         ),
       ),
     );
   }
+}
+
+class _MaxWidth extends StatelessWidget {
+  const _MaxWidth({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: child,
+        ),
+      );
 }
 
 // ── Cards ────────────────────────────────────────────────────────────────────
@@ -156,6 +173,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final timeline = display.timeline;
     final accent = _scoreColor(timeline?.currentScore, theme.colorScheme);
@@ -174,10 +192,10 @@ class _SummaryCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Body energy',
+                      Text(l10n.screenBodyEnergy,
                           style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600)),
-                      Text('Estimated from Health Connect data',
+                      Text(l10n.bodyEnergyTimelineEstimated,
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant)),
                     ],
@@ -195,13 +213,16 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                _stat(theme, 'Start', '${timeline?.startScore ?? '--'}'),
-                _stat(theme, 'Charged', '+${timeline?.charged ?? 0}'),
-                _stat(theme, 'Drained', '-${timeline?.drained ?? 0}'),
+                _stat(theme, l10n.bodyEnergyTimelineStart,
+                    '${timeline?.startScore ?? '--'}'),
+                _stat(theme, l10n.bodyEnergyTimelineCharged,
+                    '+${timeline?.charged ?? 0}'),
+                _stat(theme, l10n.bodyEnergyTimelineDrained,
+                    '-${timeline?.drained ?? 0}'),
               ],
             ),
             const SizedBox(height: 12),
-            Text('Confidence',
+            Text(l10n.bodyEnergyTimelineConfidence,
                 style: theme.textTheme.labelSmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             Text(
@@ -242,6 +263,7 @@ class _TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return OpenVitalsCard(
       child: Padding(
@@ -249,12 +271,12 @@ class _TimelineCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Today's timeline",
+            Text(l10n.bodyEnergyTimelineDayTitle,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             if (display.isEmpty)
-              Text('No timeline data for this day.',
+              Text(l10n.bodyEnergyTimelineNoData,
                   style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant))
             else ...[
@@ -278,7 +300,7 @@ class _TimelineCard extends StatelessWidget {
                               influenceColor(influence, theme.colorScheme),
                         ),
                         const SizedBox(width: 6),
-                        Text(_influenceLabel(influence),
+                        Text(_influenceLabel(l10n, influence),
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
                       ],
@@ -300,6 +322,7 @@ class _ReasonsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return OpenVitalsCard(
       child: Padding(
@@ -307,12 +330,12 @@ class _ReasonsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Why it changed',
+            Text(l10n.bodyEnergyWhyTitle,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             if (display.isEmpty || display.topReasons.isEmpty)
-              Text('Not enough signal to explain today yet.',
+              Text(l10n.bodyEnergyWhyEmpty,
                   style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant))
             else
@@ -331,10 +354,20 @@ class _ReasonsCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(_influenceLabel(reason.influence),
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_influenceLabel(l10n, reason.influence),
+                                style: theme.textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
+                            Text(_reasonDetail(l10n, reason.influence),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color:
+                                        theme.colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       Text(
                         reason.direction == BodyEnergyReasonDirection.charge
                             ? '+${reason.roundedAmount}'
@@ -362,17 +395,36 @@ class _InputsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final summary = display.inputSummary;
     return OpenVitalsCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Inputs',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(l10n.bodyEnergyInputsTitle,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
             const SizedBox(height: 10),
+            if (summary != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  l10n.bodyEnergyInputsSummary(
+                      summary.algorithmVersion, summary.bucketMinutes),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
             for (final row in display.inputRows)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
@@ -385,10 +437,10 @@ class _InputsCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(_inputLabel(row.kind),
+                      child: Text(_inputLabel(l10n, row.kind),
                           style: theme.textTheme.bodyMedium),
                     ),
-                    Text(_inputStatusText(row),
+                    Text(_inputStatusText(l10n, row),
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant)),
                   ],
@@ -401,11 +453,43 @@ class _InputsCard extends StatelessWidget {
   }
 }
 
-class _SimpleCard extends StatelessWidget {
-  const _SimpleCard({required this.title, required this.body});
+/// The "How Body Energy is estimated" explainer (Kotlin
+/// `BodyEnergyCalculationCard`): a title plus three method paragraphs.
+class _CalculationCard extends StatelessWidget {
+  const _CalculationCard();
 
-  final String title;
-  final String body;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final bodyStyle = theme.textTheme.bodySmall
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return OpenVitalsCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.bodyEnergyCalculationTitle,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 10),
+            Text(l10n.bodyEnergyCalculationBody, style: bodyStyle),
+            const SizedBox(height: 10),
+            Text(l10n.bodyEnergyCalculationInputsBody, style: bodyStyle),
+            const SizedBox(height: 10),
+            Text(l10n.bodyEnergyCalculationLimitsBody, style: bodyStyle),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FootnoteCard extends StatelessWidget {
+  const _FootnoteCard({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -413,18 +497,9 @@ class _SimpleCard extends StatelessWidget {
     return OpenVitalsCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(body,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
-          ],
-        ),
+        child: Text(text,
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant)),
       ),
     );
   }
@@ -463,6 +538,8 @@ Color _statusColor(BodyEnergyInputStatus status, ColorScheme scheme) {
   }
 }
 
+/// The confidence chip value. Matches the Kotlin `confidenceText`, which renders
+/// these labels as literals (the screen never localizes the confidence value).
 String _confidenceLabel(BodyEnergyConfidence confidence) {
   switch (confidence) {
     case BodyEnergyConfidence.high:
@@ -476,103 +553,129 @@ String _confidenceLabel(BodyEnergyConfidence confidence) {
   }
 }
 
-String _influenceLabel(BodyEnergyPrimaryInfluence influence) {
+String _influenceLabel(
+    AppLocalizations l10n, BodyEnergyPrimaryInfluence influence) {
   switch (influence) {
     case BodyEnergyPrimaryInfluence.sleepRecovery:
-      return 'Sleep recovery';
+      return l10n.bodyEnergyInfluenceSleepRecovery;
     case BodyEnergyPrimaryInfluence.quietRest:
-      return 'Quiet rest';
+      return l10n.bodyEnergyInfluenceQuietRest;
     case BodyEnergyPrimaryInfluence.exertion:
-      return 'Exertion';
+      return l10n.bodyEnergyInfluenceExertion;
     case BodyEnergyPrimaryInfluence.elevatedHeartRate:
-      return 'Elevated heart rate';
+      return l10n.bodyEnergyInfluenceElevatedHr;
     case BodyEnergyPrimaryInfluence.recoveryDebt:
-      return 'Recovery debt';
+      return l10n.bodyEnergyInfluenceRecoveryDebt;
     case BodyEnergyPrimaryInfluence.noData:
-      return 'No data';
+      return l10n.bodyEnergyInfluenceNoData;
     case BodyEnergyPrimaryInfluence.steady:
-      return 'Steady';
+      return l10n.bodyEnergyInfluenceSteady;
   }
 }
 
-String _inputLabel(BodyEnergyInputKind kind) {
+String _reasonDetail(
+    AppLocalizations l10n, BodyEnergyPrimaryInfluence influence) {
+  switch (influence) {
+    case BodyEnergyPrimaryInfluence.sleepRecovery:
+      return l10n.bodyEnergyReasonSleepRecoveryDetail;
+    case BodyEnergyPrimaryInfluence.quietRest:
+      return l10n.bodyEnergyReasonQuietRestDetail;
+    case BodyEnergyPrimaryInfluence.exertion:
+      return l10n.bodyEnergyReasonExertionDetail;
+    case BodyEnergyPrimaryInfluence.elevatedHeartRate:
+      return l10n.bodyEnergyReasonElevatedHrDetail;
+    case BodyEnergyPrimaryInfluence.recoveryDebt:
+      return l10n.bodyEnergyReasonRecoveryDebtDetail;
+    case BodyEnergyPrimaryInfluence.noData:
+      return l10n.bodyEnergyReasonNoDataDetail;
+    case BodyEnergyPrimaryInfluence.steady:
+      return l10n.bodyEnergyReasonSteadyDetail;
+  }
+}
+
+String _inputLabel(AppLocalizations l10n, BodyEnergyInputKind kind) {
   switch (kind) {
     case BodyEnergyInputKind.heartRate:
-      return 'Heart rate';
+      return l10n.bodyEnergyInputHeartRate;
     case BodyEnergyInputKind.sleep:
-      return 'Sleep';
+      return l10n.bodyEnergyInputSleep;
     case BodyEnergyInputKind.workouts:
-      return 'Workouts';
+      return l10n.bodyEnergyInputWorkouts;
     case BodyEnergyInputKind.restingHeartRate:
-      return 'Resting heart rate';
+      return l10n.bodyEnergyInputRestingHr;
     case BodyEnergyInputKind.heartRateBaseline:
-      return 'Heart-rate baseline';
+      return l10n.bodyEnergyInputHrBaseline;
     case BodyEnergyInputKind.hrv:
-      return 'HRV';
+      return l10n.bodyEnergyInputHrv;
     case BodyEnergyInputKind.respiratoryRate:
-      return 'Respiratory rate';
+      return l10n.bodyEnergyInputRespiratory;
     case BodyEnergyInputKind.previousScore:
-      return 'Previous score';
+      return l10n.bodyEnergyInputPreviousScore;
     case BodyEnergyInputKind.calibration:
-      return 'Calibration';
+      return l10n.bodyEnergyInputCalibration;
   }
 }
 
-String _inputStatusText(BodyEnergyInputRow row) {
+String _inputStatusText(AppLocalizations l10n, BodyEnergyInputRow row) {
   switch (row.kind) {
     case BodyEnergyInputKind.heartRate:
     case BodyEnergyInputKind.hrv:
     case BodyEnergyInputKind.respiratoryRate:
       final count = row.count;
-      if (count != null) return '$count records';
-      return _statusText(row.status);
+      if (count != null) return l10n.bodyEnergyInputRecords(count);
+      return _statusText(l10n, row.status);
     case BodyEnergyInputKind.sleep:
       final count = row.count;
-      if (count != null) return '$count sessions';
-      return _statusText(row.status);
+      if (count != null) return l10n.bodyEnergyInputSessions(count);
+      return _statusText(l10n, row.status);
     case BodyEnergyInputKind.workouts:
       final count = row.count;
-      if (count != null) return '$count workouts';
-      return _statusText(row.status);
+      if (count != null) return l10n.bodyEnergyInputWorkoutsValue(count);
+      return _statusText(l10n, row.status);
     case BodyEnergyInputKind.previousScore:
       final value = row.value;
-      if (value != null) return value;
-      return _statusText(row.status);
+      if (value != null) return l10n.bodyEnergyInputPreviousScoreValue(value);
+      return _statusText(l10n, row.status);
     case BodyEnergyInputKind.calibration:
-      return row.value ?? _statusText(row.status);
+      return _calibrationModeLabel(l10n, row.value);
     case BodyEnergyInputKind.restingHeartRate:
     case BodyEnergyInputKind.heartRateBaseline:
-      return _statusText(row.status);
+      return _statusText(l10n, row.status);
   }
 }
 
-String _statusText(BodyEnergyInputStatus status) {
+String _statusText(AppLocalizations l10n, BodyEnergyInputStatus status) {
   switch (status) {
     case BodyEnergyInputStatus.available:
-      return 'Available';
+      return l10n.bodyEnergyInputAvailable;
     case BodyEnergyInputStatus.missing:
-      return 'Missing';
+      return l10n.bodyEnergyInputMissing;
     case BodyEnergyInputStatus.optional:
-      return 'Optional';
+      return l10n.bodyEnergyInputOptional;
   }
 }
 
-/// Resolves a [ScreenError] into a display string (l10n lands later; literal
-/// English fallbacks for now, matching `MetricDetailScaffold`).
-String screenErrorText(ScreenError error) {
-  switch (error) {
-    case ScreenErrorMessage(:final text):
-      return text;
-    case ScreenErrorNotFound():
-      return 'Not found.';
-    case ScreenErrorMissingArgument():
-      return 'Something went wrong.';
-    case ScreenErrorPermissionDenied():
-      return 'Permission denied.';
-    case ScreenErrorHealthConnectUnavailable():
-      return 'Health Connect is unavailable.';
+/// Resolves the calibration-mode enum name into its localized label (Kotlin
+/// `calibrationModeLabel`), defaulting to automatic on an unknown value.
+String _calibrationModeLabel(AppLocalizations l10n, String? name) {
+  final mode = BodyEnergyCalibrationMode.values.firstWhere(
+    (m) => m.name == name,
+    orElse: () => BodyEnergyCalibrationMode.automatic,
+  );
+  switch (mode) {
+    case BodyEnergyCalibrationMode.automatic:
+      return l10n.bodyEnergyCalibrationModeAuto;
+    case BodyEnergyCalibrationMode.manualValues:
+      return l10n.bodyEnergyCalibrationModeManualValues;
+    case BodyEnergyCalibrationMode.manualZones:
+      return l10n.bodyEnergyCalibrationModeManualZones;
   }
 }
+
+/// Resolves a [ScreenError] into a display string. Mirrors the Kotlin
+/// `ScreenError.resolve() ?: stringResource(R.string.unknown_error)`.
+String _errorText(ScreenError error, AppLocalizations l10n) =>
+    error is ScreenErrorMessage ? error.text : l10n.unknownError;
 
 /// Parses an ISO `yyyy-MM-dd` argument into a [LocalDate] (falling back to today
 /// on any malformed input).

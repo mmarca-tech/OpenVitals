@@ -223,6 +223,7 @@ final dashboardDataLoaderProvider = Provider<DashboardDataLoader>(
   (ref) => DashboardDataLoader(
     ref.watch(healthDataSourceProvider),
     preferencesRepository: ref.watch(preferencesRepositoryProvider),
+    bodyEnergyRepository: ref.watch(bodyEnergyRepositoryProvider),
   ),
 );
 

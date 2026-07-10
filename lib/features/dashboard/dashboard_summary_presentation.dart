@@ -293,6 +293,28 @@ DashboardSummary buildDashboardSummary(
     location: AppRoutes.sleep,
   );
 
+  // ── Body Energy ───────────────────────────────────────────────────────────
+  // Optional derived tile (Kotlin `optionalMetricWidget` for BODY_ENERGY). The
+  // loader only populates the timeline once calibration is complete and the
+  // heart-rate read is granted, so a present timeline means "set up": the tile
+  // shows the current battery score with a "Start X  +charged / -drained"
+  // subtitle. When it is absent the tile carries the "Not set up" message
+  // (Kotlin `isNotSetUp`), tapping through to the Body Energy detail screen.
+  final bodyEnergy = data.bodyEnergyTimeline;
+  add(
+    DashboardMetric.bodyEnergy,
+    title: 'Body Energy',
+    value: bodyEnergy == null ? null : f.count(bodyEnergy.currentScore),
+    subtitle: bodyEnergy == null
+        ? null
+        : 'Start ${bodyEnergy.startScore}  '
+            '+${bodyEnergy.charged} / -${bodyEnergy.drained}',
+    icon: Icons.battery_charging_full,
+    accent: AppColors.workout,
+    noDataMessage: l10n.bodyEnergyNotSetUp,
+    location: AppRoutes.bodyEnergyDetailsLocation(data.date.toString()),
+  );
+
   // ── Hydration ─────────────────────────────────────────────────────────────
   final hydration = f.hydration(data.hydrationLiters);
   addRequired(

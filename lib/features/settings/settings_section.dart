@@ -47,6 +47,15 @@ enum SettingsSection {
     title: 'Health Connect',
     summary: 'Sync, permissions and app lock',
     icon: Icons.health_and_safety_outlined,
+  ),
+  // Debug-only section (Kotlin gates on BuildConfig.OPENVITALS_DIAGNOSTICS; the
+  // Flutter analogue is kDebugMode). The hub + router only surface this in
+  // debug builds — see SettingsScreen and app_router's _settingsSectionRoutes.
+  debugDiagnostics(
+    route: AppRoutes.settingsDebugDiagnostics,
+    title: 'Debug diagnostics',
+    summary: 'Save sanitized diagnostics logs for troubleshooting',
+    icon: Icons.bug_report_outlined,
   );
 
   const SettingsSection({
@@ -90,6 +99,8 @@ extension SettingsSectionL10n on SettingsSection {
         return l10n.settingsDataImportGroupTitle;
       case SettingsSection.healthConnect:
         return l10n.settingsHealthConnectGroupTitle;
+      case SettingsSection.debugDiagnostics:
+        return l10n.settingsDebugDiagnosticsGroupTitle;
     }
   }
 
@@ -109,6 +120,8 @@ extension SettingsSectionL10n on SettingsSection {
         return l10n.settingsDataImportGroupBody;
       case SettingsSection.healthConnect:
         return l10n.settingsHealthConnectGroupBody;
+      case SettingsSection.debugDiagnostics:
+        return l10n.settingsDebugDiagnosticsGroupBody;
     }
   }
 }

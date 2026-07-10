@@ -22,6 +22,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * The `health` plugin requires the host activity to be a
@@ -86,6 +87,16 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // Debug-diagnostics bridge: reads the current process logcat so the
+        // Dart `DebugLogSanitizer` (port of `PrivacySafeDebugLogExporter`) can
+        // privacy-sanitize it. `-v tag` yields the `LEVEL/Tag: message` format
+        // the sanitizer regex expects. Privacy handling stays entirely in Dart.
+        MethodChannel(messenger, DIAGNOSTICS_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "readCurrentProcessLogcat" -> result.success(readCurrentProcessLogcat())
+                else -> result.notImplemented()
+            }
+        }
         // Kotlin registers one SensorEventListener at SENSOR_DELAY_NORMAL per
         // recording; here each event channel owns its listener, registered only
         // while the Dart side is subscribed.
@@ -109,6 +120,37 @@ class MainActivity : FlutterFragmentActivity() {
         altitudeExecutor.shutdown()
         super.onDestroy()
     }
+
+    /**
+     * Reads this process's logcat buffer (`logcat -d --pid <mypid> -v tag`),
+     * mirroring the Kotlin `PrivacySafeDebugLogExporter.readCurrentProcessLogcat`.
+     * Returns the raw lines; the Dart side does all privacy sanitizing. Any
+     * failure/timeout is surfaced as a single diagnostic line rather than
+     * throwing, so the Dart channel call always resolves.
+     */
+    private fun readCurrentProcessLogcat(): List<String> =
+        runCatching {
+            val process = ProcessBuilder(
+                "logcat",
+                "-d",
+                "--pid",
+                android.os.Process.myPid().toString(),
+                "-v",
+                "tag",
+            )
+                .redirectErrorStream(true)
+                .start()
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroy()
+                return listOf("W/OpenVitalsDiagnostics: logcat capture timed out")
+            }
+            process.inputStream.bufferedReader().useLines { it.toList() }
+        }.getOrElse { throwable ->
+            listOf(
+                "E/OpenVitalsDiagnostics: logcat capture failed " +
+                    "type=${throwable::class.java.simpleName}",
+            )
+        }
 
     private fun sensorTypeFor(name: String?): Int? =
         when (name) {
@@ -202,6 +244,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     private companion object {
         const val METHOD_CHANNEL = "tech.mmarca.openvitals/recording_sensors"
+        const val DIAGNOSTICS_CHANNEL = "tech.mmarca.openvitals/diagnostics"
         const val PROXIMITY_CHANNEL = "tech.mmarca.openvitals/recording_sensors/proximity"
         const val STEP_DETECTOR_CHANNEL = "tech.mmarca.openvitals/recording_sensors/step_detector"
         const val ACTIVITY_RECOGNITION_REQUEST_CODE = 4031

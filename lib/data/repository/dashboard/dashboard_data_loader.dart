@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../../core/period/time_range.dart';
 import '../../../core/time/local_date.dart';
 import '../../../data/prefs/preferences_repository.dart';
 import '../../../domain/dashboard/dashboard_aggregator.dart';
@@ -18,6 +19,7 @@ import '../../../domain/preferences/activity_week_mode.dart';
 import '../../../domain/preferences/sleep_range_mode.dart';
 import '../../../health/health_data_source.dart';
 import '../../../health/health_permissions.dart';
+import '../contract/body_energy_repository.dart';
 import '../impl/repository_time.dart';
 
 /// Port of the Kotlin `DashboardDataLoader`.
@@ -29,11 +31,16 @@ import '../impl/repository_time.dart';
 /// semantics are ported. Derived metrics reuse the pure `DashboardAggregator`
 /// and insight calculators.
 class DashboardDataLoader {
-  DashboardDataLoader(this._hc, {PreferencesRepository? preferencesRepository})
-      : _preferences = preferencesRepository;
+  DashboardDataLoader(
+    this._hc, {
+    PreferencesRepository? preferencesRepository,
+    BodyEnergyRepository? bodyEnergyRepository,
+  })  : _preferences = preferencesRepository,
+        _bodyEnergy = bodyEnergyRepository;
 
   final HealthDataSource _hc;
   final PreferencesRepository? _preferences;
+  final BodyEnergyRepository? _bodyEnergy;
 
   static const int _cardioLoadHistoryPeriods = 4;
   static const int _weeklyCardioHeartRateSampleWeeks = 2;
@@ -238,6 +245,24 @@ class DashboardDataLoader {
       final entries = await _hc.readBasalBodyTemperatureEntries(dayStart, dayEnd);
       return _latestByTime(entries, (e) => e.time)?.temperatureCelsius;
     });
+    // Body Energy is a lazy, optional tile (Kotlin `launchBodyEnergyLoad`): it
+    // only loads when the body-energy repository is wired, the tile is wanted,
+    // calibration is complete, and heart-rate read is granted (the detail
+    // screen's permission). The repo runs `calculateBodyEnergyTimeline`; we keep
+    // today's `latestDay` for the tile's `currentScore` / start / charged /
+    // drained.
+    final bodyEnergyTimeline = await _metric(
+        wants(DashboardMetric.bodyEnergy) &&
+            _bodyEnergy != null &&
+            (_preferences?.bodyEnergyCalibration().setupCompleted ?? false),
+        HcPermissions.readHeartRate,
+        granted,
+        () async => (await _bodyEnergy!.loadTimeline(BodyEnergyTimelineQuery(
+              period: DatePeriod(date, date),
+              range: TimeRange.day,
+              refreshMode: query.refreshMode,
+            )))
+            .latestDay);
 
     final missingPerms = _dashboardPermissionsFor(metrics, showOpenVitalsCalculatedCalories)
         .where((p) => !granted.contains(p))
@@ -346,6 +371,7 @@ class DashboardDataLoader {
       menstruationPeriodDays: _menstruationDays(menstruationPeriods),
       ovulationTestCount: ovulationTests?.length,
       latestBasalBodyTemperatureCelsius: basalBodyTemperature,
+      bodyEnergyTimeline: bodyEnergyTimeline,
       missingPermissions: missingPerms,
       loadedMetrics: metrics,
       supportedMetrics: _supportedMetrics(),
@@ -627,6 +653,9 @@ class DashboardDataLoader {
         DashboardMetric.boneMass => {HcPermissions.readBoneMass},
         DashboardMetric.bodyWaterMass => {HcPermissions.readBodyWaterMass},
         DashboardMetric.avgHeartRate => {HcPermissions.readHeartRate},
+        // Body Energy is derived; its dashboard tile is permission-gated on
+        // heart-rate read, matching the detail screen's requirement.
+        DashboardMetric.bodyEnergy => {HcPermissions.readHeartRate},
         DashboardMetric.restingHeartRate => {HcPermissions.readRestingHeartRate},
         DashboardMetric.hrv => {HcPermissions.readHrv},
         DashboardMetric.bloodPressure => {HcPermissions.readBloodPressure},

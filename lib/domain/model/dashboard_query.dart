@@ -65,6 +65,7 @@ enum DashboardMetric {
   boneMass('BONE_MASS'),
   bodyWaterMass('BODY_WATER_MASS'),
   avgHeartRate('AVG_HEART_RATE'),
+  bodyEnergy('BODY_ENERGY'),
   restingHeartRate('RESTING_HEART_RATE'),
   hrv('HRV'),
   bloodPressure('BLOOD_PRESSURE'),

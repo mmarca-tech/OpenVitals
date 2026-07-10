@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/core/presentation/unit_formatter.dart';
 import 'package:openvitals/core/time/local_date.dart';
+import 'package:openvitals/domain/insights/body_energy_timeline.dart';
 import 'package:openvitals/domain/model/dashboard_data.dart';
 import 'package:openvitals/domain/model/dashboard_query.dart';
 import 'package:openvitals/domain/preferences/unit_system.dart';
@@ -14,15 +15,28 @@ DashboardSummary _summaryFor(
   Set<DashboardMetric> supported,
   AppLocalizations l10n, {
   double? spo2,
+  BodyEnergyTimeline? bodyEnergyTimeline,
 }) =>
     buildDashboardSummary(
       DashboardData(
         date: LocalDate(2026, 1, 2),
         latestSpO2Percent: spo2,
+        bodyEnergyTimeline: bodyEnergyTimeline,
         supportedMetrics: supported,
       ),
       UnitFormatter(unitSystemProvider: () => UnitSystem.metric),
       l10n,
+    );
+
+BodyEnergyTimeline _bodyEnergyTimeline() => BodyEnergyTimeline(
+      date: LocalDate(2026, 1, 2),
+      startScore: 60,
+      currentScore: 74,
+      charged: 30,
+      drained: 16,
+      points: const [],
+      confidence: BodyEnergyConfidence.medium,
+      confidenceReason: '',
     );
 
 List<String> _titles(DashboardSummary s) => [for (final t in s.tiles) t.title];
@@ -104,6 +118,32 @@ void main() {
 
   test('no tiles at all when the device supports nothing', () {
     expect(_summaryFor(const <DashboardMetric>{}, l10n).tiles, isEmpty);
+  });
+
+  group('Body Energy tile', () {
+    test('renders currentScore and the Start/+/- subtitle when set up', () {
+      final summary = _summaryFor(
+        {DashboardMetric.bodyEnergy},
+        l10n,
+        bodyEnergyTimeline: _bodyEnergyTimeline(),
+      );
+
+      final tile = _tile(summary, 'Body Energy');
+      expect(tile.value, '74');
+      expect(tile.subtitle, 'Start 60  +30 / -16');
+      expect(tile.message, isNull);
+      // Taps through to the Body Energy detail screen for the selected day.
+      expect(tile.location, '/daily_readiness/body_energy/2026-01-02');
+    });
+
+    test('shows "Not set up" when the timeline is absent', () {
+      final summary = _summaryFor({DashboardMetric.bodyEnergy}, l10n);
+
+      final tile = _tile(summary, 'Body Energy');
+      expect(tile.value, isEmpty);
+      expect(tile.message, l10n.bodyEnergyNotSetUp);
+      expect(tile.subtitle, isNull);
+    });
   });
 
   // Kotlin routes: heart/vitals tiles open the Heart & Vitals OVERVIEW (not the
