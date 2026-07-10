@@ -11,7 +11,6 @@ import '../features/activity/activity_metric.dart';
 import '../features/activity/activity_metric_screen.dart';
 import '../features/activity/calories_screen.dart';
 import '../features/activity/cardio_load_detail_screen.dart';
-import '../features/body/body_metric.dart';
 import '../features/body/body_screen.dart';
 import '../features/bodyenergy/body_energy_details_screen.dart';
 import '../features/caffeine/caffeine_screen.dart';
@@ -202,7 +201,7 @@ List<RouteBase> _metricSectionRoutes() => [
       GoRoute(
         path: AppRoutes.metric,
         builder: (context, state) =>
-            _metricScreen(state.pathParameters[AppRoutes.metricIdArg]),
+            metricScreenFor(state.pathParameters[AppRoutes.metricIdArg]),
       ),
     ];
 
@@ -302,12 +301,6 @@ List<RouteBase> _settingsSectionRoutes() => [
 
 // Metric-id classification, mirroring the Kotlin `MetricRouteContent` dispatch.
 // (The ten heart + vitals ids are classified by [HeartMetric.fromRouteName].)
-const Set<DashboardMetricId> _nutritionMetrics = {
-  DashboardMetricId.caloriesIn,
-  DashboardMetricId.protein,
-  DashboardMetricId.carbs,
-  DashboardMetricId.fat,
-};
 const Set<DashboardMetricId> _bodyMetrics = {
   DashboardMetricId.weight,
   DashboardMetricId.height,
@@ -328,39 +321,48 @@ const Set<DashboardMetricId> _cardioMetrics = {
   DashboardMetricId.cardioLoad,
 };
 
-/// Routes `/metric/:metricId` to the matching feature placeholder, falling back
-/// to the generic [MetricScreen] for uncategorised metric ids.
-Widget _metricScreen(String? raw) {
+/// Routes `/metric/:metricId` to the matching feature screen, falling back to
+/// the generic [MetricScreen] for uncategorised metric ids.
+///
+/// The branch ORDER is Kotlin's `MetricRouteContent` precedence and is
+/// load-bearing: the calories and body aggregates intercept their metric ids
+/// before the per-metric activity/body screens can claim them (Kotlin's
+/// `CaloriesOutScreen`/`WeightScreen` etc. exist but are shadowed the same
+/// way), so `/metric/CALORIES_OUT` lands on the calories aggregate and
+/// `/metric/WEIGHT` on the body aggregate.
+@visibleForTesting
+Widget metricScreenFor(String? raw) {
   final id = DashboardMetricId.fromStorage(raw);
   if (id == null) return MetricScreen(metricId: raw);
-  // The six movement metrics (steps/distance/calories-out/active-calories/
-  // floors/elevation/wheelchair) share the parametric activity detail screen.
-  final activityMetric = ActivityMetric.fromRouteName(raw);
-  if (activityMetric != null) {
-    return ActivityMetricScreen(metric: activityMetric);
-  }
-  // The ten heart + vitals metrics (avg/resting HR, HRV, blood pressure, SpO2,
-  // VO2 max, respiratory rate, body/skin temperature, blood glucose) share the
-  // parametric heart/vitals detail screen (Kotlin `MetricRouteContent`).
-  final heartMetric = HeartMetric.fromRouteName(raw);
-  if (heartMetric != null) return HeartMetricScreen(metric: heartMetric);
-  // The nine body-composition metrics (weight/height/BMI/FFMI/body-fat/lean
-  // mass/BMR/bone mass/body-water mass) share the parametric body detail screen
-  // (Kotlin `toBodyMetricOrNull`); this also claims BMR from `_caloriesMetrics`.
-  final bodyMetric = BodyMetric.fromRouteName(raw);
-  if (bodyMetric != null) return BodyMetricScreen(metric: bodyMetric);
-  // The four keyed nutrition metrics (calories-in / protein / carbs / fat)
-  // share the parametric nutrition metric-detail screen (Kotlin
-  // `NutritionMetricScreen`); the overview lives on the `/nutrition` route.
+  // 1. Calories aggregate (calories-out / active-calories / BMR).
+  if (_caloriesMetrics.contains(id)) return const CaloriesScreen();
+  // 2. The four keyed nutrition metrics (calories-in / protein / carbs / fat)
+  // share the parametric nutrition metric-detail screen; the overview lives on
+  // the `/nutrition` route.
   final nutritionMetric = NutritionMetric.fromRouteName(raw);
   if (nutritionMetric != null) {
     return NutritionMetricScreen(metric: nutritionMetric);
   }
-  if (_nutritionMetrics.contains(id)) return const NutritionScreen();
+  // 3. Body aggregate: every body-composition id renders the single BodyScreen
+  // with all metrics inline (Kotlin `isBodyDetailMetric` → `BodyScreen`).
   if (_bodyMetrics.contains(id)) return const BodyScreen();
-  if (_caloriesMetrics.contains(id)) return const CaloriesScreen();
+  // 4. The movement metrics (steps/distance/floors/elevation/wheelchair) share
+  // the parametric activity detail screen. Calories ids never reach this
+  // branch — the aggregate above claims them first.
+  final activityMetric = ActivityMetric.fromRouteName(raw);
+  if (activityMetric != null) {
+    return ActivityMetricScreen(metric: activityMetric);
+  }
+  // 5. The ten heart + vitals metrics (avg/resting HR, HRV, blood pressure,
+  // SpO2, VO2 max, respiratory rate, body/skin temperature, blood glucose)
+  // share the parametric heart/vitals detail screen.
+  final heartMetric = HeartMetric.fromRouteName(raw);
+  if (heartMetric != null) return HeartMetricScreen(metric: heartMetric);
+  // 6. Kotlin's explicit `when` tail.
   if (_cardioMetrics.contains(id)) return const CardioLoadDetailScreen();
   switch (id) {
+    case DashboardMetricId.workout:
+      return const ActivitiesScreen();
     case DashboardMetricId.caffeine:
       return const CaffeineScreen();
     case DashboardMetricId.cycle:

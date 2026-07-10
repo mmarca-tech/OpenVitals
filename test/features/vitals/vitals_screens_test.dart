@@ -16,6 +16,8 @@ import 'package:openvitals/domain/query/heart_period_data.dart';
 import 'package:openvitals/domain/query/vitals_period_data.dart';
 import 'package:openvitals/features/vitals/vitals_screens.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/charts/line_chart.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/metric_card.dart';
 
@@ -40,6 +42,7 @@ class _FakeVitalsRepository implements VitalsRepository {
   _FakeVitalsRepository({this.bloodPressure = const <BloodPressureEntry>[]});
 
   final List<BloodPressureEntry> bloodPressure;
+  final List<(VitalsMeasurementType, String)> deletedEntries = [];
 
   @override
   Set<String> get phase3Permissions => const <String>{};
@@ -53,15 +56,31 @@ class _FakeVitalsRepository implements VitalsRepository {
       VitalsPeriodData(bloodPressure: bloodPressure);
 
   @override
+  Future<void> deleteVitalsMeasurementEntry(
+    VitalsMeasurementType type,
+    String id,
+  ) async {
+    deletedEntries.add((type, id));
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-BloodPressureEntry _bp(DateTime time, int systolic, int diastolic) =>
+BloodPressureEntry _bp(
+  DateTime time,
+  int systolic,
+  int diastolic, {
+  String id = '',
+  bool isOpenVitalsEntry = false,
+}) =>
     BloodPressureEntry(
       time: time,
       systolicMmHg: systolic,
       diastolicMmHg: diastolic,
       source: 'test',
+      id: id,
+      isOpenVitalsEntry: isOpenVitalsEntry,
     );
 
 Future<Widget> _bootstrap({
@@ -79,14 +98,18 @@ Future<Widget> _bootstrap({
           .overrideWith((ref) async => HealthConnectAvailability.available),
       grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
     ],
-    child: const MaterialApp(home: BloodPressureScreen()),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const BloodPressureScreen(),
+    ),
   );
 }
 
 void main() {
   final now = DateTime.now().toUtc();
 
-  testWidgets('Blood pressure screen renders the hero card once loaded',
+  testWidgets('Blood pressure screen renders the ordered sections once loaded',
       (tester) async {
     final repo = _FakeVitalsRepository(
       bloodPressure: [
@@ -103,8 +126,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(MetricCard), findsWidgets);
-    expect(find.text('Blood pressure'), findsWidgets);
+    // PERIOD_CHART (systolic + diastolic series).
+    expect(find.byType(MetricLineChart), findsOneWidget);
+    // METRIC_CONTEXT: the AHA category card for the latest reading.
+    expect(find.text('Blood pressure category'), findsOneWidget);
+    // STATISTICS with the Latest systolic/diastolic pair.
+    expect(find.text('Statistics'), findsOneWidget);
+    expect(find.text('Latest'), findsOneWidget);
+    expect(find.text('118/76'), findsWidgets);
+    // DATA_CONFIDENCE + ENTRIES.
+    expect(find.text('Data confidence'), findsOneWidget);
+    expect(find.text('Entries'), findsOneWidget);
   });
 
   testWidgets('Blood pressure screen shows the access gate when missing',
@@ -119,7 +151,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Permissions needed'), findsOneWidget);
-    expect(find.byType(MetricCard), findsNothing);
+    expect(find.byType(MetricLineChart), findsNothing);
   });
 
   testWidgets('Blood pressure screen shows placeholder with no readings',
@@ -134,5 +166,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(MetricCardPlaceholder), findsOneWidget);
+  });
+
+  testWidgets('Swipe-deleting a manual entry calls the vitals repository',
+      (tester) async {
+    final repo = _FakeVitalsRepository(
+      bloodPressure: [
+        _bp(
+          now.subtract(const Duration(hours: 2)),
+          118,
+          76,
+          id: 'bp-1',
+          isOpenVitalsEntry: true,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      await _bootstrap(
+        vitalsRepository: repo,
+        granted: {HcPermissions.readBloodPressure},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final row = find.text('118/76 mmHg');
+    expect(row, findsOneWidget);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.drag(row, const Offset(-500, 0), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(
+      repo.deletedEntries,
+      [(VitalsMeasurementType.bloodPressure, 'bp-1')],
+    );
+    // The deleted entry is dropped from the list without a reload.
+    expect(find.text('118/76 mmHg'), findsNothing);
   });
 }

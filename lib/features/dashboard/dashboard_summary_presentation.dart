@@ -303,7 +303,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.local_drink,
     accent: AppColors.hydration,
     progress: _fraction(data.hydrationLiters, _Goals.hydrationLiters),
-    location: AppRoutes.hydrationEntry,
+    location: AppRoutes.metricLocation('HYDRATION'),
   );
 
   // ── Nutrition ─────────────────────────────────────────────────────────────
@@ -346,7 +346,9 @@ DashboardSummary buildDashboardSummary(
     unit: 'mg',
     icon: Icons.restaurant,
     accent: AppColors.nutrition,
-    location: AppRoutes.nutrition,
+    // Kotlin routes the caffeine tile to its own analytics screen, not the
+    // nutrition overview.
+    location: AppRoutes.metricLocation('CAFFEINE'),
   );
 
   // ── Body ──────────────────────────────────────────────────────────────────
@@ -462,7 +464,7 @@ DashboardSummary buildDashboardSummary(
     unit: avgHr.unit,
     icon: Icons.favorite,
     accent: AppColors.vitals,
-    location: AppRoutes.metricLocation('AVG_HEART_RATE'),
+    location: AppRoutes.heartVitals,
   );
 
   final restingHr = f.heartRate(data.restingHeartRateBpm);
@@ -473,7 +475,7 @@ DashboardSummary buildDashboardSummary(
     unit: restingHr.unit,
     icon: Icons.favorite,
     accent: AppColors.vitals,
-    location: AppRoutes.metricLocation('RESTING_HEART_RATE'),
+    location: AppRoutes.heartVitals,
   );
 
   final hrv = _positive(data.hrvRmssdMs);
@@ -485,7 +487,7 @@ DashboardSummary buildDashboardSummary(
     unit: hrvValue?.unit,
     icon: Icons.favorite_border,
     accent: AppColors.vitals,
-    location: AppRoutes.metricLocation('HRV'),
+    location: AppRoutes.heartVitals,
   );
 
   final systolic = data.latestSystolicMmHg;
@@ -501,7 +503,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.favorite,
     accent: AppColors.vitals,
     noDataMessage: l10n.messageNoBloodPressure,
-    location: AppRoutes.metricLocation('BLOOD_PRESSURE'),
+    location: AppRoutes.heartVitals,
   );
 
   final spo2 = data.latestSpO2Percent;
@@ -514,7 +516,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.favorite_border,
     accent: AppColors.vitals,
     noDataMessage: l10n.messageNoOxygen,
-    location: AppRoutes.metricLocation('SPO2'),
+    location: AppRoutes.heartVitals,
   );
 
   final vo2 = data.latestVo2Max;
@@ -527,7 +529,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.directions_run,
     accent: AppColors.vitals,
     noDataMessage: l10n.messageNoVo2Max,
-    location: AppRoutes.metricLocation('VO2_MAX'),
+    location: AppRoutes.heartVitals,
   );
 
   final respiratory = _positive(data.avgRespiratoryRate);
@@ -540,7 +542,7 @@ DashboardSummary buildDashboardSummary(
     unit: respiratoryValue?.unit,
     icon: Icons.favorite,
     accent: AppColors.vitals,
-    location: AppRoutes.metricLocation('RESPIRATORY_RATE'),
+    location: AppRoutes.heartVitals,
   );
 
   final bodyTemp = data.latestBodyTemperatureCelsius;
@@ -552,7 +554,7 @@ DashboardSummary buildDashboardSummary(
     unit: bodyTempValue?.unit,
     icon: Icons.device_thermostat,
     accent: AppColors.vitals,
-    location: AppRoutes.metricLocation('BODY_TEMPERATURE'),
+    location: AppRoutes.heartVitals,
   );
 
   final glucose = data.latestBloodGlucoseMillimolesPerLiter;
@@ -565,7 +567,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.water_drop,
     accent: AppColors.vitals,
     noDataMessage: l10n.messageNoBloodGlucose,
-    location: AppRoutes.metricLocation('BLOOD_GLUCOSE'),
+    location: AppRoutes.heartVitals,
   );
 
   final skinTemp = data.latestSkinTemperatureDeltaCelsius;
@@ -578,7 +580,7 @@ DashboardSummary buildDashboardSummary(
     icon: Icons.device_thermostat,
     accent: AppColors.vitals,
     noDataMessage: l10n.messageNoSkinTemperature,
-    location: AppRoutes.metricLocation('SKIN_TEMPERATURE'),
+    location: AppRoutes.heartVitals,
   );
 
   // ── Mindfulness (required tile) ───────────────────────────────────────────
@@ -594,7 +596,7 @@ DashboardSummary buildDashboardSummary(
       (data.mindfulnessMinutes ?? 0).toDouble(),
       _Goals.mindfulnessMinutes,
     ),
-    location: AppRoutes.mindfulnessEntry,
+    location: AppRoutes.metricLocation('MINDFULNESS'),
   );
 
   // ── Cycle ─────────────────────────────────────────────────────────────────

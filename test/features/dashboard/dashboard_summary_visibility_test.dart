@@ -105,4 +105,39 @@ void main() {
   test('no tiles at all when the device supports nothing', () {
     expect(_summaryFor(const <DashboardMetric>{}, l10n).tiles, isEmpty);
   });
+
+  // Kotlin routes: heart/vitals tiles open the Heart & Vitals OVERVIEW (not the
+  // metric directly); hydration/mindfulness/caffeine open their DETAIL screens
+  // (not entry forms / the nutrition overview).
+  group('tile destinations match Kotlin', () {
+    test('heart and vitals tiles all open the heart_vitals overview', () {
+      final summary = _summaryFor({
+        DashboardMetric.avgHeartRate,
+        DashboardMetric.restingHeartRate,
+        DashboardMetric.hrv,
+        DashboardMetric.bloodPressure,
+        DashboardMetric.spo2,
+        DashboardMetric.vo2Max,
+        DashboardMetric.respiratoryRate,
+        DashboardMetric.bodyTemperature,
+        DashboardMetric.bloodGlucose,
+        DashboardMetric.skinTemperature,
+      }, l10n);
+      for (final tile in summary.tiles) {
+        expect(tile.location, '/heart_vitals', reason: tile.title);
+      }
+    });
+
+    test('hydration, mindfulness and caffeine tiles open their detail views',
+        () {
+      final summary = _summaryFor({
+        DashboardMetric.hydration,
+        DashboardMetric.mindfulness,
+        DashboardMetric.caffeine,
+      }, l10n);
+      expect(_tile(summary, 'Beverages').location, '/metric/HYDRATION');
+      expect(_tile(summary, 'Mindfulness').location, '/metric/MINDFULNESS');
+      expect(_tile(summary, 'Caffeine').location, '/metric/CAFFEINE');
+    });
+  });
 }

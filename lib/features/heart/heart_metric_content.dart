@@ -1,565 +1,1304 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
-import '../../core/presentation/display_value.dart';
+import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../core/time/local_date.dart';
+import '../../domain/insights/period_comparison.dart';
+import '../../domain/insights/personal_baseline.dart';
+import '../../domain/model/heart_models.dart';
+import '../../domain/model/vitals_models.dart';
 import '../../domain/usecase/load_heart_period_use_case.dart';
+import '../../l10n/app_localizations.dart';
 import '../../ui/charts/line_chart.dart';
 import '../../ui/components/metric_card.dart';
+import '../../ui/components/paginated_entry_list.dart';
+import '../../ui/theme/app_colors.dart';
 import 'heart_metric.dart';
 import 'heart_metric_cards.dart';
 import 'heart_metric_notifier.dart';
+import 'heart_metric_ordered_sections.dart';
+import 'heart_metric_shared_sections.dart';
 
-/// Builds the metric content for a heart/vitals period-detail screen. A trimmed
-/// port of the Kotlin per-metric `*Content` functions (`HeartMetricContent.kt`,
-/// `HeartVitalDetailContent.kt`, `VitalsBloodPressureContent.kt`), reduced to the
-/// primary hero card + period/day line chart + statistics.
-List<Widget> heartMetricContent(
-  HeartMetric metric,
-  HeartMetricState state,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final result = state.result;
-  if (result == null) {
-    if (state.isLoading) return const [_LoadingBlock()];
-    return [_placeholder(metric)];
+/// Called when a manual OpenVitals measurement entry should be edited/deleted.
+typedef VitalsMeasurementCallback = void Function(
+  VitalsMeasurementType type,
+  String entryId,
+);
+
+/// The per-metric detail content of the heart + vitals screens, ported from the
+/// Kotlin `HeartMetricContent.kt`, `HeartVitalDetailContent.kt` and
+/// `VitalsBloodPressureContent.kt`. Every metric renders through the
+/// user-reorderable [heartChartMetricSections] skeleton.
+class HeartMetricContentView extends StatelessWidget {
+  const HeartMetricContentView({
+    super.key,
+    required this.metric,
+    required this.state,
+    required this.formatter,
+    required this.period,
+    required this.onDecreaseHighHeartRateThreshold,
+    required this.onIncreaseHighHeartRateThreshold,
+    required this.onDecreaseLowHeartRateThreshold,
+    required this.onIncreaseLowHeartRateThreshold,
+    required this.onEditVitalsMeasurement,
+    required this.onDeleteVitalsMeasurement,
+  });
+
+  final HeartMetric metric;
+  final HeartMetricState state;
+  final UnitFormatter formatter;
+  final DatePeriod period;
+  final VoidCallback onDecreaseHighHeartRateThreshold;
+  final VoidCallback onIncreaseHighHeartRateThreshold;
+  final VoidCallback onDecreaseLowHeartRateThreshold;
+  final VoidCallback onIncreaseLowHeartRateThreshold;
+  final VitalsMeasurementCallback onEditVitalsMeasurement;
+  final VitalsMeasurementCallback onDeleteVitalsMeasurement;
+
+  @override
+  Widget build(BuildContext context) {
+    final result = state.result;
+    if (result == null) {
+      if (state.isLoading) return const _LoadingBlock();
+      return _placeholder();
+    }
+    return ChartDaySelectionScope(
+      selectedRange: state.selectedRange,
+      selectedDate: state.selectedDate,
+      builder: (context, daySelection) =>
+          _content(context, result, daySelection),
+    );
   }
-  switch (metric) {
-    case HeartMetric.averageHeartRate:
-      return _averageHeartRate(metric, state, result, formatter, period);
-    case HeartMetric.restingHeartRate:
-      return _restingHeartRate(metric, state, result, formatter, period);
-    case HeartMetric.hrv:
-      return _hrv(metric, state, result, formatter, period);
-    case HeartMetric.bloodPressure:
-      return _bloodPressure(metric, state, result, formatter, period);
-    case HeartMetric.spo2:
-      return _spo2(metric, state, result, formatter, period);
-    case HeartMetric.vo2Max:
-      return _vo2Max(metric, state, result, formatter, period);
-    case HeartMetric.respiratoryRate:
-      return _respiratoryRate(metric, state, result, formatter, period);
-    case HeartMetric.bodyTemperature:
-      return _bodyTemperature(metric, state, result, formatter, period);
-    case HeartMetric.bloodGlucose:
-      return _bloodGlucose(metric, state, result, formatter, period);
-    case HeartMetric.skinTemperature:
-      return _skinTemperature(metric, state, result, formatter, period);
+
+  Widget _content(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    switch (metric) {
+      case HeartMetric.averageHeartRate:
+        return _averageHeartRate(context, result, daySelection);
+      case HeartMetric.restingHeartRate:
+        return _restingHeartRate(context, result, daySelection);
+      case HeartMetric.hrv:
+        return _hrv(context, result, daySelection);
+      case HeartMetric.bloodPressure:
+        return _bloodPressure(context, result);
+      case HeartMetric.spo2:
+        return _spo2(context, result, daySelection);
+      case HeartMetric.vo2Max:
+        return _vo2Max(context, result);
+      case HeartMetric.respiratoryRate:
+        return _respiratoryRate(context, result, daySelection);
+      case HeartMetric.bodyTemperature:
+        return _bodyTemperature(context, result);
+      case HeartMetric.bloodGlucose:
+        return _bloodGlucose(context, result, daySelection);
+      case HeartMetric.skinTemperature:
+        return _skinTemperature(context, result, daySelection);
+    }
   }
-}
 
-// ── Heart rate ──────────────────────────────────────────────────────────────
+  // ── Average heart rate (Kotlin `averageHeartRateContent`) ─────────────────
 
-List<Widget> _averageHeartRate(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final range = state.selectedRange;
-  if (range == TimeRange.day) {
-    final samples = result.daySamples;
-    if (samples.isEmpty) return _emptyOrLoading(metric, state);
-    final bpm = samples.map((s) => s.beatsPerMinute.toDouble()).toList();
-    final average = _avg(bpm).round();
-    return [
-      _hero(metric, formatter.heartRate(average), samples.last.source),
-      _chart(MetricLineChart(
-        title: metric.title,
-        series: _singleSeries(
-          [for (final s in samples) (s.time, s.beatsPerMinute.toDouble())],
-          range,
-          metric.accentColor,
-          null,
+  Widget _averageHeartRate(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final isDay = state.selectedRange == TimeRange.day;
+
+    if (isDay && result.daySamples.isNotEmpty) {
+      final samples = [...result.daySamples]
+        ..sort((a, b) => a.time.compareTo(b.time));
+      final bpm = samples.map((s) => s.beatsPerMinute.toDouble()).toList();
+      final minBpm = _min(bpm).round();
+      final maxBpm = _max(bpm).round();
+      return heartChartMetricSections(
+        selectedRange: state.selectedRange,
+        period: period,
+        selectedDate: null,
+        intradayChart: samples.length > 1
+            ? heartPadded(HeartTimelineCard(
+                date: state.selectedDate,
+                points: [
+                  for (final s in samples) (s.time, s.beatsPerMinute.toDouble())
+                ],
+                averageText: formatter.heartRate(_avg(bpm).round()).text,
+                rangeText:
+                    '${formatter.heartRate(minBpm).text}-${formatter.heartRate(maxBpm).text}',
+                valueFormatter: (value) =>
+                    formatter.heartRate(value.round()).text,
+                minValue: math.max(30, minBpm - 5).toDouble(),
+                maxValue: (maxBpm + 5).toDouble(),
+              ))
+            : null,
+        highlightCard: _thresholdChecks(result),
+        dataConfidence: HeartRawDataConfidenceContent<HeartRateSample>(
+          period: period,
+          entries: samples,
+          source: (s) => s.source,
+          time: (s) => s.time,
+          accentColor: AppColors.heart,
         ),
-        selectedRange: range,
+        statistics: heartRateSampleStatisticsContent(
+          samples: samples,
+          previousSamples: result.previousDaySamples,
+          baselineSummaries: result.baselineDailySummaries,
+          period: period,
+          selectedRange: state.selectedRange,
+          unitFormatter: formatter,
+        ),
+        entries: HeartEntryListContent<HeartRateSample>(
+          entries: samples,
+          value: (s) => formatter.heartRate(s.beatsPerMinute).text,
+          source: (s) => s.source,
+          time: (s) => s.time,
+        ),
+      );
+    }
+    if (isDay) {
+      if (state.isLoading) return const _LoadingBlock();
+      return heartPadded(const HeartRateEmptyDayCard());
+    }
+
+    final summaries = [...result.dailySummaries]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    if (summaries.isEmpty) return _emptyOrLoading();
+
+    final average = _avg(summaries.map((s) => s.avgBpm.toDouble())).round();
+    final lowest =
+        summaries.map((s) => s.minBpm).reduce((a, b) => a < b ? a : b);
+    final highest =
+        summaries.map((s) => s.maxBpm).reduce((a, b) => a > b ? a : b);
+    final selectedDay = daySelection.selectedDate;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _heartRateSeries(summaries, l10n),
+        selectedRange: state.selectedRange,
         period: period,
         accentColor: metric.accentColor,
-        summaryText: _summary(range, period, formatter.heartRate(average).text),
+        summaryText: _summary(
+          l10n.summaryAvgValueRange(
+            formatter.heartRate(average).text,
+            formatter.heartRate(lowest).text,
+            formatter.heartRate(highest).text,
+          ),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
         valueFormatter: (value) => formatter.heartRate(value.round()).text,
       )),
-      _stats(metric, [
-        ('Average', formatter.heartRate(average).text),
-        ('Lowest', formatter.heartRate(_min(bpm).round()).text),
-        ('Highest', formatter.heartRate(_max(bpm).round()).text),
-        ('Readings', '${samples.length}'),
-      ]),
-    ];
-  }
-
-  final summaries = [...result.dailySummaries]
-    ..sort((a, b) => a.date.compareTo(b.date));
-  if (summaries.isEmpty) return _emptyOrLoading(metric, state);
-  final average = _avg(summaries.map((s) => s.avgBpm.toDouble())).round();
-  final lowest = summaries.map((s) => s.minBpm).reduce((a, b) => a < b ? a : b);
-  final highest = summaries.map((s) => s.maxBpm).reduce((a, b) => a > b ? a : b);
-  final hasRange = summaries.any((s) => s.minBpm != s.maxBpm);
-  final series = <MetricLineSeries>[
-    MetricLineSeries(
-      points: [
-        for (final s in summaries)
-          MetricLinePoint(date: s.date, value: s.avgBpm.toDouble()),
-      ],
-      color: metric.accentColor,
-      label: 'Average',
-    ),
-    if (hasRange) ...[
-      MetricLineSeries(
-        points: [
-          for (final s in summaries)
-            MetricLinePoint(date: s.date, value: s.minBpm.toDouble()),
-        ],
-        color: metric.accentColor.withValues(alpha: 0.55),
-        label: 'Lowest',
+      highlightCard: _thresholdChecks(result),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : PaginatedEntryList<HeartRateSummary>(
+              title: heartEntryListTitle(context, selectedDay),
+              entries: [
+                for (final summary in summaries)
+                  if (summary.date == selectedDay) summary,
+              ],
+              rowBuilder: (context, summary) => HeartRateDayRow(
+                summary: summary,
+                unitFormatter: formatter,
+              ),
+            ),
+      dataConfidence: HeartAggregateDataConfidenceContent(
+        period: period,
+        trackedDates: [for (final s in summaries) s.date],
+        sampleCount: summaries.length,
+        accentColor: AppColors.heart,
       ),
-      MetricLineSeries(
-        points: [
-          for (final s in summaries)
-            MetricLinePoint(date: s.date, value: s.maxBpm.toDouble()),
-        ],
-        color: metric.accentColor.withValues(alpha: 0.9),
-        label: 'Highest',
+      statistics: heartRateSummaryStatisticsContent(
+        summaries: summaries,
+        previousSummaries: result.previousDailySummaries,
+        baselineSummaries: result.baselineDailySummaries,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
       ),
-    ],
-  ];
-  return [
-    _hero(metric, formatter.heartRate(average), null),
-    _chart(MetricLineChart(
-      title: metric.title,
-      series: series,
-      selectedRange: range,
-      period: period,
-      accentColor: metric.accentColor,
-      summaryText: _summary(range, period,
-          'avg ${formatter.heartRate(average).text}'),
-      valueFormatter: (value) => formatter.heartRate(value.round()).text,
-    )),
-    _stats(metric, [
-      ('Average', formatter.heartRate(average).text),
-      ('Lowest', formatter.heartRate(lowest).text),
-      ('Highest', formatter.heartRate(highest).text),
-      ('Days', '${summaries.length}'),
-    ]),
-  ];
-}
-
-List<Widget> _restingHeartRate(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final range = state.selectedRange;
-  if (range == TimeRange.day) {
-    final samples = [...result.dayRestingSamples]
-      ..sort((a, b) => a.time.compareTo(b.time));
-    final restingBpm = result.dayRestingBpm ??
-        (samples.isEmpty
-            ? null
-            : _avg(samples.map((s) => s.beatsPerMinute.toDouble())).round());
-    if (restingBpm == null) return _emptyOrLoading(metric, state);
-    return [
-      _hero(metric, formatter.heartRate(restingBpm),
-          samples.isEmpty ? null : samples.last.source),
-      if (samples.length > 1)
-        _chart(MetricLineChart(
-          title: metric.title,
-          series: _singleSeries(
-            [for (final s in samples) (s.time, s.beatsPerMinute.toDouble())],
-            range,
-            metric.accentColor,
-            null,
-          ),
-          selectedRange: range,
-          period: period,
-          accentColor: metric.accentColor,
-          summaryText:
-              _summary(range, period, formatter.heartRate(restingBpm).text),
-          valueFormatter: (value) => formatter.heartRate(value.round()).text,
-        )),
-      _stats(metric, [
-        ('Resting', formatter.heartRate(restingBpm).text),
-        if (samples.isNotEmpty) ...[
-          ('Lowest',
-              formatter.heartRate(samples.map((s) => s.beatsPerMinute).reduce((a, b) => a < b ? a : b)).text),
-          ('Highest',
-              formatter.heartRate(samples.map((s) => s.beatsPerMinute).reduce((a, b) => a > b ? a : b)).text),
-          ('Readings', '${samples.length}'),
-        ],
-      ]),
-    ];
+      entries: PaginatedEntryList<HeartRateSummary>(
+        title: l10n.sectionDailyBreakdown,
+        entries: [...summaries]..sort((a, b) => b.date.compareTo(a.date)),
+        rowBuilder: (context, summary) => HeartRateDayRow(
+          summary: summary,
+          unitFormatter: formatter,
+        ),
+      ),
+    );
   }
 
-  final entries = [...result.dailyRestingHR]
-    ..sort((a, b) => a.date.compareTo(b.date));
-  if (entries.isEmpty) return _emptyOrLoading(metric, state);
-  final bpm = entries.map((e) => e.bpm.toDouble()).toList();
-  final average = _avg(bpm).round();
-  return [
-    _hero(metric, formatter.heartRate(average), null),
-    _chart(MetricLineChart(
-      title: metric.title,
-      series: [
-        MetricLineSeries(
-          points: [
-            for (final e in entries)
-              MetricLinePoint(date: e.date, value: e.bpm.toDouble()),
-          ],
-          color: metric.accentColor,
+  Widget _thresholdChecks(HeartPeriodLoadResult result) =>
+      heartPadded(HeartRateThresholdChecksContent(
+        highCheck: heartRateThresholdCheck(
+          selectedRange: state.selectedRange,
+          type: HeartRateThresholdCheckType.high,
+          thresholdBpm: state.highHeartRateThresholdBpm,
+          daySamples: result.daySamples,
+          dailySummaries: result.dailySummaries,
         ),
-      ],
-      selectedRange: range,
-      period: period,
-      accentColor: metric.accentColor,
-      summaryText: _summary(range, period, formatter.heartRate(average).text),
-      valueFormatter: (value) => formatter.heartRate(value.round()).text,
-    )),
-    _stats(metric, [
-      ('Average', formatter.heartRate(average).text),
-      ('Lowest', formatter.heartRate(_min(bpm).round()).text),
-      ('Highest', formatter.heartRate(_max(bpm).round()).text),
-      ('Days', '${entries.length}'),
-    ]),
-  ];
-}
+        lowCheck: heartRateThresholdCheck(
+          selectedRange: state.selectedRange,
+          type: HeartRateThresholdCheckType.low,
+          thresholdBpm: state.lowHeartRateThresholdBpm,
+          daySamples: result.daySamples,
+          dailySummaries: result.dailySummaries,
+        ),
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        onDecreaseHighThreshold: onDecreaseHighHeartRateThreshold,
+        onIncreaseHighThreshold: onIncreaseHighHeartRateThreshold,
+        onDecreaseLowThreshold: onDecreaseLowHeartRateThreshold,
+        onIncreaseLowThreshold: onIncreaseLowHeartRateThreshold,
+      ));
 
-List<Widget> _hrv(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final range = state.selectedRange;
-  if (range == TimeRange.day) {
-    final samples = [...result.dayHrvSamples]
+  // ── Resting heart rate (Kotlin `restingHeartRateContent`) ─────────────────
+
+  Widget _restingHeartRate(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final isDay = state.selectedRange == TimeRange.day;
+
+    final daySamples = [...result.dayRestingSamples]
       ..sort((a, b) => a.time.compareTo(b.time));
-    final hrvMs = result.dayHrvMs ??
-        (samples.isEmpty ? null : _avg(samples.map((s) => s.rmssdMs)));
-    if (hrvMs == null) return _emptyOrLoading(metric, state);
-    return [
-      _hero(metric, formatter.hrv(hrvMs),
-          samples.isEmpty ? null : samples.last.source),
-      if (samples.length > 1)
-        _chart(MetricLineChart(
-          title: metric.title,
-          series: _singleSeries(
-            [for (final s in samples) (s.time, s.rmssdMs)],
-            range,
-            metric.accentColor,
-            null,
-          ),
-          selectedRange: range,
-          period: period,
-          accentColor: metric.accentColor,
-          summaryText: _summary(range, period, formatter.hrv(hrvMs).text),
-          valueFormatter: (value) => formatter.hrv(value).text,
-        )),
-      _stats(metric, [
-        ('Average', formatter.hrv(hrvMs).text),
-        if (samples.isNotEmpty) ...[
-          ('Lowest',
-              formatter.hrv(samples.map((s) => s.rmssdMs).reduce((a, b) => a < b ? a : b)).text),
-          ('Highest',
-              formatter.hrv(samples.map((s) => s.rmssdMs).reduce((a, b) => a > b ? a : b)).text),
-          ('Readings', '${samples.length}'),
-        ],
-      ]),
-    ];
-  }
-
-  final entries = [...result.dailyHrv]..sort((a, b) => a.date.compareTo(b.date));
-  if (entries.isEmpty) return _emptyOrLoading(metric, state);
-  final ms = entries.map((e) => e.rmssdMs).toList();
-  final average = _avg(ms);
-  return [
-    _hero(metric, formatter.hrv(average), null),
-    _chart(MetricLineChart(
-      title: metric.title,
-      series: [
-        MetricLineSeries(
-          points: [
-            for (final e in entries)
-              MetricLinePoint(date: e.date, value: e.rmssdMs),
+    final hasDayResting =
+        isDay && (daySamples.isNotEmpty || result.dayRestingBpm != null);
+    if (hasDayResting) {
+      final restingBpm = result.dayRestingBpm ??
+          _avg(daySamples.map((s) => s.beatsPerMinute.toDouble())).round();
+      final lowResting = daySamples.isEmpty
+          ? restingBpm
+          : daySamples.map((s) => s.beatsPerMinute).reduce((a, b) => a < b ? a : b);
+      final highResting = daySamples.isEmpty
+          ? restingBpm
+          : daySamples.map((s) => s.beatsPerMinute).reduce((a, b) => a > b ? a : b);
+      return heartChartMetricSections(
+        selectedRange: state.selectedRange,
+        period: period,
+        selectedDate: null,
+        intradayChart: daySamples.length > 1
+            ? heartPadded(HeartTimelineCard(
+                date: state.selectedDate,
+                points: [
+                  for (final s in daySamples)
+                    (s.time, s.beatsPerMinute.toDouble())
+                ],
+                averageText: formatter.heartRate(restingBpm).text,
+                rangeText:
+                    '${formatter.heartRate(lowResting).text}-${formatter.heartRate(highResting).text}',
+                valueFormatter: (value) =>
+                    formatter.heartRate(value.round()).text,
+                minValue: math.max(30, lowResting - 5).toDouble(),
+                maxValue: (highResting + 5).toDouble(),
+              ))
+            : null,
+        highlightCard: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heartPadded(HeartDayValueCard(
+              title: metric.title,
+              value: formatter.heartRate(restingBpm).text,
+            )),
+            restingHeartRateContextCardContent(restingBpm),
           ],
-          color: metric.accentColor.withValues(alpha: 0.85),
         ),
-      ],
-      selectedRange: range,
+        dataConfidence: daySamples.isNotEmpty
+            ? HeartRawDataConfidenceContent<RestingHeartRateSample>(
+                period: period,
+                entries: daySamples,
+                source: (s) => s.source,
+                time: (s) => s.time,
+                accentColor: AppColors.heart,
+              )
+            : HeartAggregateDataConfidenceContent(
+                period: period,
+                trackedDates: [state.selectedDate],
+                sampleCount: math.max(daySamples.length, 1),
+                accentColor: AppColors.heart,
+              ),
+        statistics: HeartNumericStatisticsContent(
+          unitFormatter: formatter,
+          average: formatter.heartRate(restingBpm),
+          low: formatter.heartRate(lowResting),
+          high: formatter.heartRate(highResting),
+          readings: math.max(daySamples.length, 1),
+          comparison: result.dayRestingBpm != null &&
+                  result.previousDayRestingBpm != null
+              ? periodComparison(
+                  result.dayRestingBpm!.toDouble(),
+                  result.previousDayRestingBpm!.toDouble(),
+                )
+              : null,
+          selectedRange: state.selectedRange,
+          comparisonValueFormatter: (value) =>
+              formatter.heartRate(value.round()),
+          icon: Icons.favorite_border,
+          accentColor: AppColors.heart,
+          period: period,
+          baselineCurrentValue: restingBpm.toDouble(),
+          baselineValues: [
+            for (final entry in result.baselineDailyRestingHR)
+              BaselineValue(date: entry.date, value: entry.bpm.toDouble()),
+          ],
+        ),
+        entries: daySamples.isNotEmpty
+            ? HeartEntryListContent<RestingHeartRateSample>(
+                entries: daySamples,
+                value: (s) => formatter.heartRate(s.beatsPerMinute).text,
+                source: (s) => s.source,
+                time: (s) => s.time,
+              )
+            : HeartDailyEntryListContent<DailyRestingHR>(
+                entries: [
+                  DailyRestingHR(date: state.selectedDate, bpm: restingBpm),
+                ],
+                date: (e) => e.date,
+                value: (e) => formatter.heartRate(e.bpm).text,
+                accentColor: AppColors.heart,
+              ),
+      );
+    }
+
+    final sorted = [...result.dailyRestingHR]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    if (isDay || sorted.isEmpty) return _emptyOrLoading();
+
+    final bpm = sorted.map((e) => e.bpm.toDouble()).toList();
+    final average = _avg(bpm).round();
+    final selectedDay = daySelection.selectedDate;
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
       period: period,
-      accentColor: metric.accentColor,
-      summaryText: _summary(range, period, formatter.hrv(average).text),
-      valueFormatter: (value) => formatter.hrv(value).text,
-    )),
-    _stats(metric, [
-      ('Average', formatter.hrv(average).text),
-      ('Lowest', formatter.hrv(_min(ms)).text),
-      ('Highest', formatter.hrv(_max(ms)).text),
-      ('Days', '${entries.length}'),
-    ]),
-  ];
-}
-
-// ── Vitals ──────────────────────────────────────────────────────────────────
-
-List<Widget> _bloodPressure(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final entries = [...result.bloodPressure]
-    ..sort((a, b) => a.time.compareTo(b.time));
-  if (entries.isEmpty) return _emptyOrLoading(metric, state);
-  final latest = entries.last;
-  final range = state.selectedRange;
-  final systolic = [
-    for (final e in entries)
-      MetricLinePoint(
-          date: instantToLocalDate(e.time),
-          value: e.systolicMmHg.toDouble(),
-          time: e.time),
-  ];
-  final diastolic = [
-    for (final e in entries)
-      MetricLinePoint(
-          date: instantToLocalDate(e.time),
-          value: e.diastolicMmHg.toDouble(),
-          time: e.time),
-  ];
-  final series = range == TimeRange.day
-      ? [
-          MetricLineSeries(
-              points: systolic, color: metric.accentColor, label: 'Systolic'),
-          MetricLineSeries(
-              points: diastolic, color: _diastolicColor, label: 'Diastolic'),
-        ]
-      : [
-          MetricLineSeries(
-              points: dailyAverageLinePoints(systolic),
-              color: metric.accentColor,
-              label: 'Systolic'),
-          MetricLineSeries(
-              points: dailyAverageLinePoints(diastolic),
-              color: _diastolicColor,
-              label: 'Diastolic'),
-        ];
-  final avgSys =
-      _avg(entries.map((e) => e.systolicMmHg.toDouble())).round();
-  final avgDia =
-      _avg(entries.map((e) => e.diastolicMmHg.toDouble())).round();
-  return [
-    _hero(
-      metric,
-      formatter.bloodPressure(latest.systolicMmHg, latest.diastolicMmHg),
-      latest.source,
-    ),
-    _chart(MetricLineChart(
-      title: metric.title,
-      series: series,
-      selectedRange: range,
-      period: period,
-      accentColor: metric.accentColor,
-      summaryText: _summary(range, period, '${entries.length} readings'),
-      valueFormatter: (value) => '${value.round()} mmHg',
-    )),
-    _stats(metric, [
-      ('Average', formatter.bloodPressure(avgSys, avgDia).text),
-      ('Latest',
-          formatter.bloodPressure(latest.systolicMmHg, latest.diastolicMmHg).text),
-      ('Readings', '${entries.length}'),
-    ]),
-  ];
-}
-
-List<Widget> _spo2(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) =>
-    _simpleVital(
-      metric: metric,
-      state: state,
-      period: period,
-      entries: [
-        for (final e in result.spO2) (e.time, e.percent, e.source),
-      ],
-      format: (v) => formatter.percent(v),
-      summaryLabel: (avg) => 'avg ${formatter.percent(avg).text}',
-    );
-
-List<Widget> _vo2Max(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) =>
-    _simpleVital(
-      metric: metric,
-      state: state,
-      period: period,
-      entries: [
-        for (final e in result.vo2Max)
-          (e.time, e.vo2MaxMlPerKgPerMin, e.source),
-      ],
-      format: (v) => formatter.vo2Max(v),
-      summaryLabel: (avg) => '${result.vo2Max.length} readings',
-      requireMultipleForChart: true,
-    );
-
-List<Widget> _respiratoryRate(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) =>
-    _simpleVital(
-      metric: metric,
-      state: state,
-      period: period,
-      entries: [
-        for (final e in result.respiratoryRate)
-          (e.time, e.breathsPerMinute, e.source),
-      ],
-      format: (v) => formatter.respiratoryRate(v),
-      summaryLabel: (avg) => 'avg ${formatter.respiratoryRate(avg).text}',
-    );
-
-List<Widget> _bodyTemperature(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) =>
-    _simpleVital(
-      metric: metric,
-      state: state,
-      period: period,
-      entries: [
-        for (final e in result.bodyTemperature)
-          (e.time, e.temperatureCelsius, e.source),
-      ],
-      format: (v) => formatter.temperature(v),
-      summaryLabel: (avg) => '${result.bodyTemperature.length} readings',
-    );
-
-List<Widget> _bloodGlucose(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) =>
-    _simpleVital(
-      metric: metric,
-      state: state,
-      period: period,
-      entries: [
-        for (final e in result.bloodGlucose)
-          (e.time, e.millimolesPerLiter, e.source),
-      ],
-      format: (v) => formatter.bloodGlucose(v),
-      summaryLabel: (avg) => 'avg ${formatter.bloodGlucose(avg).text}',
-    );
-
-List<Widget> _skinTemperature(
-  HeartMetric metric,
-  HeartMetricState state,
-  HeartPeriodLoadResult result,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final entries = result.skinTemperature
-      .where((e) => e.averageDeltaCelsius != null)
-      .toList();
-  if (entries.isEmpty) return _emptyOrLoading(metric, state);
-  return _simpleVital(
-    metric: metric,
-    state: state,
-    period: period,
-    entries: [
-      for (final e in entries) (e.time, e.averageDeltaCelsius!, e.source),
-    ],
-    format: (v) => formatter.temperatureDelta(v),
-    summaryLabel: (avg) => 'avg ${formatter.temperatureDelta(avg).text}',
-  );
-}
-
-/// Shared builder for the single-value vitals (SpO2 / VO2 / respiratory rate /
-/// body & skin temperature / blood glucose): hero latest reading + line chart +
-/// average/lowest/highest statistics.
-List<Widget> _simpleVital({
-  required HeartMetric metric,
-  required HeartMetricState state,
-  required DatePeriod period,
-  required List<(DateTime, double, String)> entries,
-  required DisplayValue Function(double) format,
-  required String Function(double average) summaryLabel,
-  bool requireMultipleForChart = false,
-}) {
-  if (entries.isEmpty) return _emptyOrLoading(metric, state);
-  final range = state.selectedRange;
-  final sorted = [...entries]..sort((a, b) => a.$1.compareTo(b.$1));
-  final values = sorted.map((e) => e.$2).toList();
-  final latest = sorted.last;
-  final average = _avg(values);
-  final showChart = !requireMultipleForChart || sorted.length > 1;
-
-  return [
-    _hero(metric, format(latest.$2), latest.$3),
-    if (showChart)
-      _chart(MetricLineChart(
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
         title: metric.title,
-        series: _singleSeries(
-          [for (final e in sorted) (e.$1, e.$2)],
-          range,
-          metric.accentColor,
-          null,
-        ),
-        selectedRange: range,
+        series: [
+          MetricLineSeries(
+            points: [
+              for (final e in sorted)
+                MetricLinePoint(date: e.date, value: e.bpm.toDouble()),
+            ],
+            color: metric.accentColor,
+          ),
+        ],
+        selectedRange: state.selectedRange,
         period: period,
         accentColor: metric.accentColor,
-        summaryText: _summary(range, period, summaryLabel(average)),
-        valueFormatter: (value) => format(value).text,
+        summaryText: _summary(
+          l10n.summaryAvgValueRange(
+            formatter.heartRate(average).text,
+            formatter.heartRate(_min(bpm).round()).text,
+            formatter.heartRate(_max(bpm).round()).text,
+          ),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
+        valueFormatter: (value) => formatter.heartRate(value.round()).text,
       )),
-    _stats(metric, [
-      ('Average', format(average).text),
-      ('Lowest', format(_min(values)).text),
-      ('Highest', format(_max(values)).text),
-      ('Readings', '${sorted.length}'),
-    ]),
-  ];
-}
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartDailyEntryListContent<DailyRestingHR>(
+              entries: [
+                for (final e in sorted)
+                  if (e.date == selectedDay) e,
+              ],
+              date: (e) => e.date,
+              value: (e) => formatter.heartRate(e.bpm).text,
+              accentColor: AppColors.heart,
+              titleDate: selectedDay,
+            ),
+      dataConfidence: HeartAggregateDataConfidenceContent(
+        period: period,
+        trackedDates: [for (final e in sorted) e.date],
+        sampleCount: sorted.length,
+        accentColor: AppColors.heart,
+      ),
+      contextInsight: restingHeartRateContextCardContent(average),
+      statistics: restingHeartRateStatisticsContent(
+        entries: sorted,
+        previousEntries: result.previousDailyRestingHR,
+        baselineEntries: result.baselineDailyRestingHR,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+      ),
+      entries: HeartDailyEntryListContent<DailyRestingHR>(
+        entries: sorted,
+        date: (e) => e.date,
+        value: (e) => formatter.heartRate(e.bpm).text,
+        accentColor: AppColors.heart,
+      ),
+    );
+  }
 
-// ── Building blocks ───────────────────────────────────────────────────────────
+  // ── HRV (Kotlin `hrvContent`) ──────────────────────────────────────────────
 
-/// Blood-pressure diastolic uses the heart accent, mirroring the Kotlin
-/// `bloodPressureSeries` (systolic = VitalsColor, diastolic = HeartColor).
-const Color _diastolicColor = Color(0xFFE91E63);
+  Widget _hrv(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final isDay = state.selectedRange == TimeRange.day;
 
-List<MetricLineSeries> _singleSeries(
-  List<(DateTime, double)> raw,
-  TimeRange range,
-  Color color,
-  String? label,
-) {
-  final base = [
-    for (final (time, value) in raw)
-      MetricLinePoint(date: instantToLocalDate(time), value: value, time: time),
-  ];
-  final points = range == TimeRange.day ? base : dailyAverageLinePoints(base);
-  return [MetricLineSeries(points: points, color: color, label: label)];
+    final daySamples = [...result.dayHrvSamples]
+      ..sort((a, b) => a.time.compareTo(b.time));
+    final hasDayHrv =
+        isDay && (daySamples.isNotEmpty || result.dayHrvMs != null);
+    if (hasDayHrv) {
+      final hrvMs =
+          result.dayHrvMs ?? _avg(daySamples.map((s) => s.rmssdMs));
+      final lowHrv = daySamples.isEmpty
+          ? hrvMs
+          : daySamples.map((s) => s.rmssdMs).reduce((a, b) => a < b ? a : b);
+      final highHrv = daySamples.isEmpty
+          ? hrvMs
+          : daySamples.map((s) => s.rmssdMs).reduce((a, b) => a > b ? a : b);
+      return heartChartMetricSections(
+        selectedRange: state.selectedRange,
+        period: period,
+        selectedDate: null,
+        intradayChart: daySamples.length > 1
+            ? heartPadded(HeartTimelineCard(
+                date: state.selectedDate,
+                points: [for (final s in daySamples) (s.time, s.rmssdMs)],
+                averageText: formatter.hrv(hrvMs).text,
+                rangeText:
+                    '${formatter.hrv(lowHrv).text}-${formatter.hrv(highHrv).text}',
+                valueFormatter: (value) => formatter.hrv(value).text,
+                minValue: math.max(0, lowHrv - 5),
+                maxValue: highHrv + 5,
+              ))
+            : null,
+        highlightCard: heartPadded(HeartDayValueCard(
+          title: metric.title,
+          value: '${formatter.hrv(hrvMs).text} RMSSD',
+        )),
+        dataConfidence: daySamples.isNotEmpty
+            ? HeartRawDataConfidenceContent<HrvSample>(
+                period: period,
+                entries: daySamples,
+                source: (s) => s.source,
+                time: (s) => s.time,
+                accentColor: AppColors.heart,
+              )
+            : HeartAggregateDataConfidenceContent(
+                period: period,
+                trackedDates: [state.selectedDate],
+                sampleCount: math.max(daySamples.length, 1),
+                accentColor: AppColors.heart,
+              ),
+        statistics: HeartNumericStatisticsContent(
+          unitFormatter: formatter,
+          average: formatter.hrv(hrvMs),
+          low: formatter.hrv(lowHrv),
+          high: formatter.hrv(highHrv),
+          readings: math.max(daySamples.length, 1),
+          comparison: result.dayHrvMs != null && result.previousDayHrvMs != null
+              ? periodComparison(result.dayHrvMs!, result.previousDayHrvMs!)
+              : null,
+          selectedRange: state.selectedRange,
+          comparisonValueFormatter: formatter.hrv,
+          icon: Icons.favorite_border,
+          accentColor: AppColors.heart,
+          period: period,
+          baselineCurrentValue: hrvMs,
+          baselineValues: [
+            for (final entry in result.baselineDailyHrv)
+              BaselineValue(date: entry.date, value: entry.rmssdMs),
+          ],
+        ),
+        entries: daySamples.isNotEmpty
+            ? HeartEntryListContent<HrvSample>(
+                entries: daySamples,
+                value: (s) => formatter.hrv(s.rmssdMs).text,
+                source: (s) => s.source,
+                time: (s) => s.time,
+              )
+            : HeartDailyEntryListContent<DailyHrv>(
+                entries: [DailyHrv(date: state.selectedDate, rmssdMs: hrvMs)],
+                date: (e) => e.date,
+                value: (e) => formatter.hrv(e.rmssdMs).text,
+                accentColor: AppColors.heart,
+              ),
+      );
+    }
+
+    final sorted = [...result.dailyHrv]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    if (isDay || sorted.isEmpty) return _emptyOrLoading();
+
+    final ms = sorted.map((e) => e.rmssdMs).toList();
+    final selectedDay = daySelection.selectedDate;
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: [
+          MetricLineSeries(
+            points: [
+              for (final e in sorted)
+                MetricLinePoint(date: e.date, value: e.rmssdMs),
+            ],
+            color: metric.accentColor.withValues(alpha: 0.85),
+          ),
+        ],
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryAvgValueRange(
+            formatter.hrv(_avg(ms)).text,
+            formatter.hrv(_min(ms)).text,
+            formatter.hrv(_max(ms)).text,
+          ),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
+        valueFormatter: (value) => formatter.hrv(value).text,
+      )),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartDailyEntryListContent<DailyHrv>(
+              entries: [
+                for (final e in sorted)
+                  if (e.date == selectedDay) e,
+              ],
+              date: (e) => e.date,
+              value: (e) => formatter.hrv(e.rmssdMs).text,
+              accentColor: AppColors.heart,
+              titleDate: selectedDay,
+            ),
+      dataConfidence: HeartAggregateDataConfidenceContent(
+        period: period,
+        trackedDates: [for (final e in sorted) e.date],
+        sampleCount: sorted.length,
+        accentColor: AppColors.heart,
+      ),
+      statistics: hrvStatisticsContent(
+        entries: sorted,
+        previousEntries: result.previousDailyHrv,
+        baselineEntries: result.baselineDailyHrv,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+      ),
+      entries: HeartDailyEntryListContent<DailyHrv>(
+        entries: sorted,
+        date: (e) => e.date,
+        value: (e) => formatter.hrv(e.rmssdMs).text,
+        accentColor: AppColors.heart,
+      ),
+    );
+  }
+
+  // ── Blood pressure (Kotlin `bloodPressureContent`) ─────────────────────────
+
+  Widget _bloodPressure(BuildContext context, HeartPeriodLoadResult result) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.bloodPressure;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    final latest = sorted.last;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: null,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _bloodPressureSeries(sorted, l10n),
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryReadings(formatter.count(entries.length)),
+        ),
+        valueFormatter: (value) => '${value.round()} mmHg',
+      )),
+      dataConfidence: HeartRawDataConfidenceContent<BloodPressureEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      contextInsight: BloodPressureContextCardContent(entry: latest),
+      statistics: BloodPressureStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousBloodPressure,
+        baselineEntries: result.baselineBloodPressure,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+      ),
+      entries: HeartEntryListContent<BloodPressureEntry>(
+        entries: entries,
+        value: (e) =>
+            formatter.bloodPressure(e.systolicMmHg, e.diastolicMmHg).text,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+        onEdit: (e) => onEditVitalsMeasurement(
+            VitalsMeasurementType.bloodPressure, e.id),
+        onDelete: (e) => onDeleteVitalsMeasurement(
+            VitalsMeasurementType.bloodPressure, e.id),
+        entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+      ),
+    );
+  }
+
+  // ── SpO2 (Kotlin `spO2Content`) ────────────────────────────────────────────
+
+  Widget _spo2(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.spO2;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    final selectedDay = daySelection.selectedDate;
+    final latest = sorted.last;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _singleSeries(
+          [for (final e in sorted) (e.time, e.percent)],
+          metric.accentColor,
+        ),
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryValueAvg(
+            formatter.percent(_avg(entries.map((e) => e.percent))).text,
+          ),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
+        valueFormatter: (value) => formatter.percent(value).text,
+      )),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartEntryListContent<SpO2Entry>(
+              entries: [
+                for (final e in entries)
+                  if (instantToLocalDate(e.time) == selectedDay) e,
+              ],
+              value: (e) => formatter.percent(e.percent).text,
+              source: (e) => e.source,
+              time: (e) => e.time,
+              titleDate: selectedDay,
+              editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+              onEdit: (e) =>
+                  onEditVitalsMeasurement(VitalsMeasurementType.spo2, e.id),
+              onDelete: (e) =>
+                  onDeleteVitalsMeasurement(VitalsMeasurementType.spo2, e.id),
+              entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+            ),
+      dataConfidence: HeartRawDataConfidenceContent<SpO2Entry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      contextInsight: oxygenSaturationContextCardContent(
+        latest,
+        metric.accentColor,
+      ),
+      statistics: spO2StatisticsContent(
+        entries: entries,
+        previousEntries: result.previousSpO2,
+        baselineEntries: result.baselineSpO2,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: HeartEntryListContent<SpO2Entry>(
+        entries: entries,
+        value: (e) => formatter.percent(e.percent).text,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+        onEdit: (e) =>
+            onEditVitalsMeasurement(VitalsMeasurementType.spo2, e.id),
+        onDelete: (e) =>
+            onDeleteVitalsMeasurement(VitalsMeasurementType.spo2, e.id),
+        entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+      ),
+    );
+  }
+
+  // ── VO2 max (Kotlin `vo2MaxContent`) ───────────────────────────────────────
+
+  Widget _vo2Max(BuildContext context, HeartPeriodLoadResult result) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.vo2Max;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    final latest = sorted.last;
+    final latestValue = formatter.vo2Max(latest.vo2MaxMlPerKgPerMin);
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: null,
+      periodChart: entries.length > 1
+          ? heartPadded(MetricLineChart(
+              title: metric.title,
+              series: _singleSeries(
+                [for (final e in sorted) (e.time, e.vo2MaxMlPerKgPerMin)],
+                metric.accentColor,
+              ),
+              selectedRange: state.selectedRange,
+              period: period,
+              accentColor: metric.accentColor,
+              summaryText: _summary(
+                l10n.summaryReadings(formatter.count(sorted.length)),
+              ),
+              valueFormatter: (value) => formatter.vo2Max(value).text,
+            ))
+          : null,
+      highlightCard: heartPadded(MetricCard(
+        title: metric.title,
+        value: latestValue.value,
+        unit: latestValue.unit,
+        icon: Icons.speed_outlined,
+        accentColor: metric.accentColor,
+        source: latest.source,
+      )),
+      dataConfidence: HeartRawDataConfidenceContent<Vo2MaxEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      statistics: vo2MaxStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousVo2Max,
+        baselineEntries: result.baselineVo2Max,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: HeartEntryListContent<Vo2MaxEntry>(
+        entries: entries,
+        value: (e) => formatter.vo2Max(e.vo2MaxMlPerKgPerMin).text,
+        source: (e) => e.source,
+        time: (e) => e.time,
+      ),
+    );
+  }
+
+  // ── Respiratory rate (Kotlin `respiratoryRateContent`) ─────────────────────
+
+  Widget _respiratoryRate(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.respiratoryRate;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final selectedDay = daySelection.selectedDate;
+    final isDay = state.selectedRange == TimeRange.day;
+    final daySummaries = respiratoryRateDaySummaries(entries)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final periodAverage =
+        _avg(daySummaries.map((summary) => summary.average));
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _respiratoryRateSeries(entries, l10n),
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryValueAvg(formatter.respiratoryRate(periodAverage).text),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
+        valueFormatter: (value) => formatter.respiratoryRate(value).text,
+      )),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartEntryListContent<RespiratoryRateEntry>(
+              entries: [
+                for (final e in entries)
+                  if (instantToLocalDate(e.time) == selectedDay) e,
+              ],
+              value: (e) => formatter.respiratoryRate(e.breathsPerMinute).text,
+              source: (e) => e.source,
+              time: (e) => e.time,
+              titleDate: selectedDay,
+              editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+              onEdit: (e) => onEditVitalsMeasurement(
+                  VitalsMeasurementType.respiratoryRate, e.id),
+              onDelete: (e) => onDeleteVitalsMeasurement(
+                  VitalsMeasurementType.respiratoryRate, e.id),
+              entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+            ),
+      dataConfidence: HeartRawDataConfidenceContent<RespiratoryRateEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      contextInsight: respiratoryRateContextCardContent(
+        _avg(entries.map((e) => e.breathsPerMinute)),
+        metric.accentColor,
+      ),
+      statistics: respiratoryRateStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousRespiratoryRate,
+        baselineEntries: result.baselineRespiratoryRate,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!isDay)
+            PaginatedEntryList<RespiratoryRateDaySummary>(
+              title: l10n.sectionRespiratoryRateDailyBreakdown,
+              entries: daySummaries,
+              rowBuilder: (context, summary) => RespiratoryRateDayRow(
+                summary: summary,
+                unitFormatter: formatter,
+                accentColor: metric.accentColor,
+              ),
+            ),
+          HeartEntryListContent<RespiratoryRateEntry>(
+            entries: entries,
+            value: (e) => formatter.respiratoryRate(e.breathsPerMinute).text,
+            source: (e) => e.source,
+            time: (e) => e.time,
+            editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+            onEdit: (e) => onEditVitalsMeasurement(
+                VitalsMeasurementType.respiratoryRate, e.id),
+            onDelete: (e) => onDeleteVitalsMeasurement(
+                VitalsMeasurementType.respiratoryRate, e.id),
+            entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Body temperature (Kotlin `bodyTemperatureContent`) ─────────────────────
+
+  Widget _bodyTemperature(BuildContext context, HeartPeriodLoadResult result) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.bodyTemperature;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    final latest = sorted.last;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: null,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _singleSeries(
+          [for (final e in sorted) (e.time, e.temperatureCelsius)],
+          metric.accentColor,
+        ),
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryReadings(formatter.count(sorted.length)),
+        ),
+        valueFormatter: (value) => formatter.temperature(value).text,
+      )),
+      dataConfidence: HeartRawDataConfidenceContent<BodyTempEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      contextInsight: bodyTemperatureContextCardContent(
+        latest,
+        metric.accentColor,
+      ),
+      statistics: bodyTemperatureStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousBodyTemperature,
+        baselineEntries: result.baselineBodyTemperature,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: HeartEntryListContent<BodyTempEntry>(
+        entries: entries,
+        value: (e) => formatter.temperature(e.temperatureCelsius).text,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        editable: (e) => e.isOpenVitalsEntry && e.id.isNotEmpty,
+        onEdit: (e) => onEditVitalsMeasurement(
+            VitalsMeasurementType.bodyTemperature, e.id),
+        onDelete: (e) => onDeleteVitalsMeasurement(
+            VitalsMeasurementType.bodyTemperature, e.id),
+        entryKey: (e) => e.id.isEmpty ? '${e.time}' : e.id,
+      ),
+    );
+  }
+
+  // ── Blood glucose (Kotlin `bloodGlucoseContent`) ───────────────────────────
+
+  Widget _bloodGlucose(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.bloodGlucose;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    final selectedDay = daySelection.selectedDate;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: heartPadded(MetricLineChart(
+        title: metric.title,
+        series: _singleSeries(
+          [for (final e in sorted) (e.time, e.millimolesPerLiter)],
+          metric.accentColor,
+        ),
+        selectedRange: state.selectedRange,
+        period: period,
+        accentColor: metric.accentColor,
+        summaryText: _summary(
+          l10n.summaryValueAvg(
+            formatter
+                .bloodGlucose(_avg(sorted.map((e) => e.millimolesPerLiter)))
+                .text,
+          ),
+        ),
+        selectedDate: selectedDay,
+        onDateSelected: daySelection.onDateSelected,
+        valueFormatter: (value) => formatter.bloodGlucose(value).text,
+      )),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartEntryListContent<BloodGlucoseEntry>(
+              entries: [
+                for (final e in entries)
+                  if (instantToLocalDate(e.time) == selectedDay) e,
+              ],
+              value: (e) => formatter.bloodGlucose(e.millimolesPerLiter).text,
+              source: (e) => e.source,
+              time: (e) => e.time,
+              titleDate: selectedDay,
+            ),
+      dataConfidence: HeartRawDataConfidenceContent<BloodGlucoseEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      statistics: bloodGlucoseStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousBloodGlucose,
+        baselineEntries: result.baselineBloodGlucose,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: HeartEntryListContent<BloodGlucoseEntry>(
+        entries: entries,
+        value: (e) => formatter.bloodGlucose(e.millimolesPerLiter).text,
+        source: (e) => e.source,
+        time: (e) => e.time,
+      ),
+    );
+  }
+
+  // ── Skin temperature (Kotlin `skinTemperatureContent`) ─────────────────────
+
+  Widget _skinTemperature(
+    BuildContext context,
+    HeartPeriodLoadResult result,
+    ChartDaySelection daySelection,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final entries = result.skinTemperature;
+    if (entries.isEmpty) return _emptyOrLoading();
+    final chartEntries = [
+      for (final e in entries)
+        if (e.averageDeltaCelsius != null) e,
+    ]..sort((a, b) => a.time.compareTo(b.time));
+    final selectedDay = daySelection.selectedDate;
+
+    return heartChartMetricSections(
+      selectedRange: state.selectedRange,
+      period: period,
+      selectedDate: selectedDay,
+      periodChart: chartEntries.isEmpty
+          ? null
+          : heartPadded(MetricLineChart(
+              title: metric.title,
+              series: _singleSeries(
+                [
+                  for (final e in chartEntries)
+                    (e.time, e.averageDeltaCelsius!),
+                ],
+                metric.accentColor,
+              ),
+              selectedRange: state.selectedRange,
+              period: period,
+              accentColor: metric.accentColor,
+              summaryText: _summary(
+                l10n.summaryValueAvg(
+                  formatter
+                      .temperatureDelta(_avg(chartEntries
+                          .map((e) => e.averageDeltaCelsius!)))
+                      .text,
+                ),
+              ),
+              selectedDate: selectedDay,
+              onDateSelected: daySelection.onDateSelected,
+              valueFormatter: (value) =>
+                  formatter.temperatureDelta(value).text,
+            )),
+      selectedDayEntries: selectedDay == null
+          ? null
+          : HeartEntryListContent<SkinTemperatureEntry>(
+              entries: [
+                for (final e in entries)
+                  if (instantToLocalDate(e.time) == selectedDay) e,
+              ],
+              value: (e) => skinTemperatureValueText(e, formatter),
+              source: (e) => e.source,
+              time: (e) => e.time,
+              titleDate: selectedDay,
+            ),
+      dataConfidence: HeartRawDataConfidenceContent<SkinTemperatureEntry>(
+        period: period,
+        entries: entries,
+        source: (e) => e.source,
+        time: (e) => e.time,
+        accentColor: metric.accentColor,
+      ),
+      statistics: skinTemperatureStatisticsContent(
+        entries: entries,
+        previousEntries: result.previousSkinTemperature,
+        baselineEntries: result.baselineSkinTemperature,
+        period: period,
+        selectedRange: state.selectedRange,
+        unitFormatter: formatter,
+        accentColor: metric.accentColor,
+      ),
+      entries: HeartEntryListContent<SkinTemperatureEntry>(
+        entries: entries,
+        value: (e) => skinTemperatureValueText(e, formatter),
+        source: (e) => e.source,
+        time: (e) => e.time,
+      ),
+    );
+  }
+
+  // ── Building blocks ─────────────────────────────────────────────────────────
+
+  String _summary(String extra) =>
+      '${periodTitle(state.selectedRange, period)} · $extra';
+
+  Widget _placeholder() => heartPadded(MetricCardPlaceholder(
+        title: metric.title,
+        icon: metric.icon,
+        accentColor: metric.accentColor,
+        message: metric.emptyMessage,
+      ));
+
+  Widget _emptyOrLoading() =>
+      state.isLoading ? const _LoadingBlock() : _placeholder();
+
+  /// Kotlin `heartRateSeries` (`HeartVitalsChartData.kt`): the avg line plus
+  /// min/max lines when any day actually has a range.
+  List<MetricLineSeries> _heartRateSeries(
+    List<HeartRateSummary> summaries,
+    AppLocalizations l10n,
+  ) {
+    final hasRange = summaries.any((s) => s.minBpm != s.maxBpm);
+    return [
+      MetricLineSeries(
+        points: [
+          for (final s in summaries)
+            MetricLinePoint(date: s.date, value: s.avgBpm.toDouble()),
+        ],
+        color: AppColors.heart,
+        label: l10n.summaryAverage,
+      ),
+      if (hasRange) ...[
+        MetricLineSeries(
+          points: [
+            for (final s in summaries)
+              MetricLinePoint(date: s.date, value: s.minBpm.toDouble()),
+          ],
+          color: AppColors.heart.withValues(alpha: 0.55),
+          label: l10n.statLowest,
+        ),
+        MetricLineSeries(
+          points: [
+            for (final s in summaries)
+              MetricLinePoint(date: s.date, value: s.maxBpm.toDouble()),
+          ],
+          color: AppColors.heart.withValues(alpha: 0.9),
+          label: l10n.statHighest,
+        ),
+      ],
+    ];
+  }
+
+  /// Kotlin `bloodPressureSeries`: systolic (VitalsColor) + diastolic
+  /// (HeartColor); raw within a day, daily averages otherwise.
+  List<MetricLineSeries> _bloodPressureSeries(
+    List<BloodPressureEntry> sorted,
+    AppLocalizations l10n,
+  ) {
+    final isDay = state.selectedRange == TimeRange.day;
+    final systolic = [
+      for (final e in sorted)
+        MetricLinePoint(
+          date: instantToLocalDate(e.time),
+          value: e.systolicMmHg.toDouble(),
+          time: e.time,
+        ),
+    ];
+    final diastolic = [
+      for (final e in sorted)
+        MetricLinePoint(
+          date: instantToLocalDate(e.time),
+          value: e.diastolicMmHg.toDouble(),
+          time: e.time,
+        ),
+    ];
+    return [
+      MetricLineSeries(
+        points: isDay ? systolic : dailyAverageLinePoints(systolic),
+        color: AppColors.vitals,
+        label: l10n.vitalsEntrySystolicLabel,
+      ),
+      MetricLineSeries(
+        points: isDay ? diastolic : dailyAverageLinePoints(diastolic),
+        color: AppColors.heart,
+        label: l10n.vitalsEntryDiastolicLabel,
+      ),
+    ];
+  }
+
+  /// Kotlin `respiratoryRateSeries`: raw within a day; daily average plus
+  /// min/max range series otherwise.
+  List<MetricLineSeries> _respiratoryRateSeries(
+    List<RespiratoryRateEntry> entries,
+    AppLocalizations l10n,
+  ) {
+    final sorted = [...entries]..sort((a, b) => a.time.compareTo(b.time));
+    if (state.selectedRange == TimeRange.day) {
+      return _singleSeries(
+        [for (final e in sorted) (e.time, e.breathsPerMinute)],
+        metric.accentColor,
+        label: metric.title,
+      );
+    }
+    final byDate = <LocalDate, List<double>>{};
+    for (final e in sorted) {
+      byDate
+          .putIfAbsent(instantToLocalDate(e.time), () => <double>[])
+          .add(e.breathsPerMinute);
+    }
+    final dates = byDate.keys.toList()..sort((a, b) => a.compareTo(b));
+    final average = <MetricLinePoint>[];
+    final min = <MetricLinePoint>[];
+    final max = <MetricLinePoint>[];
+    for (final date in dates) {
+      final values = byDate[date]!;
+      average.add(MetricLinePoint(date: date, value: _avg(values)));
+      min.add(MetricLinePoint(date: date, value: _min(values)));
+      max.add(MetricLinePoint(date: date, value: _max(values)));
+    }
+    final hasRange = [
+      for (var i = 0; i < min.length; i++) min[i].value != max[i].value
+    ].any((different) => different);
+    return [
+      MetricLineSeries(
+        points: average,
+        color: metric.accentColor,
+        label: l10n.summaryAverage,
+      ),
+      if (hasRange) ...[
+        MetricLineSeries(
+          points: min,
+          color: metric.accentColor.withValues(alpha: 0.55),
+          label: l10n.statLowest,
+        ),
+        MetricLineSeries(
+          points: max,
+          color: AppColors.vitals.withValues(alpha: 0.75),
+          label: l10n.statHighest,
+        ),
+      ],
+    ];
+  }
+
+  /// Raw points within a day; daily averages otherwise.
+  List<MetricLineSeries> _singleSeries(
+    List<(DateTime, double)> raw,
+    Color color, {
+    String? label,
+  }) {
+    final base = [
+      for (final (time, value) in raw)
+        MetricLinePoint(
+          date: instantToLocalDate(time),
+          value: value,
+          time: time,
+        ),
+    ];
+    final points = state.selectedRange == TimeRange.day
+        ? base
+        : dailyAverageLinePoints(base);
+    return [MetricLineSeries(points: points, color: color, label: label)];
+  }
 }
 
 double _avg(Iterable<double> values) {
@@ -570,39 +1309,6 @@ double _avg(Iterable<double> values) {
 double _min(Iterable<double> values) => values.reduce((a, b) => a < b ? a : b);
 
 double _max(Iterable<double> values) => values.reduce((a, b) => a > b ? a : b);
-
-String _summary(TimeRange range, DatePeriod period, String extra) =>
-    '${periodTitle(range, period)} · $extra';
-
-Widget _hero(HeartMetric metric, DisplayValue value, String? source) =>
-    _padded(MetricCard(
-      title: metric.title,
-      value: value.value,
-      unit: value.unit,
-      icon: metric.icon,
-      accentColor: metric.accentColor,
-      source: source,
-    ));
-
-Widget _stats(HeartMetric metric, List<(String, String)> rows) =>
-    _padded(HeartStatisticsCard(rows: rows, accentColor: metric.accentColor));
-
-Widget _chart(Widget chart) => _padded(chart);
-
-Widget _placeholder(HeartMetric metric) => _padded(MetricCardPlaceholder(
-      title: metric.title,
-      icon: metric.icon,
-      accentColor: metric.accentColor,
-      message: metric.emptyMessage,
-    ));
-
-List<Widget> _emptyOrLoading(HeartMetric metric, HeartMetricState state) =>
-    state.isLoading ? const [_LoadingBlock()] : [_placeholder(metric)];
-
-Widget _padded(Widget child) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: child,
-    );
 
 class _LoadingBlock extends StatelessWidget {
   const _LoadingBlock();

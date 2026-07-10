@@ -8,6 +8,7 @@ import '../../core/presentation/screen_error.dart';
 import '../../core/time/local_date.dart';
 import '../../data/repository/contract/body_repository.dart';
 import '../../di/providers.dart';
+import '../../domain/model/body_models.dart';
 import '../../domain/model/refresh_mode.dart';
 import '../../domain/query/body_period_data.dart';
 
@@ -31,9 +32,10 @@ abstract class BodyMetricState with _$BodyMetricState {
 }
 
 /// The Riverpod port of the Kotlin `BodyViewModel`. A single shared [Notifier]
-/// (matching the Kotlin single view-model) backs every body metric detail screen
-/// and the `/body` overview: one load fetches all body measurements, so keying
-/// per-metric like the heart family would only duplicate work. The owning
+/// (matching the Kotlin single view-model) backs the aggregate `/body` screen:
+/// one `BodyPeriodMetric.all` load batches all eight body metrics, exactly as
+/// the Kotlin `load()` does, so the aggregate never issues per-metric loads.
+/// The owning
 /// [MetricDetailScaffold] drives loads through [load] and pull-to-refresh through
 /// [refresh]; a monotonic [_generation] guard drops stale results.
 class BodyMetricNotifier extends Notifier<BodyMetricState> {
@@ -85,6 +87,82 @@ class BodyMetricNotifier extends Notifier<BodyMetricState> {
         PeriodSelection(state.selectedRange, state.selectedDate),
         refreshMode: RefreshMode.force,
       );
+
+  /// Port of the Kotlin `BodyViewModel.deleteBodyMeasurementEntry`: remove the
+  /// entry optimistically, delete it through the repository, then force-reload
+  /// the period; restore the previous state (with an error) on failure.
+  Future<void> deleteBodyMeasurementEntry(
+    BodyMeasurementType type,
+    String entryId,
+  ) async {
+    if (entryId.isEmpty) return;
+    final data = state.data;
+    if (data == null) return;
+    if (!_isOpenVitalsEntry(data, type, entryId)) return;
+
+    final previous = state;
+    state = state.copyWith(
+      data: _withDeletedEntry(data, type, entryId),
+      error: null,
+    );
+    try {
+      await ref
+          .read(bodyRepositoryProvider)
+          .deleteBodyMeasurementEntry(type, entryId);
+      if (!ref.mounted) return;
+      await load(
+        PeriodSelection(state.selectedRange, state.selectedDate),
+        refreshMode: RefreshMode.force,
+      );
+    } catch (error) {
+      if (!ref.mounted) return;
+      state = previous.copyWith(
+        error: throwableToScreenError(error, fallback: 'Unable to load data.'),
+      );
+    }
+  }
+
+  bool _isOpenVitalsEntry(
+    BodyPeriodData data,
+    BodyMeasurementType type,
+    String entryId,
+  ) {
+    switch (type) {
+      case BodyMeasurementType.weight:
+        return data.weightEntries
+            .any((e) => e.id == entryId && e.isOpenVitalsEntry);
+      case BodyMeasurementType.height:
+        return data.heightEntries
+            .any((e) => e.id == entryId && e.isOpenVitalsEntry);
+      case BodyMeasurementType.bodyFat:
+        return data.bodyFatEntries
+            .any((e) => e.id == entryId && e.isOpenVitalsEntry);
+    }
+  }
+
+  BodyPeriodData _withDeletedEntry(
+    BodyPeriodData data,
+    BodyMeasurementType type,
+    String entryId,
+  ) {
+    switch (type) {
+      case BodyMeasurementType.weight:
+        return data.copyWith(
+          weightEntries:
+              data.weightEntries.where((e) => e.id != entryId).toList(),
+        );
+      case BodyMeasurementType.height:
+        return data.copyWith(
+          heightEntries:
+              data.heightEntries.where((e) => e.id != entryId).toList(),
+        );
+      case BodyMeasurementType.bodyFat:
+        return data.copyWith(
+          bodyFatEntries:
+              data.bodyFatEntries.where((e) => e.id != entryId).toList(),
+        );
+    }
+  }
 }
 
 /// The shared body state provider. A manually-declared [NotifierProvider] (no

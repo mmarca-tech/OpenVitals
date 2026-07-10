@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/period/period_range_preference_key.dart';
+import '../../core/presentation/metric_detail_sections.dart';
 import '../../di/providers.dart';
+import '../../l10n/app_localizations.dart';
+import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
@@ -14,7 +18,9 @@ import 'heart_metric_notifier.dart';
 /// from the Kotlin `HeartMetricScreen`. Each route-facing screen (`HeartRate
 /// Screen`, `BloodPressureScreen`, …) is a thin wrapper that fixes [metric].
 /// Wrapped in [HealthConnectGate] with the metric's read permission and driven
-/// by [MetricDetailScaffold] (HEART range key).
+/// by [MetricDetailScaffold] (HEART range key). Every metric's content renders
+/// through the user-reorderable ordered sections; the app-bar toggle mirrors
+/// the Kotlin `onSectionEditStateChanged` affordance.
 class HeartMetricScreen extends ConsumerWidget {
   const HeartMetricScreen({super.key, required this.metric});
 
@@ -28,9 +34,24 @@ class HeartMetricScreen extends ConsumerWidget {
     final formatter = ref.watch(unitFormatterProvider);
     final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
+    final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(metric.title)),
+      appBar: AppBar(
+        title: Text(metric.title),
+        actions: [
+          // Kotlin hoists this toggle into the host app bar through
+          // `onSectionEditStateChanged`; the same affordance, wired locally.
+          IconButton(
+            onPressed:
+                ref.read(metricDetailSectionEditProvider.notifier).toggle,
+            tooltip: isEditingSections
+                ? AppLocalizations.of(context).cdFinishMetricSectionEditing
+                : AppLocalizations.of(context).cdEditMetricSections,
+            icon: Icon(isEditingSections ? Icons.check : Icons.tune),
+          ),
+        ],
+      ),
       body: HealthConnectGate(
         requiredPermissions: {metric.readPermission},
         showInlineSyncBanner: false,
@@ -44,8 +65,29 @@ class HeartMetricScreen extends ConsumerWidget {
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
           onSelectionChanged: (selection) => notifier.load(selection),
-          content: (period) =>
-              heartMetricContent(metric, state, formatter, period),
+          content: (period) => [
+            HeartMetricContentView(
+              metric: metric,
+              state: state,
+              formatter: formatter,
+              period: period,
+              onDecreaseHighHeartRateThreshold:
+                  notifier.decreaseHighHeartRateThreshold,
+              onIncreaseHighHeartRateThreshold:
+                  notifier.increaseHighHeartRateThreshold,
+              onDecreaseLowHeartRateThreshold:
+                  notifier.decreaseLowHeartRateThreshold,
+              onIncreaseLowHeartRateThreshold:
+                  notifier.increaseLowHeartRateThreshold,
+              onEditVitalsMeasurement: (type, entryId) => context.push(
+                AppRoutes.vitalsMeasurementEntryEditLocation(
+                  type.storageName,
+                  entryId,
+                ),
+              ),
+              onDeleteVitalsMeasurement: notifier.deleteVitalsMeasurementEntry,
+            ),
+          ],
         ),
       ),
     );

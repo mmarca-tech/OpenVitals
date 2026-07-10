@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$HeartMetricState {
 
- LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; ScreenError? get error; HeartPeriodLoadResult? get result;
+ LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; int get highHeartRateThresholdBpm; int get lowHeartRateThresholdBpm; ScreenError? get error; HeartPeriodLoadResult? get result;
 /// Create a copy of HeartMetricState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $HeartMetricStateCopyWith<HeartMetricState> get copyWith => _$HeartMetricStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HeartMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.result, result) || other.result == result));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HeartMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.highHeartRateThresholdBpm, highHeartRateThresholdBpm) || other.highHeartRateThresholdBpm == highHeartRateThresholdBpm)&&(identical(other.lowHeartRateThresholdBpm, lowHeartRateThresholdBpm) || other.lowHeartRateThresholdBpm == lowHeartRateThresholdBpm)&&(identical(other.error, error) || other.error == error)&&(identical(other.result, result) || other.result == result));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,result);
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,highHeartRateThresholdBpm,lowHeartRateThresholdBpm,error,result);
 
 @override
 String toString() {
-  return 'HeartMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, result: $result)';
+  return 'HeartMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, highHeartRateThresholdBpm: $highHeartRateThresholdBpm, lowHeartRateThresholdBpm: $lowHeartRateThresholdBpm, error: $error, result: $result)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $HeartMetricStateCopyWith<$Res>  {
   factory $HeartMetricStateCopyWith(HeartMetricState value, $Res Function(HeartMetricState) _then) = _$HeartMetricStateCopyWithImpl;
 @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, HeartPeriodLoadResult? result
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, int highHeartRateThresholdBpm, int lowHeartRateThresholdBpm, ScreenError? error, HeartPeriodLoadResult? result
 });
 
 
@@ -62,12 +62,14 @@ class _$HeartMetricStateCopyWithImpl<$Res>
 
 /// Create a copy of HeartMetricState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? result = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? highHeartRateThresholdBpm = null,Object? lowHeartRateThresholdBpm = null,Object? error = freezed,Object? result = freezed,}) {
   return _then(_self.copyWith(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
 as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
-as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as bool,highHeartRateThresholdBpm: null == highHeartRateThresholdBpm ? _self.highHeartRateThresholdBpm : highHeartRateThresholdBpm // ignore: cast_nullable_to_non_nullable
+as int,lowHeartRateThresholdBpm: null == lowHeartRateThresholdBpm ? _self.lowHeartRateThresholdBpm : lowHeartRateThresholdBpm // ignore: cast_nullable_to_non_nullable
+as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
 as HeartPeriodLoadResult?,
   ));
@@ -154,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  HeartPeriodLoadResult? result)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  int highHeartRateThresholdBpm,  int lowHeartRateThresholdBpm,  ScreenError? error,  HeartPeriodLoadResult? result)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HeartMetricState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.result);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.highHeartRateThresholdBpm,_that.lowHeartRateThresholdBpm,_that.error,_that.result);case _:
   return orElse();
 
 }
@@ -175,10 +177,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  HeartPeriodLoadResult? result)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  int highHeartRateThresholdBpm,  int lowHeartRateThresholdBpm,  ScreenError? error,  HeartPeriodLoadResult? result)  $default,) {final _that = this;
 switch (_that) {
 case _HeartMetricState():
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.result);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.highHeartRateThresholdBpm,_that.lowHeartRateThresholdBpm,_that.error,_that.result);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +197,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  HeartPeriodLoadResult? result)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  int highHeartRateThresholdBpm,  int lowHeartRateThresholdBpm,  ScreenError? error,  HeartPeriodLoadResult? result)?  $default,) {final _that = this;
 switch (_that) {
 case _HeartMetricState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.result);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.highHeartRateThresholdBpm,_that.lowHeartRateThresholdBpm,_that.error,_that.result);case _:
   return null;
 
 }
@@ -210,12 +212,14 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 
 
 class _HeartMetricState extends HeartMetricState {
-  const _HeartMetricState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.error, this.result}): super._();
+  const _HeartMetricState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.highHeartRateThresholdBpm = PreferencesRepository.defaultHighHeartRateThresholdBpm, this.lowHeartRateThresholdBpm = PreferencesRepository.defaultLowHeartRateThresholdBpm, this.error, this.result}): super._();
   
 
 @override final  LocalDate selectedDate;
 @override@JsonKey() final  TimeRange selectedRange;
 @override@JsonKey() final  bool isLoading;
+@override@JsonKey() final  int highHeartRateThresholdBpm;
+@override@JsonKey() final  int lowHeartRateThresholdBpm;
 @override final  ScreenError? error;
 @override final  HeartPeriodLoadResult? result;
 
@@ -229,16 +233,16 @@ _$HeartMetricStateCopyWith<_HeartMetricState> get copyWith => __$HeartMetricStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HeartMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.result, result) || other.result == result));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HeartMetricState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.highHeartRateThresholdBpm, highHeartRateThresholdBpm) || other.highHeartRateThresholdBpm == highHeartRateThresholdBpm)&&(identical(other.lowHeartRateThresholdBpm, lowHeartRateThresholdBpm) || other.lowHeartRateThresholdBpm == lowHeartRateThresholdBpm)&&(identical(other.error, error) || other.error == error)&&(identical(other.result, result) || other.result == result));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,result);
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,highHeartRateThresholdBpm,lowHeartRateThresholdBpm,error,result);
 
 @override
 String toString() {
-  return 'HeartMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, result: $result)';
+  return 'HeartMetricState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, highHeartRateThresholdBpm: $highHeartRateThresholdBpm, lowHeartRateThresholdBpm: $lowHeartRateThresholdBpm, error: $error, result: $result)';
 }
 
 
@@ -249,7 +253,7 @@ abstract mixin class _$HeartMetricStateCopyWith<$Res> implements $HeartMetricSta
   factory _$HeartMetricStateCopyWith(_HeartMetricState value, $Res Function(_HeartMetricState) _then) = __$HeartMetricStateCopyWithImpl;
 @override @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, HeartPeriodLoadResult? result
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, int highHeartRateThresholdBpm, int lowHeartRateThresholdBpm, ScreenError? error, HeartPeriodLoadResult? result
 });
 
 
@@ -266,12 +270,14 @@ class __$HeartMetricStateCopyWithImpl<$Res>
 
 /// Create a copy of HeartMetricState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? result = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? highHeartRateThresholdBpm = null,Object? lowHeartRateThresholdBpm = null,Object? error = freezed,Object? result = freezed,}) {
   return _then(_HeartMetricState(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
 as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
-as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as bool,highHeartRateThresholdBpm: null == highHeartRateThresholdBpm ? _self.highHeartRateThresholdBpm : highHeartRateThresholdBpm // ignore: cast_nullable_to_non_nullable
+as int,lowHeartRateThresholdBpm: null == lowHeartRateThresholdBpm ? _self.lowHeartRateThresholdBpm : lowHeartRateThresholdBpm // ignore: cast_nullable_to_non_nullable
+as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
 as HeartPeriodLoadResult?,
   ));
