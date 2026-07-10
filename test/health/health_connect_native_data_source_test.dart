@@ -493,10 +493,11 @@ void main() {
       expect(await source.readFloorsClimbed(date), 12);
     });
 
-    test('readDailySteps maps aggregate period buckets per day', () async {
+    test('readDailySteps slices 24h duration buckets over an instant range',
+        () async {
       final api = FakeHostApi();
       final dayStartMs = DateTime(2026, 1, 2).millisecondsSinceEpoch;
-      api.periodBuckets = [
+      api.durationBuckets = [
         jsonEncode({
           'startEpochMs': dayStartMs,
           'endEpochMs': DateTime(2026, 1, 3).millisecondsSinceEpoch,
@@ -517,6 +518,15 @@ void main() {
       expect(daily.single.steps, 5000);
       expect(daily.single.distanceMeters, 4000.0);
       expect(daily.single.activeCaloriesKcal, 220.0);
+
+      // Kotlin `readDailyStepsChunk` uses aggregateGroupByDuration over an
+      // instant range. The period variant undercounts against the plain
+      // `aggregate` the dashboard tile reads, so the totals disagreed.
+      final query = api.lastDurationQuery;
+      expect(query, isNotNull);
+      expect(query!.bucketMinutes, 24 * 60);
+      expect(query.startEpochMs, dayStartMs);
+      expect(query.endEpochMs, DateTime(2026, 1, 3).millisecondsSinceEpoch);
     });
 
     test('single Sleep session maps stages from a typed msg', () async {

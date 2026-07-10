@@ -729,10 +729,7 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
     // Kotlin's capture in acceptLocation before the async hop.
     final generation = _recordingGeneration;
     _positionSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 0,
-      ),
+      locationSettings: activityRecordingLocationSettings(),
     ).listen(
       (position) => _acceptPosition(position, generation),
       onError: (Object error) {

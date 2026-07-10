@@ -206,12 +206,18 @@ class HealthConnectNativeDataSource extends HealthDataSource {
       'Distance.distance',
       if (includeActiveCalories) 'ActiveCaloriesBurned.energy',
     ];
+    // Kotlin `readDailyStepsChunk` slices with `aggregateGroupByDuration` over
+    // an instant range, not `aggregateGroupByPeriod` over a local one. The
+    // period variant resolves its window against each record's stored zone
+    // offset, so records written under a different offset drop out of the day
+    // and the total comes in under the plain `aggregate` the dashboard uses.
+    const dayMinutes = 24 * 60;
     final buckets = await _catch(
-      () => _api.aggregateGroupByPeriodJson(
+      () => _api.aggregateGroupByDurationJson(
         metrics,
         _dayStart(startDate).millisecondsSinceEpoch,
         _dayEnd(endDate).millisecondsSinceEpoch,
-        'DAYS',
+        dayMinutes,
       ),
       const <String>[],
     );

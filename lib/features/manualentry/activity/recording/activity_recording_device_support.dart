@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -40,6 +41,37 @@ const Duration kPreRecordingGpsInterval = Duration(seconds: 1);
 /// Kotlin `ActivityRecordingService.GpsLostTimeoutMillis`: without any fix for
 /// this long, the recording's GPS status flips to LOST.
 const int kGpsLostTimeoutMillis = 30000;
+
+/// Kotlin `ActivityRecordingService.LocationSamplingIntervalMillis`.
+const Duration kLocationSamplingInterval = Duration(seconds: 1);
+
+/// The location request both the pre-start GPS indicator and the recording
+/// stream use, matching the Kotlin service's
+/// `requestLocationUpdates(GPS_PROVIDER, 1_000L, 0f, …)`.
+///
+/// `forceLocationManager` pins the raw GPS provider. Without it geolocator
+/// prefers Google's fused provider, which fuses in network/wifi fixes — those
+/// pass the accuracy gate but are not the satellite fixes Kotlin filters on,
+/// and Dart cannot inspect a `Position`'s provider to reject them. On a device
+/// with no Play Services (GrapheneOS, F-Droid builds) geolocator already falls
+/// back to `LocationManager`; this makes the choice explicit everywhere.
+///
+/// The distance filter stays 0: sample thinning happens in the controller via
+/// `minimumSampleDistanceMeters`, exactly as it does in Kotlin.
+LocationSettings activityRecordingLocationSettings() {
+  if (defaultTargetPlatform != TargetPlatform.android) {
+    return const LocationSettings(
+      accuracy: LocationAccuracy.best,
+      distanceFilter: 0,
+    );
+  }
+  return AndroidSettings(
+    accuracy: LocationAccuracy.best,
+    distanceFilter: 0,
+    forceLocationManager: true,
+    intervalDuration: kLocationSamplingInterval,
+  );
+}
 
 /// Kotlin `ActivityRecordingPreferences.DefaultRequiredGpsAccuracyMeters`, as a
 /// double so it can be a default argument.
@@ -219,9 +251,7 @@ class DefaultActivityRecordingDeviceSupport
 
   @override
   Stream<Position> watchPosition() => Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-        ),
+        locationSettings: activityRecordingLocationSettings(),
       );
 
   @override
