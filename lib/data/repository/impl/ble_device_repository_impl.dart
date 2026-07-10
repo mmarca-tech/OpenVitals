@@ -137,15 +137,20 @@ class BleDeviceRepositoryImpl implements BleDeviceRepository {
   @override
   void updateBatteryLevel(String deviceId, int batteryPercent) {
     final percent = batteryPercent.clamp(0, 100).toInt();
+    // Kotlin persists only if the clamped value actually changed, so repeated
+    // identical battery reads don't churn storage/the stream or advance
+    // batteryUpdatedAt.
+    final matches = _devices.where((d) => d.id == deviceId);
+    if (matches.isEmpty || matches.first.batteryPercent == percent) return;
     _persist([
-      for (final device in _devices)
-        if (device.id == deviceId)
-          device.copyWith(
+      for (final d in _devices)
+        if (d.id == deviceId)
+          d.copyWith(
             batteryPercent: percent,
             batteryUpdatedAt: DateTime.now().toUtc(),
           )
         else
-          device,
+          d,
     ]);
   }
 

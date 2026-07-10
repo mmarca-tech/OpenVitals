@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../di/providers.dart';
 import '../../domain/model/ble_sensor_models.dart';
-import '../../sensors/ble/ble_sensor_coordinator.dart';
+import '../../l10n/app_localizations.dart';
+import '../../sensors/ble/ble_scan_permission.dart';
+import 'ble_devices_notifier.dart';
 
-/// A simple BLE sensor management screen: lists paired sensors (enable / remove)
-/// and, while scanning, the discovered devices that can be paired. Replaces the
-/// Phase-6 "coming soon" stub for the Sensors settings section.
+/// The Sensors settings screen: list paired BLE sensors (enable / edit / remove)
+/// and add new ones through a scan → capability-discovery → pair flow.
 ///
-/// The scan/connect stack is device-dependent; this screen drives the ported
-/// [BleSensorCoordinator] over `flutter_blue_plus` and is not covered by tests.
+/// Port of the Kotlin `BleDevicesSettingsScreen` + `BleDevicesViewModel`. The
+/// scan/connect stack is device-dependent; this screen drives the ported
+/// [BleDevicesNotifier] over `flutter_blue_plus`.
 class BleDevicesScreen extends ConsumerStatefulWidget {
   const BleDevicesScreen({super.key});
 
@@ -19,209 +21,558 @@ class BleDevicesScreen extends ConsumerStatefulWidget {
 }
 
 class _BleDevicesScreenState extends ConsumerState<BleDevicesScreen> {
-  bool _scanning = false;
-  late final BleSensorCoordinator _coordinator;
+  late final BleDevicesNotifier _notifier;
 
   @override
   void initState() {
     super.initState();
-    // Capture the (long-lived) coordinator now: `ref` is unsafe to touch in
-    // dispose(), and reading it there threw before super.dispose() could tear
-    // down the provider subscriptions — leaving the BLE stream to call
-    // markNeedsBuild on the defunct element.
-    _coordinator = ref.read(bleSensorCoordinatorProvider);
+    // Capture the (long-lived) notifier now: `ref` is unsafe in dispose().
+    _notifier = ref.read(bleDevicesNotifierProvider.notifier);
+    // Kotlin `DisposableEffect(Unit) { refresh() }`.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _notifier.refresh());
   }
 
   @override
   void dispose() {
-    // Best-effort: stop scanning when leaving the screen.
-    _coordinator.stopScan();
+    // Kotlin `onDispose { stopScan() }`; also reset any open flow so re-entry
+    // starts clean (hiltViewModel is screen-scoped in Kotlin).
+    _notifier
+      ..closeAddFlow()
+      ..closeEditDevice();
     super.dispose();
   }
 
-  Future<void> _toggleScan() async {
-    final coordinator = _coordinator;
-    if (_scanning) {
-      await coordinator.stopScan();
-      if (mounted) setState(() => _scanning = false);
-    } else {
-      setState(() => _scanning = true);
-      await coordinator.startScan();
-    }
+  Future<void> _startAddFlow() async {
+    if (!await ensureBleScanPermissions()) return;
+    if (!mounted) return;
+    _notifier
+      ..openAddFlow()
+      ..startScan();
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const _AddDeviceDialog(),
+    );
+    _notifier.closeAddFlow();
+  }
+
+  Future<void> _startEditFlow(String deviceId) async {
+    _notifier.openEditDevice(deviceId);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _EditDeviceDialog(deviceId: deviceId),
+    );
+    _notifier.closeEditDevice();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final devices = ref.watch(bleDevicesProvider).value ?? const [];
-    final discovered = ref.watch(bleDiscoveredDevicesProvider).value ?? const [];
-    final pairedAddresses = {
-      for (final device in devices) device.address.toUpperCase(),
-    };
-    final unpaired = discovered
-        .where((d) => !pairedAddresses.contains(d.address.toUpperCase()))
-        .toList();
+    final devices = ref.watch(
+      bleDevicesNotifierProvider.select((s) => s.devices),
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sensors')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _toggleScan,
-        icon: Icon(_scanning ? Icons.stop : Icons.bluetooth_searching),
-        label: Text(_scanning ? 'Stop' : 'Scan'),
-      ),
+      appBar: AppBar(title: Text(l10n.settingsSensorsGroupTitle)),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 88),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
-          _SectionHeader(title: 'Paired sensors', theme: theme),
-          if (devices.isEmpty)
-            const _EmptyHint(text: 'No sensors paired yet.')
-          else
-            for (final device in devices)
-              _PairedDeviceTile(
-                device: device,
-                onToggle: (enabled) => ref
-                    .read(bleDeviceRepositoryProvider)
-                    .setDeviceEnabled(device.id, enabled),
-                onRemove: () =>
-                    ref.read(bleDeviceRepositoryProvider).removeDevice(device.id),
-              ),
-          _SectionHeader(
-            title: _scanning ? 'Discovering…' : 'Discovered',
-            theme: theme,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              l10n.settingsSensorsGroupBody,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ),
-          if (unpaired.isEmpty)
-            _EmptyHint(
-              text: _scanning
-                  ? 'Searching for nearby sensors…'
-                  : 'Tap Scan to search for nearby sensors.',
-            )
-          else
-            for (final device in unpaired)
-              _DiscoveredDeviceTile(
-                device: device,
-                onPair: () => ref.read(bleDeviceRepositoryProvider).addDevice(
-                      displayName: device.name ?? device.address,
-                      address: device.address,
-                      bluetoothName: device.name,
-                      capabilities: device.suggestedCapabilities,
-                    ),
+          const SizedBox(height: 12),
+          if (devices.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.settingsSensorsEmptyTitle,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.settingsSensorsEmptyBody,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: _startAddFlow,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(l10n.settingsSensorsAddDevice),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+            )
+          else ...[
+            for (final device in devices)
+              _BleDeviceRow(
+                device: device,
+                onToggleEnabled: (enabled) =>
+                    _notifier.setDeviceEnabled(device.id, enabled),
+                onEdit: () => _startEditFlow(device.id),
+                onRemove: () => _notifier.removeDevice(device.id),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: OutlinedButton.icon(
+                onPressed: _startAddFlow,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(l10n.settingsSensorsAddDevice),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.theme});
-
-  final String title;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-        child: Text(
-          title,
-          style: theme.textTheme.titleSmall
-              ?.copyWith(color: theme.colorScheme.primary),
-        ),
-      );
-}
-
-class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Text(
-        text,
-        style: theme.textTheme.bodyMedium
-            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
-class _PairedDeviceTile extends StatelessWidget {
-  const _PairedDeviceTile({
+class _BleDeviceRow extends StatelessWidget {
+  const _BleDeviceRow({
     required this.device,
-    required this.onToggle,
+    required this.onToggleEnabled,
+    required this.onEdit,
     required this.onRemove,
   });
 
   final BleSensorDevice device;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool> onToggleEnabled;
+  final VoidCallback onEdit;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final capabilities = device.capabilities.map(_capabilityLabel).join(', ');
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final battery = device.batteryPercent;
-    final subtitle = [
-      if (capabilities.isNotEmpty) capabilities,
-      if (battery != null) 'Battery $battery%',
-    ].join(' · ');
-    return ListTile(
-      leading: const Icon(Icons.sensors),
-      title: Text(device.displayName),
-      subtitle: subtitle.isEmpty ? null : Text(subtitle),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Switch(value: device.enabled, onChanged: onToggle),
-          IconButton(
-            tooltip: 'Remove',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: onRemove,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Card(
+        child: InkWell(
+          onTap: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(device.displayName,
+                              style: theme.textTheme.titleSmall),
+                          Text(
+                            device.bluetoothName ?? device.address,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            battery != null
+                                ? l10n.settingsSensorsBatteryPercent(battery)
+                                : l10n.settingsSensorsBatteryUnknown,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(value: device.enabled, onChanged: onToggleEnabled),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final capability in device.capabilities)
+                      Chip(label: Text(capabilityLabel(l10n, capability))),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: onRemove,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(l10n.settingsSensorsRemoveDevice),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _DiscoveredDeviceTile extends StatelessWidget {
-  const _DiscoveredDeviceTile({required this.device, required this.onPair});
+class _AddDeviceDialog extends ConsumerStatefulWidget {
+  const _AddDeviceDialog();
 
-  final BleDiscoveredDevice device;
-  final VoidCallback onPair;
+  @override
+  ConsumerState<_AddDeviceDialog> createState() => _AddDeviceDialogState();
+}
+
+class _AddDeviceDialogState extends ConsumerState<_AddDeviceDialog> {
+  final _nameController = TextEditingController();
+  final _wheelController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final state = ref.read(bleDevicesNotifierProvider);
+    _nameController.text = state.addDisplayName;
+    _wheelController.text = state.addWheelCircumferenceMm;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _wheelController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final capabilities =
-        device.suggestedCapabilities.map(_capabilityLabel).join(', ');
-    final rssi = device.rssi;
-    final subtitle = [
-      device.address,
-      if (rssi != null) '$rssi dBm',
-      if (capabilities.isNotEmpty) capabilities,
-    ].join(' · ');
-    return ListTile(
-      leading: const Icon(Icons.bluetooth),
-      title: Text(device.name ?? device.address),
-      subtitle: Text(subtitle),
-      trailing: FilledButton.tonal(onPressed: onPair, child: const Text('Pair')),
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final notifier = ref.read(bleDevicesNotifierProvider.notifier);
+    final state = ref.watch(bleDevicesNotifierProvider);
+
+    // Keep the display-name field in sync when selecting a device sets it,
+    // without clobbering the user's own edits.
+    if (state.addDisplayName != _nameController.text) {
+      _nameController.value = TextEditingValue(
+        text: state.addDisplayName,
+        selection:
+            TextSelection.collapsed(offset: state.addDisplayName.length),
+      );
+    }
+
+    return AlertDialog(
+      title: Text(l10n.settingsSensorsAddDevice),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    state.isScanning
+                        ? l10n.settingsSensorsScanning
+                        : l10n.settingsSensorsScanStopped,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+                FilterChip(
+                  selected: state.showAllDevices,
+                  onSelected: notifier.setShowAllDevices,
+                  label: Text(l10n.settingsSensorsShowAllDevices),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (state.discoveredDevices.isEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.bluetooth_searching,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(height: 8),
+                  Text(l10n.settingsSensorsScanEmpty,
+                      style: theme.textTheme.bodySmall),
+                  TextButton(
+                    onPressed: () async {
+                      try {
+                        await FlutterBluePlus.turnOn();
+                      } catch (_) {
+                        // Best-effort; ignore if unsupported/denied.
+                      }
+                    },
+                    child: Text(l10n.settingsSensorsOpenBluetooth),
+                  ),
+                ],
+              )
+            else
+              for (final device in state.discoveredDevices)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: OutlinedButton(
+                    onPressed: () => notifier.selectDiscoveredDevice(device),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(device.name ?? device.address),
+                          Text(device.address,
+                              style: theme.textTheme.labelSmall),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            if (state.selectedDevice != null) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameController,
+                onChanged: notifier.updateAddDisplayName,
+                decoration: InputDecoration(
+                  labelText: l10n.settingsSensorsDeviceName,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (state.isDiscoveringCapabilities)
+                Text(l10n.settingsSensorsDiscovering)
+              else ...[
+                Text(l10n.settingsSensorsCapabilitiesTitle,
+                    style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
+                _CapabilityChips(
+                  selected: state.addCapabilities,
+                  onToggle: notifier.toggleAddCapability,
+                ),
+                _ConflictMessages(conflicts: state.capabilityConflicts),
+                if (state.addCapabilities
+                    .contains(BleSensorCapability.cyclingSpeedDistance)) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _wheelController,
+                    keyboardType: TextInputType.number,
+                    onChanged: notifier.updateAddWheelCircumference,
+                    decoration: InputDecoration(
+                      labelText: l10n.settingsSensorsWheelCircumference,
+                    ),
+                  ),
+                ],
+              ],
+              if (state.errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(state.errorMessage!,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.error)),
+              ],
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        TextButton(
+          onPressed: (state.selectedDevice != null &&
+                  state.addCapabilities.isNotEmpty &&
+                  !state.isDiscoveringCapabilities)
+              ? () {
+                  notifier.saveAddedDevice();
+                  Navigator.of(context).pop();
+                }
+              : null,
+          child: Text(l10n.actionSave),
+        ),
+      ],
     );
   }
 }
 
-String _capabilityLabel(BleSensorCapability capability) {
+class _EditDeviceDialog extends ConsumerStatefulWidget {
+  const _EditDeviceDialog({required this.deviceId});
+
+  final String deviceId;
+
+  @override
+  ConsumerState<_EditDeviceDialog> createState() => _EditDeviceDialogState();
+}
+
+class _EditDeviceDialogState extends ConsumerState<_EditDeviceDialog> {
+  final _nameController = TextEditingController();
+  final _wheelController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final state = ref.read(bleDevicesNotifierProvider);
+    _nameController.text = state.editDisplayName;
+    _wheelController.text = state.editWheelCircumferenceMm;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _wheelController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final notifier = ref.read(bleDevicesNotifierProvider.notifier);
+    final state = ref.watch(bleDevicesNotifierProvider);
+
+    return AlertDialog(
+      title: Text(l10n.settingsSensorsEditDevice),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              onChanged: notifier.updateEditDisplayName,
+              decoration: InputDecoration(
+                labelText: l10n.settingsSensorsDeviceName,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(l10n.settingsSensorsEnabled),
+                Switch(
+                  value: state.editEnabled,
+                  onChanged: notifier.setEditEnabled,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(l10n.settingsSensorsCapabilitiesTitle,
+                style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            _CapabilityChips(
+              selected: state.editCapabilities,
+              onToggle: notifier.toggleEditCapability,
+            ),
+            _ConflictMessages(conflicts: state.capabilityConflicts),
+            if (state.editCapabilities
+                .contains(BleSensorCapability.cyclingSpeedDistance)) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _wheelController,
+                keyboardType: TextInputType.number,
+                onChanged: notifier.updateEditWheelCircumference,
+                decoration: InputDecoration(
+                  labelText: l10n.settingsSensorsWheelCircumference,
+                ),
+              ),
+            ],
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(state.errorMessage!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            notifier.removeDevice(widget.deviceId);
+            Navigator.of(context).pop();
+          },
+          child: Text(l10n.settingsSensorsRemoveDevice),
+        ),
+        TextButton(
+          onPressed: () {
+            notifier.saveEditedDevice();
+            if (ref.read(bleDevicesNotifierProvider).editingDeviceId == null) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: Text(l10n.actionSave),
+        ),
+      ],
+    );
+  }
+}
+
+class _CapabilityChips extends StatelessWidget {
+  const _CapabilityChips({required this.selected, required this.onToggle});
+
+  final Set<BleSensorCapability> selected;
+  final ValueChanged<BleSensorCapability> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Wrap(
+      spacing: 8,
+      children: [
+        for (final capability in BleSensorCapability.values)
+          FilterChip(
+            selected: selected.contains(capability),
+            onSelected: (_) => onToggle(capability),
+            label: Text(capabilityLabel(l10n, capability)),
+          ),
+      ],
+    );
+  }
+}
+
+class _ConflictMessages extends StatelessWidget {
+  const _ConflictMessages({required this.conflicts});
+
+  final Map<BleSensorCapability, BleSensorDevice> conflicts;
+
+  @override
+  Widget build(BuildContext context) {
+    if (conflicts.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in conflicts.entries)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.settingsSensorsCapabilityConflict(
+                capabilityLabel(l10n, entry.key),
+                entry.value.displayName,
+              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.error),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Kotlin `capabilityLabel`.
+String capabilityLabel(AppLocalizations l10n, BleSensorCapability capability) {
   switch (capability) {
     case BleSensorCapability.heartRate:
-      return 'Heart rate';
+      return l10n.settingsSensorsCapabilityHeartRate;
     case BleSensorCapability.cyclingCadence:
-      return 'Cadence';
+      return l10n.settingsSensorsCapabilityCyclingCadence;
     case BleSensorCapability.cyclingPower:
-      return 'Power';
+      return l10n.settingsSensorsCapabilityCyclingPower;
     case BleSensorCapability.cyclingSpeedDistance:
-      return 'Speed';
+      return l10n.settingsSensorsCapabilityCyclingSpeed;
     case BleSensorCapability.runningSpeedCadence:
-      return 'Run speed/cadence';
+      return l10n.settingsSensorsCapabilityRunningSpeedCadence;
   }
 }
