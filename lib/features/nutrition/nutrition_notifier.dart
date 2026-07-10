@@ -27,6 +27,8 @@ abstract class NutritionState with _$NutritionState {
     ScreenError? error,
     @Default(2000.0) double dailyGoal,
     @Default(<DailyMacros>[]) List<DailyMacros> dailyMacros,
+    @Default(<DailyMacros>[]) List<DailyMacros> previousDailyMacros,
+    @Default(<DailyMacros>[]) List<DailyMacros> baselineDailyMacros,
     @Default(<NutritionEntry>[]) List<NutritionEntry> entries,
   }) = _NutritionState;
 
@@ -58,8 +60,25 @@ class NutritionNotifier extends Notifier<NutritionState> {
   @override
   NutritionState build() => NutritionState(
         selectedDate: LocalDate.now(),
-        dailyGoal: metric.dailyGoalKey.defaultValue,
+        dailyGoal: ref
+            .read(preferencesRepositoryProvider)
+            .dailyGoalFor(metric.dailyGoalKey),
       );
+
+  /// Kotlin `NutritionViewModel.increaseDailyGoal` / `decreaseDailyGoal`: step
+  /// the goal by its metric's step, clamped to the metric's own bounds, and
+  /// persist.
+  void _nudgeDailyGoal(double delta) {
+    final key = metric.dailyGoalKey;
+    final next = key.normalize(state.dailyGoal + delta);
+    if (next == state.dailyGoal) return;
+    ref.read(preferencesRepositoryProvider).setDailyGoalFor(key, next);
+    state = state.copyWith(dailyGoal: next);
+  }
+
+  void increaseDailyGoal() => _nudgeDailyGoal(metric.dailyGoalKey.step);
+
+  void decreaseDailyGoal() => _nudgeDailyGoal(-metric.dailyGoalKey.step);
 
   Future<void> load(
     PeriodSelection selection, {
@@ -86,11 +105,21 @@ class NutritionNotifier extends Notifier<NutritionState> {
 
     try {
       final data = await repo.loadNutritionPeriod(query, refreshMode: refreshMode);
+      // Kotlin `NutritionPresentationMapper` also folds in the previous and
+      // baseline windows for the statistics section's comparison + baseline
+      // insight stats.
+      final windows = query.windows;
+      final previousMacros =
+          await repo.loadDailyMacros(windows.previous.start, windows.previous.end);
+      final baselineMacros =
+          await repo.loadDailyMacros(windows.baseline.start, windows.baseline.end);
       if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
         error: null,
         dailyMacros: data.dailyMacros,
+        previousDailyMacros: previousMacros,
+        baselineDailyMacros: baselineMacros,
         entries: data.entries,
       );
     } catch (error) {

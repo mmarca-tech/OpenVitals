@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NutritionState {
 
- LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; ScreenError? get error; double get dailyGoal; List<DailyMacros> get dailyMacros; List<NutritionEntry> get entries;
+ LocalDate get selectedDate; TimeRange get selectedRange; bool get isLoading; ScreenError? get error; double get dailyGoal; List<DailyMacros> get dailyMacros; List<DailyMacros> get previousDailyMacros; List<DailyMacros> get baselineDailyMacros; List<NutritionEntry> get entries;
 /// Create a copy of NutritionState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $NutritionStateCopyWith<NutritionState> get copyWith => _$NutritionStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NutritionState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal)&&const DeepCollectionEquality().equals(other.dailyMacros, dailyMacros)&&const DeepCollectionEquality().equals(other.entries, entries));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NutritionState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal)&&const DeepCollectionEquality().equals(other.dailyMacros, dailyMacros)&&const DeepCollectionEquality().equals(other.previousDailyMacros, previousDailyMacros)&&const DeepCollectionEquality().equals(other.baselineDailyMacros, baselineDailyMacros)&&const DeepCollectionEquality().equals(other.entries, entries));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,dailyGoal,const DeepCollectionEquality().hash(dailyMacros),const DeepCollectionEquality().hash(entries));
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,dailyGoal,const DeepCollectionEquality().hash(dailyMacros),const DeepCollectionEquality().hash(previousDailyMacros),const DeepCollectionEquality().hash(baselineDailyMacros),const DeepCollectionEquality().hash(entries));
 
 @override
 String toString() {
-  return 'NutritionState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, dailyGoal: $dailyGoal, dailyMacros: $dailyMacros, entries: $entries)';
+  return 'NutritionState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, dailyGoal: $dailyGoal, dailyMacros: $dailyMacros, previousDailyMacros: $previousDailyMacros, baselineDailyMacros: $baselineDailyMacros, entries: $entries)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $NutritionStateCopyWith<$Res>  {
   factory $NutritionStateCopyWith(NutritionState value, $Res Function(NutritionState) _then) = _$NutritionStateCopyWithImpl;
 @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, double dailyGoal, List<DailyMacros> dailyMacros, List<NutritionEntry> entries
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, double dailyGoal, List<DailyMacros> dailyMacros, List<DailyMacros> previousDailyMacros, List<DailyMacros> baselineDailyMacros, List<NutritionEntry> entries
 });
 
 
@@ -62,7 +62,7 @@ class _$NutritionStateCopyWithImpl<$Res>
 
 /// Create a copy of NutritionState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? dailyGoal = null,Object? dailyMacros = null,Object? entries = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? dailyGoal = null,Object? dailyMacros = null,Object? previousDailyMacros = null,Object? baselineDailyMacros = null,Object? entries = null,}) {
   return _then(_self.copyWith(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
@@ -70,6 +70,8 @@ as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignor
 as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,dailyGoal: null == dailyGoal ? _self.dailyGoal : dailyGoal // ignore: cast_nullable_to_non_nullable
 as double,dailyMacros: null == dailyMacros ? _self.dailyMacros : dailyMacros // ignore: cast_nullable_to_non_nullable
+as List<DailyMacros>,previousDailyMacros: null == previousDailyMacros ? _self.previousDailyMacros : previousDailyMacros // ignore: cast_nullable_to_non_nullable
+as List<DailyMacros>,baselineDailyMacros: null == baselineDailyMacros ? _self.baselineDailyMacros : baselineDailyMacros // ignore: cast_nullable_to_non_nullable
 as List<DailyMacros>,entries: null == entries ? _self.entries : entries // ignore: cast_nullable_to_non_nullable
 as List<NutritionEntry>,
   ));
@@ -156,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<NutritionEntry> entries)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<DailyMacros> previousDailyMacros,  List<DailyMacros> baselineDailyMacros,  List<NutritionEntry> entries)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NutritionState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.entries);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.previousDailyMacros,_that.baselineDailyMacros,_that.entries);case _:
   return orElse();
 
 }
@@ -177,10 +179,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<NutritionEntry> entries)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<DailyMacros> previousDailyMacros,  List<DailyMacros> baselineDailyMacros,  List<NutritionEntry> entries)  $default,) {final _that = this;
 switch (_that) {
 case _NutritionState():
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.entries);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.previousDailyMacros,_that.baselineDailyMacros,_that.entries);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +199,10 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<NutritionEntry> entries)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LocalDate selectedDate,  TimeRange selectedRange,  bool isLoading,  ScreenError? error,  double dailyGoal,  List<DailyMacros> dailyMacros,  List<DailyMacros> previousDailyMacros,  List<DailyMacros> baselineDailyMacros,  List<NutritionEntry> entries)?  $default,) {final _that = this;
 switch (_that) {
 case _NutritionState() when $default != null:
-return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.entries);case _:
+return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.error,_that.dailyGoal,_that.dailyMacros,_that.previousDailyMacros,_that.baselineDailyMacros,_that.entries);case _:
   return null;
 
 }
@@ -212,7 +214,7 @@ return $default(_that.selectedDate,_that.selectedRange,_that.isLoading,_that.err
 
 
 class _NutritionState extends NutritionState {
-  const _NutritionState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.error, this.dailyGoal = 2000.0, final  List<DailyMacros> dailyMacros = const <DailyMacros>[], final  List<NutritionEntry> entries = const <NutritionEntry>[]}): _dailyMacros = dailyMacros,_entries = entries,super._();
+  const _NutritionState({required this.selectedDate, this.selectedRange = TimeRange.week, this.isLoading = true, this.error, this.dailyGoal = 2000.0, final  List<DailyMacros> dailyMacros = const <DailyMacros>[], final  List<DailyMacros> previousDailyMacros = const <DailyMacros>[], final  List<DailyMacros> baselineDailyMacros = const <DailyMacros>[], final  List<NutritionEntry> entries = const <NutritionEntry>[]}): _dailyMacros = dailyMacros,_previousDailyMacros = previousDailyMacros,_baselineDailyMacros = baselineDailyMacros,_entries = entries,super._();
   
 
 @override final  LocalDate selectedDate;
@@ -225,6 +227,20 @@ class _NutritionState extends NutritionState {
   if (_dailyMacros is EqualUnmodifiableListView) return _dailyMacros;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_dailyMacros);
+}
+
+ final  List<DailyMacros> _previousDailyMacros;
+@override@JsonKey() List<DailyMacros> get previousDailyMacros {
+  if (_previousDailyMacros is EqualUnmodifiableListView) return _previousDailyMacros;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_previousDailyMacros);
+}
+
+ final  List<DailyMacros> _baselineDailyMacros;
+@override@JsonKey() List<DailyMacros> get baselineDailyMacros {
+  if (_baselineDailyMacros is EqualUnmodifiableListView) return _baselineDailyMacros;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_baselineDailyMacros);
 }
 
  final  List<NutritionEntry> _entries;
@@ -245,16 +261,16 @@ _$NutritionStateCopyWith<_NutritionState> get copyWith => __$NutritionStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NutritionState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal)&&const DeepCollectionEquality().equals(other._dailyMacros, _dailyMacros)&&const DeepCollectionEquality().equals(other._entries, _entries));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NutritionState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.selectedRange, selectedRange) || other.selectedRange == selectedRange)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error)&&(identical(other.dailyGoal, dailyGoal) || other.dailyGoal == dailyGoal)&&const DeepCollectionEquality().equals(other._dailyMacros, _dailyMacros)&&const DeepCollectionEquality().equals(other._previousDailyMacros, _previousDailyMacros)&&const DeepCollectionEquality().equals(other._baselineDailyMacros, _baselineDailyMacros)&&const DeepCollectionEquality().equals(other._entries, _entries));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,dailyGoal,const DeepCollectionEquality().hash(_dailyMacros),const DeepCollectionEquality().hash(_entries));
+int get hashCode => Object.hash(runtimeType,selectedDate,selectedRange,isLoading,error,dailyGoal,const DeepCollectionEquality().hash(_dailyMacros),const DeepCollectionEquality().hash(_previousDailyMacros),const DeepCollectionEquality().hash(_baselineDailyMacros),const DeepCollectionEquality().hash(_entries));
 
 @override
 String toString() {
-  return 'NutritionState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, dailyGoal: $dailyGoal, dailyMacros: $dailyMacros, entries: $entries)';
+  return 'NutritionState(selectedDate: $selectedDate, selectedRange: $selectedRange, isLoading: $isLoading, error: $error, dailyGoal: $dailyGoal, dailyMacros: $dailyMacros, previousDailyMacros: $previousDailyMacros, baselineDailyMacros: $baselineDailyMacros, entries: $entries)';
 }
 
 
@@ -265,7 +281,7 @@ abstract mixin class _$NutritionStateCopyWith<$Res> implements $NutritionStateCo
   factory _$NutritionStateCopyWith(_NutritionState value, $Res Function(_NutritionState) _then) = __$NutritionStateCopyWithImpl;
 @override @useResult
 $Res call({
- LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, double dailyGoal, List<DailyMacros> dailyMacros, List<NutritionEntry> entries
+ LocalDate selectedDate, TimeRange selectedRange, bool isLoading, ScreenError? error, double dailyGoal, List<DailyMacros> dailyMacros, List<DailyMacros> previousDailyMacros, List<DailyMacros> baselineDailyMacros, List<NutritionEntry> entries
 });
 
 
@@ -282,7 +298,7 @@ class __$NutritionStateCopyWithImpl<$Res>
 
 /// Create a copy of NutritionState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? dailyGoal = null,Object? dailyMacros = null,Object? entries = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = null,Object? selectedRange = null,Object? isLoading = null,Object? error = freezed,Object? dailyGoal = null,Object? dailyMacros = null,Object? previousDailyMacros = null,Object? baselineDailyMacros = null,Object? entries = null,}) {
   return _then(_NutritionState(
 selectedDate: null == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as LocalDate,selectedRange: null == selectedRange ? _self.selectedRange : selectedRange // ignore: cast_nullable_to_non_nullable
@@ -290,6 +306,8 @@ as TimeRange,isLoading: null == isLoading ? _self.isLoading : isLoading // ignor
 as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ScreenError?,dailyGoal: null == dailyGoal ? _self.dailyGoal : dailyGoal // ignore: cast_nullable_to_non_nullable
 as double,dailyMacros: null == dailyMacros ? _self._dailyMacros : dailyMacros // ignore: cast_nullable_to_non_nullable
+as List<DailyMacros>,previousDailyMacros: null == previousDailyMacros ? _self._previousDailyMacros : previousDailyMacros // ignore: cast_nullable_to_non_nullable
+as List<DailyMacros>,baselineDailyMacros: null == baselineDailyMacros ? _self._baselineDailyMacros : baselineDailyMacros // ignore: cast_nullable_to_non_nullable
 as List<DailyMacros>,entries: null == entries ? _self._entries : entries // ignore: cast_nullable_to_non_nullable
 as List<NutritionEntry>,
   ));

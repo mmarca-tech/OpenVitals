@@ -11,15 +11,20 @@ import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/domain/model/nutrition_models.dart';
 import 'package:openvitals/domain/model/refresh_mode.dart';
+import 'package:openvitals/domain/preferences/metric_detail_section_id.dart';
 import 'package:openvitals/domain/query/nutrition_period_data.dart';
+import 'package:openvitals/core/presentation/metric_detail_sections.dart';
 import 'package:openvitals/features/nutrition/nutrition_metric_screen.dart';
 import 'package:openvitals/features/nutrition/nutrition_screen.dart';
+import 'package:openvitals/features/nutrition/nutrition_sections.dart';
 import 'package:openvitals/health/health_permissions.dart';
 import 'package:openvitals/ui/charts/period_chart.dart';
+import 'package:openvitals/ui/components/daily_goal_components.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/metric_card.dart';
 
-/// A fake [NutritionRepository] returning canned period data.
+/// A fake [NutritionRepository] returning canned period data. Nutrition entries
+/// are read-only, so only the read methods are backed.
 class _FakeNutritionRepository implements NutritionRepository {
   _FakeNutritionRepository({
     this.dailyMacros = const <DailyMacros>[],
@@ -35,6 +40,12 @@ class _FakeNutritionRepository implements NutritionRepository {
     RefreshMode refreshMode = RefreshMode.normal,
   }) async =>
       NutritionPeriodData(dailyMacros: dailyMacros, entries: entries);
+
+  // The notifier folds in the previous + baseline windows for the statistics
+  // section; those windows are empty in these tests.
+  @override
+  Future<List<DailyMacros>> loadDailyMacros(LocalDate start, LocalDate end) async =>
+      const <DailyMacros>[];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -73,8 +84,9 @@ Future<Widget> _bootstrap({
   required _FakeNutritionRepository repository,
   required Set<String> granted,
   required Widget home,
+  Map<String, Object> initialPrefs = const <String, Object>{},
 }) async {
-  SharedPreferences.setMockInitialValues(const <String, Object>{});
+  SharedPreferences.setMockInitialValues(initialPrefs);
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
@@ -95,8 +107,14 @@ Future<Widget> _bootstrap({
 void main() {
   final today = LocalDate.now();
 
-  testWidgets('Protein metric screen renders hero card + bar chart once loaded',
+  testWidgets(
+      'Protein metric screen renders hero, chart, goal card, statistics and meals',
       (tester) async {
+    // A tall surface so every ordered section lays out (the screen scrolls in a
+    // lazy ListView otherwise, leaving lower sections unbuilt).
+    await tester.binding.setSurfaceSize(const Size(1000, 3200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repo = _FakeNutritionRepository(
       dailyMacros: [_macros(today), _macros(today.minusDays(1))],
       entries: [_entry(DateTime.now())],
@@ -111,8 +129,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+    // Hero summary card + the per-metric trend chart.
     expect(find.byType(MetricCard), findsWidgets);
     expect(find.byType(MetricBarChart), findsOneWidget);
+    // The daily-goal card is preserved as its own ordered section.
+    expect(find.byType(DailyGoalCard), findsOneWidget);
+    // The statistics section header.
+    expect(find.text('Statistics'), findsWidgets);
+    // The meals (ENTRIES) section renders the logged nutrition entry.
+    expect(find.byType(NutritionEntryRow), findsWidgets);
     expect(find.text('Protein'), findsWidgets);
   });
 
@@ -130,13 +155,12 @@ void main() {
 
     expect(find.byType(MetricCardPlaceholder), findsOneWidget);
     expect(find.byType(MetricBarChart), findsNothing);
+    expect(find.byType(DailyGoalCard), findsNothing);
   });
 
-  testWidgets('Nutrition overview renders grouped nutrient breakdown',
+  testWidgets('Nutrition overview renders grouped nutrient statistics',
       (tester) async {
-    // A tall surface so every grouped section lays out (the screen scrolls in
-    // a lazy ListView otherwise, leaving lower groups unbuilt).
-    await tester.binding.setSurfaceSize(const Size(1000, 2600));
+    await tester.binding.setSurfaceSize(const Size(1000, 3200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final repo = _FakeNutritionRepository(
@@ -153,9 +177,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Overview'), findsOneWidget);
-    expect(find.text('Minerals'), findsOneWidget);
-    expect(find.text('Sodium'), findsOneWidget);
+    // The all-nutrient statistics section: primary macros header + grouped
+    // totals for the tracked non-primary nutrients.
+    expect(find.text('Statistics'), findsWidgets);
+    expect(find.text('Minerals'), findsWidgets);
+    expect(find.text('Sodium'), findsWidgets);
+    // The overview also lists the logged meal.
+    expect(find.byType(NutritionEntryRow), findsWidgets);
   });
 
   testWidgets('Nutrition screen shows the access gate when permission missing',
@@ -171,5 +199,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Permissions needed'), findsOneWidget);
+  });
+
+  test('Reordering a metric detail section persists across rebuilds', () async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(container.dispose);
+
+    final defaultOrder = container.read(metricDetailSectionOrderProvider);
+    expect(defaultOrder.first, MetricDetailSectionId.activitySummary);
+
+    // Nudge the first section down; the notifier must persist the new order.
+    container
+        .read(metricDetailSectionOrderProvider.notifier)
+        .moveSection(MetricDetailSectionId.activitySummary, 1);
+
+    final movedOrder = container.read(metricDetailSectionOrderProvider);
+    expect(movedOrder.first, isNot(MetricDetailSectionId.activitySummary));
+
+    // A fresh container reading the same preferences sees the persisted order.
+    final reopened = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(reopened.dispose);
+    expect(
+      reopened.read(metricDetailSectionOrderProvider),
+      movedOrder,
+    );
   });
 }

@@ -5731,4 +5731,30 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyPolicyBody3 =>
       'OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.';
+
+  @override
+  String get activitiesFilterAll => 'All activities';
+
+  @override
+  String get activitiesFilterActivityTypeLabel => 'Activity type';
+
+  @override
+  String get sectionActivityTypeStats => 'By activity type';
+
+  @override
+  String get statTime => 'Time';
+
+  @override
+  String get statAverageMovingPace => 'Avg moving pace';
+
+  @override
+  String get statFastestPace => 'Fastest pace';
+
+  @override
+  String get statBestSpeed => 'Best speed';
+
+  @override
+  String activityTypeStatsActivityCount(int arg0) {
+    return '$arg0 activities';
+  }
 }

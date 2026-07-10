@@ -5771,4 +5771,30 @@ class AppLocalizationsEt extends AppLocalizations {
   @override
   String get privacyPolicyBody3 =>
       'OpenVitals ei ole meditsiiniseade ega diagnoosi, ravi ega ennetab ühtegi haigust ega terviseseisundit. See ei asenda kvalifitseeritud tervishoiutöötaja meditsiinilist nõuannet, diagnoosi ega ravi.';
+
+  @override
+  String get activitiesFilterAll => 'Kõik treeningud';
+
+  @override
+  String get activitiesFilterActivityTypeLabel => 'Treeningu tüüp';
+
+  @override
+  String get sectionActivityTypeStats => 'Treeningu tüübi järgi';
+
+  @override
+  String get statTime => 'Aeg';
+
+  @override
+  String get statAverageMovingPace => 'Keskm liikumistempo';
+
+  @override
+  String get statFastestPace => 'Kiireim tempo';
+
+  @override
+  String get statBestSpeed => 'Parim kiirus';
+
+  @override
+  String activityTypeStatsActivityCount(int arg0) {
+    return '$arg0 treeningut';
+  }
 }

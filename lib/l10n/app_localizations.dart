@@ -10104,6 +10104,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.'**
   String get privacyPolicyBody3;
+
+  /// No description provided for @activitiesFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All activities'**
+  String get activitiesFilterAll;
+
+  /// No description provided for @activitiesFilterActivityTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity type'**
+  String get activitiesFilterActivityTypeLabel;
+
+  /// No description provided for @sectionActivityTypeStats.
+  ///
+  /// In en, this message translates to:
+  /// **'By activity type'**
+  String get sectionActivityTypeStats;
+
+  /// No description provided for @statTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get statTime;
+
+  /// No description provided for @statAverageMovingPace.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg moving pace'**
+  String get statAverageMovingPace;
+
+  /// No description provided for @statFastestPace.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest pace'**
+  String get statFastestPace;
+
+  /// No description provided for @statBestSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Best speed'**
+  String get statBestSpeed;
+
+  /// No description provided for @activityTypeStatsActivityCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{arg0} activities'**
+  String activityTypeStatsActivityCount(int arg0);
 }
 
 class _AppLocalizationsDelegate

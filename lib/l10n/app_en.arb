@@ -3207,5 +3207,20 @@
   "privacyPolicyTitle": "Privacy policy",
   "privacyPolicyBody1": "OpenVitals reads data from Health Connect to show steps, workouts, sleep, heart rate, weight, calories, hydration, nutrition, mindfulness, and vitals on your device. Entries you explicitly log, including imported GPX/KML/KMZ routes and imported FIT files, are written to Health Connect.",
   "privacyPolicyBody2": "This app does not upload your health data to a cloud service, does not include ads, and does not share data with third parties.",
-  "privacyPolicyBody3": "OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional."
+  "privacyPolicyBody3": "OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.",
+  "activitiesFilterAll": "All activities",
+  "activitiesFilterActivityTypeLabel": "Activity type",
+  "sectionActivityTypeStats": "By activity type",
+  "statTime": "Time",
+  "statAverageMovingPace": "Avg moving pace",
+  "statFastestPace": "Fastest pace",
+  "statBestSpeed": "Best speed",
+  "activityTypeStatsActivityCount": "{arg0} activities",
+  "@activityTypeStatsActivityCount": {
+    "placeholders": {
+      "arg0": {
+        "type": "int"
+      }
+    }
+  }
 }

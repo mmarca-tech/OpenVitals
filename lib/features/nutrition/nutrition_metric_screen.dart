@@ -1,30 +1,40 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/period/period_range_preference_key.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/display_value.dart';
+import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../di/providers.dart';
 import '../../domain/insights/daily_goals.dart';
+import '../../domain/insights/data_confidence.dart';
+import '../../domain/insights/metric_interpretations.dart';
+import '../../domain/insights/period_comparison.dart';
+import '../../domain/insights/personal_baseline.dart';
 import '../../domain/model/nutrition_models.dart';
-import '../../state/app_providers.dart';
-import '../../ui/charts/period_chart.dart';
+import '../../domain/preferences/metric_detail_section_id.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/app_providers.dart';
+import '../../ui/components/daily_goal_components.dart';
+import '../../ui/components/data_confidence_card.dart';
 import '../../ui/components/health_connect_gate.dart';
+import '../../ui/components/insight_cards.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
-import '../../ui/components/ov_card.dart';
+import '../../ui/components/period_comparison_stat.dart';
+import '../../ui/components/personal_baseline_stat.dart';
 import '../../health/health_permissions.dart';
 import 'nutrition_formatting.dart';
 import 'nutrition_metric.dart';
 import 'nutrition_notifier.dart';
+import 'nutrition_sections.dart';
 
 /// The shared period-detail screen for the four keyed nutrition metrics
 /// (calories-in / protein / carbs / fat), ported from the Kotlin
-/// `NutritionMetricScreen` + `nutritionMetricContent`.
+/// `NutritionMetricScreen` + `nutritionMetricContent`. Every metric renders the
+/// same user-reorderable ordered sections; only the accent, goal key and value
+/// formatting differ.
 class NutritionMetricScreen extends ConsumerWidget {
   const NutritionMetricScreen({super.key, required this.metric});
 
@@ -39,9 +49,24 @@ class NutritionMetricScreen extends ConsumerWidget {
     final formatter = ref.watch(unitFormatterProvider);
     final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
+    final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(metric.title(l10n))),
+      appBar: AppBar(
+        title: Text(metric.title(l10n)),
+        actions: [
+          // Kotlin hoists this toggle into the host app bar through
+          // `onSectionEditStateChanged`; the same affordance, wired locally.
+          IconButton(
+            onPressed:
+                ref.read(metricDetailSectionEditProvider.notifier).toggle,
+            tooltip: isEditingSections
+                ? l10n.cdFinishMetricSectionEditing
+                : l10n.cdEditMetricSections,
+            icon: Icon(isEditingSections ? Icons.check : Icons.tune),
+          ),
+        ],
+      ),
       body: HealthConnectGate(
         requiredPermissions: {HcPermissions.readNutrition},
         showInlineSyncBanner: false,
@@ -52,235 +77,289 @@ class NutritionMetricScreen extends ConsumerWidget {
           screenError: state.error,
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
-          onSelectionChanged: (selection) => notifier.load(selection),
-          content: (period) => _content(context, metric, state, formatter, period),
+          onSelectionChanged: notifier.load,
+          content: (period) => [
+            _NutritionMetricContent(
+              metric: metric,
+              state: state,
+              period: period,
+              formatter: formatter,
+              onDecreaseGoal: notifier.decreaseDailyGoal,
+              onIncreaseGoal: notifier.increaseDailyGoal,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-List<Widget> _content(
-  BuildContext context,
-  NutritionMetric metric,
-  NutritionState state,
-  UnitFormatter formatter,
-  DatePeriod period,
-) {
-  final l10n = AppLocalizations.of(context);
-  if (!state.hasData) {
-    if (state.isLoading) {
-      return const [
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 48),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ];
-    }
-    return [
-      _padded(
-        MetricCardPlaceholder(
-          title: metric.title(l10n),
-          icon: metric.icon,
-          accentColor: metric.accentColor,
-          message: 'No nutrition logged for this period.',
-        ),
-      ),
-    ];
-  }
-
-  final nutrient = metric.nutrient;
-  final values = [
-    for (final day in state.dailyMacros)
-      PeriodChartValue(day.date, day.valueFor(nutrient)),
-  ];
-  final rawValues = values.map((value) => value.value).toList();
-  final total = rawValues.fold<double>(0.0, (sum, value) => sum + value);
-  final loggedDays = rawValues.where((value) => value > 0.0).length;
-  final average = loggedDays > 0 ? total / loggedDays : 0.0;
-  final best = rawValues.fold<double>(0.0, (m, value) => math.max(m, value));
-
-  DisplayValue format(double value) =>
-      nutrientDisplayValue(nutrient, value, formatter);
-  final totalDisplay = format(total);
-
-  final goalProgress = dailyGoalProgress(
-    [for (final value in values) DailyGoalValue(date: value.date, value: value.value)],
-    period,
-    state.dailyGoal,
-    metric.dailyGoalKey.direction,
-  );
-
-  return [
-    _padded(
-      MetricCard(
-        title: metric.title(l10n),
-        value: totalDisplay.value,
-        unit: totalDisplay.unit,
-        icon: metric.icon,
-        accentColor: metric.accentColor,
-        subtitle: state.entries.isNotEmpty
-            ? '${formatter.count(state.entries.length)} entries'
-            : 'Across the selected period',
-      ),
-    ),
-    _padded(
-      MetricBarChart(
-        title: metric.title(l10n),
-        values: values,
-        selectedRange: state.selectedRange,
-        period: period,
-        accentColor: metric.accentColor,
-        summaryValue: totalDisplay.text,
-        valueFormatter: (value) => format(value).text,
-      ),
-    ),
-    _padded(
-      _NutritionGoalCard(
-        goal: format(state.dailyGoal),
-        progress: goalProgress,
-        accentColor: metric.accentColor,
-      ),
-    ),
-    const SectionHeader('Statistics'),
-    _padded(
-      _NutritionStatisticsCard(
-        rows: [
-          ('Total', totalDisplay),
-          ('Daily average', format(average)),
-          ('Best day', format(best)),
-          ('Logged days', DisplayValue('$loggedDays', 'days')),
-        ],
-        accentColor: metric.accentColor,
-      ),
-    ),
-  ];
-}
-
-Widget _padded(Widget child) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: child,
-    );
-
-class _NutritionGoalCard extends StatelessWidget {
-  const _NutritionGoalCard({
-    required this.goal,
-    required this.progress,
-    required this.accentColor,
+class _NutritionMetricContent extends StatelessWidget {
+  const _NutritionMetricContent({
+    required this.metric,
+    required this.state,
+    required this.period,
+    required this.formatter,
+    required this.onDecreaseGoal,
+    required this.onIncreaseGoal,
   });
 
-  final DisplayValue goal;
-  final DailyGoalProgress progress;
-  final Color accentColor;
+  final NutritionMetric metric;
+  final NutritionState state;
+  final DatePeriod period;
+  final UnitFormatter formatter;
+  final VoidCallback onDecreaseGoal;
+  final VoidCallback onIncreaseGoal;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final directionLabel =
-        progress.direction == DailyGoalDirection.atMost ? 'at most' : 'at least';
-    return OpenVitalsCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.flag_outlined, color: accentColor, size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Daily goal', style: theme.textTheme.titleSmall),
-                      Text(
-                        '${progress.goalMetDays} of ${progress.trackedDays} days met · '
-                        '${progress.successRatePercent}%',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: goal.value,
-                        style: theme.textTheme.titleLarge,
-                      ),
-                      TextSpan(
-                        text: ' ${goal.unit}',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Target: $directionLabel ${goal.text} per day.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
+    final l10n = AppLocalizations.of(context);
+    if (!state.hasData) {
+      if (state.isLoading) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return _placeholder(l10n);
+    }
+
+    return ChartDaySelectionScope(
+      selectedRange: state.selectedRange,
+      selectedDate: state.selectedDate,
+      builder: (context, daySelection) =>
+          _sections(context, l10n, daySelection),
     );
   }
-}
 
-class _NutritionStatisticsCard extends StatelessWidget {
-  const _NutritionStatisticsCard({required this.rows, required this.accentColor});
+  Widget _placeholder(AppLocalizations l10n) => OrderedMetricDetailSections(
+        sections: [
+          MetricDetailSection(
+            MetricDetailSectionId.activitySummary,
+            nutritionPadded(MetricCardPlaceholder(
+              title: metric.title(l10n),
+              icon: metric.icon,
+              accentColor: metric.accentColor,
+              message: l10n.messageNoNutritionPeriod,
+            )),
+          ),
+        ],
+      );
 
-  final List<(String, DisplayValue)> rows;
-  final Color accentColor;
+  Widget _sections(
+    BuildContext context,
+    AppLocalizations l10n,
+    ChartDaySelection daySelection,
+  ) {
+    final nutrient = metric.nutrient;
+    final color = metric.accentColor;
+    final series = nutritionSeriesFor(state.dailyMacros, nutrient);
+    final previousSeries =
+        nutritionSeriesFor(state.previousDailyMacros, nutrient);
+    final baselineSeries =
+        nutritionSeriesFor(state.baselineDailyMacros, nutrient);
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return OpenVitalsCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.insights, color: accentColor, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Statistics',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(row.$1, style: theme.textTheme.bodyMedium),
-                    Text(
-                      row.$2.text,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+    DisplayValue format(double value) =>
+        nutrientDisplayValue(nutrient, value, formatter);
+
+    final goalProgress = dailyGoalProgress(
+      [for (final value in series.values) DailyGoalValue(date: value.date, value: value.value)],
+      period,
+      state.dailyGoal,
+      metric.dailyGoalKey.direction,
+    );
+    final comparison = periodComparison(series.total, previousSeries.total);
+    final macroSplit = macroSplitInterpretation(
+      state.dailyMacros.fold<double>(0.0, (sum, day) => sum + day.proteinGrams),
+      state.dailyMacros.fold<double>(0.0, (sum, day) => sum + day.carbsGrams),
+      state.dailyMacros.fold<double>(0.0, (sum, day) => sum + day.fatGrams),
+    );
+
+    final selectedDay = daySelection.selectedDate;
+    final selectedEntries =
+        selectedDay == null ? const <NutritionEntry>[] : nutritionEntriesForDay(state.entries, selectedDay);
+    final sortedEntries = [...state.entries]
+      ..sort((a, b) => b.time.compareTo(a.time));
+
+    final trackedDates = [
+      for (final value in series.values)
+        if (value.value > 0.0) value.date,
+    ];
+    // Kotlin gates the whole macro-derived block on `dailyMacros.isNotEmpty()`;
+    // only the ENTRIES section renders for an entries-only period.
+    final hasMacros = state.dailyMacros.isNotEmpty;
+
+    return OrderedMetricDetailSections(
+      sections: [
+        // Kotlin section ACTIVITY_SUMMARY: the hero total card.
+        MetricDetailSection(
+          MetricDetailSectionId.activitySummary,
+          visible: hasMacros,
+          nutritionPadded(MetricCard(
+            title: metric.title(l10n),
+            value: format(series.total).value,
+            unit: format(series.total).unit,
+            icon: metric.icon,
+            accentColor: color,
+            subtitle: state.entries.isNotEmpty
+                ? l10n.summaryEntries(formatter.count(state.entries.length))
+                : l10n.summaryAcrossSelectedPeriod,
+          )),
         ),
-      ),
+        // Kotlin section PERIOD_CHART: the metric's daily trend.
+        MetricDetailSection(
+          MetricDetailSectionId.periodChart,
+          visible: hasMacros && series.values.isNotEmpty,
+          nutritionPadded(nutritionTrendChart(
+            series: series,
+            selectedRange: state.selectedRange,
+            period: period,
+            formatter: formatter,
+            l10n: l10n,
+            selectedDate: selectedDay,
+            onDateSelected: daySelection.onDateSelected,
+            day: state.selectedDate,
+            entries: state.entries,
+          )),
+        ),
+        // Kotlin section SELECTED_DAY_ENTRIES: meals on the pinned chart day.
+        MetricDetailSection(
+          MetricDetailSectionId.selectedDayEntries,
+          visible: hasMacros && selectedDay != null && selectedEntries.isNotEmpty,
+          nutritionPadded(NutritionEntriesContent(
+            title: nutritionEntryListTitle(
+              selectedDay,
+              Localizations.localeOf(context).toLanguageTag(),
+              l10n,
+            ),
+            entries: selectedEntries,
+            formatter: formatter,
+          )),
+        ),
+        // Kotlin section DATA_CONFIDENCE (hidden on a single-day period).
+        MetricDetailSection(
+          MetricDetailSectionId.dataConfidence,
+          visible: hasMacros && period.start != period.end,
+          nutritionPadded(DataConfidenceCard(
+            confidence: dataConfidence(
+              period,
+              trackedDates,
+              state.entries.isNotEmpty ? state.entries.length : trackedDates.length,
+              sources: [for (final entry in state.entries) entry.source],
+              valueKind: DataValueKind.aggregated,
+            ),
+            accentColor: color,
+          )),
+        ),
+        // Kotlin section DAILY_GOAL.
+        MetricDetailSection(
+          MetricDetailSectionId.dailyGoal,
+          visible: hasMacros,
+          nutritionPadded(DailyGoalCard(
+            goal: format(state.dailyGoal),
+            progress: goalProgress,
+            icon: metric.icon,
+            accentColor: color,
+            onDecreaseGoal: onDecreaseGoal,
+            onIncreaseGoal: onIncreaseGoal,
+          )),
+        ),
+        // Kotlin section STATISTICS.
+        MetricDetailSection(
+          MetricDetailSectionId.statistics,
+          visible: hasMacros,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              nutritionPadded(SectionHeader(l10n.sectionStatistics)),
+              nutritionPadded(DailyGoalStatistics(
+                progress: goalProgress,
+                averageGap: format(goalProgress.averageGapToGoal),
+                unitFormatter: formatter,
+                icon: metric.icon,
+                accentColor: color,
+              )),
+              nutritionPadded(InsightStatGrid(
+                stats: [
+                  InsightStat(
+                    title: l10n.statTotal,
+                    value: format(series.total).value,
+                    unit: format(series.total).unit,
+                    icon: metric.icon,
+                    accentColor: color,
+                  ),
+                  InsightStat(
+                    title: l10n.statDailyAverage,
+                    value: format(series.average).value,
+                    unit: format(series.average).unit,
+                    icon: Icons.star_outline,
+                    accentColor: color,
+                  ),
+                  InsightStat(
+                    title: l10n.statBestDay,
+                    value: format(series.best).value,
+                    unit: format(series.best).unit,
+                    icon: Icons.calendar_month_outlined,
+                    accentColor: color,
+                  ),
+                  InsightStat(
+                    title: l10n.metricLoggedDays,
+                    value: formatter.count(series.loggedDays),
+                    unit: l10n.unitDays,
+                    icon: Icons.check_circle_outline,
+                    accentColor: color,
+                  ),
+                  previousPeriodInsightStat(
+                    comparison: comparison,
+                    selectedRange: state.selectedRange,
+                    unitFormatter: formatter,
+                    valueFormatter: format,
+                    accentColor: color,
+                    l10n: l10n,
+                  ),
+                  ...personalBaselineInsightStats(
+                    insight: personalBaselineInsight(
+                      series.average,
+                      [
+                        for (final value in baselineSeries.values)
+                          BaselineValue(date: value.date, value: value.value),
+                      ],
+                      period.start.minusDays(1),
+                    ),
+                    unitFormatter: formatter,
+                    valueFormatter: format,
+                    accentColor: color,
+                    l10n: l10n,
+                  ),
+                ],
+              )),
+            ],
+          ),
+        ),
+        // Kotlin section METRIC_CONTEXT: the macro-split interpretation.
+        MetricDetailSection(
+          MetricDetailSectionId.metricContext,
+          visible: macroSplit != null,
+          macroSplit == null
+              ? const SizedBox.shrink()
+              : nutritionMacroSplitContext(
+                  context: context,
+                  split: macroSplit,
+                  formatter: formatter,
+                  accentColor: color,
+                ),
+        ),
+        // Kotlin section ENTRIES: every logged meal, newest first.
+        MetricDetailSection(
+          MetricDetailSectionId.entries,
+          visible: state.entries.isNotEmpty,
+          nutritionPadded(NutritionEntriesContent(
+            title: l10n.sectionMeals,
+            entries: sortedEntries,
+            formatter: formatter,
+          )),
+        ),
+      ],
     );
   }
 }

@@ -41,10 +41,12 @@ class MetricCard extends StatelessWidget {
               children: [
                 Icon(icon, color: accentColor, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ),
               ],
             ),
@@ -104,10 +106,12 @@ class MetricCardPlaceholder extends StatelessWidget {
                 children: [
                   Icon(icon, color: accentColor.withValues(alpha: 0.5), size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
                   ),
                 ],
               ),

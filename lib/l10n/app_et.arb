@@ -1654,5 +1654,20 @@
   "privacyPolicyTitle": "Privaatsuspoliitika",
   "privacyPolicyBody1": "OpenVitals loeb andmeid Health Connectist, et näidata sinu seadmes samme, treeninguid, und, pulssi, kaalu, kaloreid, vedelikutarbimist, toitumist, teadvelolekut ja elunäitajaid. Kirjed, mida sa ise logid, sealhulgas imporditud GPX/KML/KMZ marsruudid ja imporditud FIT-failid, kirjutatakse Health Connectisse.",
   "privacyPolicyBody2": "See rakendus ei laadi sinu terviseandmeid pilveteenusesse, ei sisalda reklaame ega jaga andmeid kolmandate osapooltega.",
-  "privacyPolicyBody3": "OpenVitals ei ole meditsiiniseade ega diagnoosi, ravi ega ennetab ühtegi haigust ega terviseseisundit. See ei asenda kvalifitseeritud tervishoiutöötaja meditsiinilist nõuannet, diagnoosi ega ravi."
+  "privacyPolicyBody3": "OpenVitals ei ole meditsiiniseade ega diagnoosi, ravi ega ennetab ühtegi haigust ega terviseseisundit. See ei asenda kvalifitseeritud tervishoiutöötaja meditsiinilist nõuannet, diagnoosi ega ravi.",
+  "activitiesFilterAll": "Kõik treeningud",
+  "activitiesFilterActivityTypeLabel": "Treeningu tüüp",
+  "sectionActivityTypeStats": "Treeningu tüübi järgi",
+  "statTime": "Aeg",
+  "statAverageMovingPace": "Keskm liikumistempo",
+  "statFastestPace": "Kiireim tempo",
+  "statBestSpeed": "Parim kiirus",
+  "activityTypeStatsActivityCount": "{arg0} treeningut",
+  "@activityTypeStatsActivityCount": {
+    "placeholders": {
+      "arg0": {
+        "type": "int"
+      }
+    }
+  }
 }
