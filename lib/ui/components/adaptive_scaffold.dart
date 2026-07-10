@@ -25,10 +25,13 @@ class OpenVitalsHomeScaffold extends StatelessWidget {
         title: Text(l10n.appName),
         centerTitle: false,
         actions: [
+          // Kotlin dashboard top bar: the SelfImprovement icon opens Daily
+          // Readiness (AppNavigation.kt:415-425, cd_daily_readiness), not the
+          // mindfulness entry form (which is reached from the Add-entry hub).
           IconButton(
-            tooltip: l10n.screenMindfulness,
+            tooltip: l10n.screenDailyReadiness,
             icon: const Icon(Icons.self_improvement_outlined),
-            onPressed: () => context.push(AppRoutes.mindfulnessEntry),
+            onPressed: () => context.push(AppRoutes.dailyReadiness),
           ),
           IconButton(
             tooltip: l10n.screenAchievements,
