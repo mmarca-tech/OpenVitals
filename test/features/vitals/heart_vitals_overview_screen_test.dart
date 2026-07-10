@@ -17,11 +17,13 @@ import 'package:openvitals/domain/model/vitals_models.dart';
 import 'package:openvitals/domain/preferences/metric_detail_section_id.dart';
 import 'package:openvitals/domain/query/heart_period_data.dart';
 import 'package:openvitals/domain/query/vitals_period_data.dart';
+import 'package:openvitals/features/heart/heart_metric_cards.dart';
 import 'package:openvitals/core/presentation/metric_detail_sections.dart';
 import 'package:openvitals/features/vitals/heart_vitals_overview_screen.dart';
 import 'package:openvitals/health/health_permissions.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/charts/line_chart.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/metric_card.dart';
 
@@ -174,6 +176,38 @@ Future<ProviderContainer> _container({
 void main() {
   final now = DateTime.now().toUtc();
 
+  // Locks the two distinct respiratory averages Kotlin uses, so a future edit
+  // cannot collapse them. Uneven reading counts make them differ: day1 has
+  // three readings [12,12,12], day2 has one [20].
+  test('respiratory flat mean and daily-bucket mean stay distinct', () {
+    final entries = <RespiratoryRateEntry>[
+      RespiratoryRateEntry(
+          time: DateTime(2026, 1, 1, 8), breathsPerMinute: 12, source: 'ring'),
+      RespiratoryRateEntry(
+          time: DateTime(2026, 1, 1, 12), breathsPerMinute: 12, source: 'ring'),
+      RespiratoryRateEntry(
+          time: DateTime(2026, 1, 1, 20), breathsPerMinute: 12, source: 'ring'),
+      RespiratoryRateEntry(
+          time: DateTime(2026, 1, 2, 12), breathsPerMinute: 20, source: 'ring'),
+    ];
+
+    // Flat mean over every reading — Kotlin `RespiratoryRateStatisticsContent`
+    // (values.average()) and the context card. (12*3 + 20) / 4 = 14.0.
+    final flatMean = entries.map((e) => e.breathsPerMinute).reduce((a, b) => a + b) /
+        entries.length;
+    expect(flatMean, 14.0);
+
+    // Mean of daily-bucket averages — Kotlin `respiratoryRateAverage(
+    // respiratoryRateBuckets(...))` feeding the chart summary + overview value.
+    // (12 + 20) / 2 = 16.0, NOT the flat 14.0.
+    final summaries = respiratoryRateDaySummaries(entries);
+    expect(summaries.length, 2);
+    final bucketedMean = summaries.map((s) => s.average).reduce((a, b) => a + b) /
+        summaries.length;
+    expect(bucketedMean, 16.0);
+    expect(flatMean, isNot(bucketedMean));
+  });
+
   testWidgets('renders the three reorderable group sections', (tester) async {
     final container = await _container(
       heart: _heartData(),
@@ -191,6 +225,22 @@ void main() {
     // per-group trend charts.
     expect(find.byType(MetricCard), findsWidgets);
     expect(find.byType(MetricLineChart), findsWidgets);
+  });
+
+  testWidgets('renders the data-source education item after the sections',
+      (tester) async {
+    // Kotlin `HeartVitalsOverviewScreen` renders `dataSourceEducationItem()` as
+    // a bare trailing item after the grouped sections (line 155).
+    final container = await _container(
+      heart: _heartData(),
+      vitals: _vitalsData(now),
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(await _bootstrap(container: container));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
+    expect(find.text('Manage data sources'), findsOneWidget);
   });
 
   testWidgets('renders the three heart-section MetricLineCharts', (tester) async {

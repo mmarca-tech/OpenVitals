@@ -96,6 +96,7 @@
   "homeMetricWidgetNoMetrics": "No metrics available.",
   "homeMetricWidgetPermissionNeeded": "Grant permission in OpenVitals",
   "homeMetricWidgetUpdateFailed": "Unable to update",
+  "linkCouldNotOpen": "The link could not be opened.",
   "homeMetricWidgetOpenForDetails": "Open for details",
   "homeMetricWidgetNotConfigured": "Select a metric",
   "homeQuickBeverageWidgetDescription": "Quick beverage",

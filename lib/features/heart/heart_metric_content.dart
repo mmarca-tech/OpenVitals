@@ -14,6 +14,7 @@ import '../../domain/model/vitals_models.dart';
 import '../../domain/usecase/load_heart_period_use_case.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/charts/line_chart.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/paginated_entry_list.dart';
 import '../../ui/theme/app_colors.dart';
@@ -178,7 +179,7 @@ class HeartMetricContentView extends StatelessWidget {
         summaries.map((s) => s.maxBpm).reduce((a, b) => a > b ? a : b);
     final selectedDay = daySelection.selectedDate;
 
-    return heartChartMetricSections(
+    final periodSections = heartChartMetricSections(
       selectedRange: state.selectedRange,
       period: period,
       selectedDate: selectedDay,
@@ -235,6 +236,16 @@ class HeartMetricContentView extends StatelessWidget {
           unitFormatter: formatter,
         ),
       ),
+    );
+    // Kotlin `averageHeartRateContent` renders `dataSourceEducationItem()` as a
+    // bare trailing item after the period sections (HeartMetricContent.kt:219),
+    // outside the reorderable section set.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        periodSections,
+        const DataSourceEducationItem(),
+      ],
     );
   }
 

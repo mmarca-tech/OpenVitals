@@ -5,6 +5,7 @@ import '../../core/presentation/screen_error.dart';
 import '../../core/time/local_date.dart';
 import '../../domain/insights/stress_tracking.dart';
 import '../../health/health_permissions.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/health_date_picker.dart';
 import '../../ui/components/loading_state.dart';
@@ -128,6 +129,7 @@ class _StressBody extends StatelessWidget {
         _CardPad(
           child: _StressListCard(title: 'Caveats', items: stress.caveats),
         ),
+        const DataSourceEducationItem(),
       ] else
         const _CardPad(
           child: ErrorMessage('No stress estimate for this day.'),

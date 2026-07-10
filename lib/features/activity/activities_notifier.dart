@@ -14,6 +14,7 @@ import '../../domain/insights/daily_goals.dart';
 import '../../domain/model/activity_models.dart';
 import '../../domain/model/heart_models.dart';
 import '../../domain/model/nutrition_models.dart';
+import '../manualentry/activity/activity_entry_types.dart';
 import 'exercise_labels.dart';
 
 part 'activities_notifier.freezed.dart';
@@ -391,9 +392,11 @@ List<ActivityTypeAggregate> activityTypeAggregatesOf(
     );
     final totalDuration =
         group.fold<int>(0, (sum, w) => sum + math.max(0, w.durationMs));
-    // Flutter's ExerciseData carries no moving-duration; total duration is used
-    // as the moving-duration proxy (deviation from Kotlin's `movingDurationMs`).
-    final totalMovingDuration = totalDuration;
+    // Moving duration excludes paused segments (Kotlin `ActivityMetrics`
+    // `movingDurationMs`): per workout, subtract the summed pause-segment
+    // durations from its total duration, then aggregate over the group.
+    final totalMovingDuration =
+        group.fold<int>(0, (sum, w) => sum + _movingDurationMs(w));
     final averageMovingSpeed = totalDistance > 0 && totalMovingDuration > 0
         ? _finitePositive(totalDistance / (totalMovingDuration / 1000.0))
         : null;
@@ -425,6 +428,24 @@ List<ActivityTypeAggregate> activityTypeAggregatesOf(
 
 double? _finitePositive(double value) =>
     value.isFinite && value > 0 ? value : null;
+
+/// Summed pause-segment duration of a workout, each coerced >= 0 and the total
+/// capped at the workout's own duration (Kotlin `ActivityMetrics.pausedDurationMs`).
+int _pausedDurationMs(ExerciseData workout) {
+  final total = math.max(0, workout.durationMs);
+  var paused = 0;
+  for (final segment in workout.segments) {
+    if (segment.segmentType == ExerciseSegmentType.pause) {
+      paused += math.max(0, segment.durationMs);
+    }
+  }
+  return math.min(paused, total);
+}
+
+/// Moving (non-paused) duration of a workout in ms
+/// (Kotlin `ActivityMetrics.movingDurationMs`).
+int _movingDurationMs(ExerciseData workout) =>
+    math.max(0, math.max(0, workout.durationMs) - _pausedDurationMs(workout));
 
 List<ActivityOverviewDay> _activityOverviewDays({
   required LocalDate start,

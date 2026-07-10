@@ -82,6 +82,7 @@
   "homeMetricWidgetNoMetrics": "Näitajad puuduvad.",
   "homeMetricWidgetPermissionNeeded": "Anna luba rakenduses OpenVitals",
   "homeMetricWidgetUpdateFailed": "Värskendamine ebaõnnestus",
+  "linkCouldNotOpen": "Linki ei saanud avada.",
   "homeMetricWidgetOpenForDetails": "Ava üksikasjade nägemiseks",
   "homeMetricWidgetNotConfigured": "Vali näitaja",
   "homeQuickBeverageWidgetDescription": "Kiirjook",

@@ -596,6 +596,12 @@ abstract class AppLocalizations {
   /// **'Unable to update'**
   String get homeMetricWidgetUpdateFailed;
 
+  /// No description provided for @linkCouldNotOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'The link could not be opened.'**
+  String get linkCouldNotOpen;
+
   /// No description provided for @homeMetricWidgetOpenForDetails.
   ///
   /// In en, this message translates to:

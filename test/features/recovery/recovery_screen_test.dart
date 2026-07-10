@@ -13,6 +13,8 @@ import 'package:openvitals/domain/usecase/load_dashboard_day_use_case.dart';
 import 'package:openvitals/features/recovery/recovery_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/period_navigator.dart';
 
@@ -48,13 +50,21 @@ Future<Widget> _bootstrap({required Set<String> granted}) async {
       loadDashboardDayUseCaseProvider
           .overrideWithValue(_FakeUseCase(_sampleData)),
     ],
-    child: MaterialApp(home: StressDetailsScreen(date: '${LocalDate.now()}')),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: StressDetailsScreen(date: '${LocalDate.now()}'),
+    ),
   );
 }
 
 void main() {
   testWidgets('Recovery renders the stress score card once loaded',
       (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       await _bootstrap(
         granted: {HcPermissions.readHeartRate, HcPermissions.readHrv},
@@ -65,6 +75,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(DayNavigator), findsOneWidget);
     expect(find.text('Stress tracking'), findsOneWidget);
+    // The data-source education link closes the loaded stress content.
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
   });
 
   testWidgets('Recovery shows the access gate when permission missing',

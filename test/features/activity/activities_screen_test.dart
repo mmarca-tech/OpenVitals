@@ -14,7 +14,9 @@ import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/domain/model/heart_models.dart';
 import 'package:openvitals/domain/model/nutrition_models.dart';
 import 'package:openvitals/domain/preferences/metric_detail_section_id.dart';
+import 'package:openvitals/features/activity/activities_notifier.dart';
 import 'package:openvitals/features/activity/activities_screen.dart';
+import 'package:openvitals/features/manualentry/activity/activity_entry_types.dart';
 import 'package:openvitals/health/health_permissions.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/charts/period_chart.dart';
@@ -109,6 +111,8 @@ ExerciseData _workout({
   required String title,
   required int type,
   Duration duration = const Duration(minutes: 40),
+  double? distanceMeters = 6000,
+  List<ExerciseSegmentData> segments = const <ExerciseSegmentData>[],
   bool openVitals = false,
 }) {
   final start = DateTime.now().toUtc().subtract(const Duration(hours: 2));
@@ -120,7 +124,8 @@ ExerciseData _workout({
     endTime: start.add(duration),
     durationMs: duration.inMilliseconds,
     source: 'test',
-    totalDistanceMeters: 6000,
+    totalDistanceMeters: distanceMeters,
+    segments: segments,
     isOpenVitalsEntry: openVitals,
   );
 }
@@ -290,6 +295,66 @@ void main() {
     await tester.pumpWidget(await _bootstrap(repository: repo, prefs: prefs));
     await tester.pumpAndSettle();
     expect(find.text('35'), findsWidgets);
+  });
+
+  test('a pause segment shortens moving duration and speeds moving pace',
+      () async {
+    // Two 40-minute, 6 km workouts; one contains a 10-minute pause segment.
+    final start = DateTime.now().toUtc().subtract(const Duration(hours: 2));
+    final paused = _workout(
+      id: 'paused',
+      title: 'Paused run',
+      type: 56,
+      distanceMeters: 6000,
+      segments: [
+        ExerciseSegmentData(
+          startTime: start.add(const Duration(minutes: 5)),
+          endTime: start.add(const Duration(minutes: 15)),
+          segmentType: ExerciseSegmentType.pause,
+          repetitions: 0,
+        ),
+      ],
+    );
+    final continuous = _workout(
+      id: 'continuous',
+      title: 'Continuous run',
+      type: 56,
+      distanceMeters: 6000,
+    );
+
+    final withPause = activityTypeAggregatesOf([paused]).single;
+    final withoutPause = activityTypeAggregatesOf([continuous]).single;
+
+    // Moving duration drops the 10-minute pause; total duration is unchanged.
+    expect(withPause.totalDurationMs, const Duration(minutes: 40).inMilliseconds);
+    expect(withPause.totalMovingDurationMs,
+        const Duration(minutes: 30).inMilliseconds);
+    expect(withPause.totalMovingDurationMs, lessThan(withPause.totalDurationMs));
+
+    // Same distance over less moving time ⇒ a faster average moving speed.
+    expect(withoutPause.totalMovingDurationMs,
+        const Duration(minutes: 40).inMilliseconds);
+    expect(
+      withPause.averageMovingSpeedMetersPerSecond,
+      greaterThan(withoutPause.averageMovingSpeedMetersPerSecond!),
+    );
+  });
+
+  testWidgets('the key-metric sparkline renders weekday label rows for a week',
+      (tester) async {
+    _tallScreen(tester);
+    final repo = _FakeActivityRepository(
+      workouts: [_workout(id: 'w1', title: 'Morning run', type: 56)],
+      dailySteps: [_steps(today, 9000), _steps(today.minusDays(1), 7000)],
+      nutrition: [_nutrition(today)],
+    );
+    await tester.pumpWidget(await _bootstrap(repository: repo));
+    await tester.pumpAndSettle();
+
+    // The default range is a week ⇒ each of the seven buckets is a single day,
+    // labelled with its weekday initial. Wednesday's "W" appears once per card.
+    expect(find.byType(SparklineChart), findsNWidgets(5));
+    expect(find.text('W'), findsNWidgets(5));
   });
 
   test('the section order persists across notifier instances', () async {

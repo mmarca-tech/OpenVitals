@@ -234,6 +234,11 @@ class ActivitiesOrderedSections extends ConsumerWidget {
   ) {
     final title = periodTitle(state.selectedRange, period);
     final buckets = _buckets(days, state.selectedRange);
+    final bucketLabels = _bucketLabels(
+      buckets,
+      state.selectedRange,
+      Localizations.localeOf(context).toString(),
+    );
     final estimated = days
         .any((d) => d.energyBurnedSource == CaloriesBurnedSource.estimatedActiveAndBmr);
     return Column(
@@ -253,6 +258,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
               d.cardioLoadConfidence == CardioLoadConfidence.noData
                   ? null
                   : d.cardioLoad.toDouble()),
+          bucketLabels: bucketLabels,
           onTap: () => context.push(AppRoutes.cardioLoadDetail),
         ),
         _MetricCard(
@@ -267,6 +273,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
               d.energyBurnedSource == CaloriesBurnedSource.noData
                   ? null
                   : d.energyBurnedKcal),
+          bucketLabels: bucketLabels,
           onTap: () => context.push(AppRoutes.calories),
         ),
         _MetricCard(
@@ -276,6 +283,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
           icon: Icons.directions_walk,
           accentColor: AppColors.steps,
           series: _series(buckets, (d) => d.steps.toDouble()),
+          bucketLabels: bucketLabels,
           onTap: () => context.push(AppRoutes.metricLocation('STEPS')),
         ),
         _MetricCard(
@@ -285,6 +293,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
           icon: Icons.straighten,
           accentColor: AppColors.distance,
           series: _series(buckets, (d) => d.distanceMeters),
+          bucketLabels: bucketLabels,
           onTap: () => context.push(AppRoutes.metricLocation('DISTANCE')),
         ),
         _MetricCard(
@@ -296,6 +305,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
           icon: Icons.favorite_border,
           accentColor: AppColors.heart,
           series: _series(buckets, (d) => d.hrvRmssdMs, average: true),
+          bucketLabels: bucketLabels,
           onTap: () => context.push(AppRoutes.metricLocation('HRV')),
         ),
       ],
@@ -550,7 +560,10 @@ double _weekCount(DatePeriod period) {
 // ── Overview buckets / series / totals ─────────────────────────────────
 
 class _Bucket {
-  const _Bucket(this.days);
+  const _Bucket(this.date, this.days);
+  // The bucket's representative date — its first (earliest) day (Kotlin
+  // `ActivityOverviewBucket.date`).
+  final LocalDate date;
   final List<ActivityOverviewDay> days;
 }
 
@@ -564,9 +577,13 @@ List<_Bucket> _buckets(List<ActivityOverviewDay> days, TimeRange range) {
       final key = '${day.date.year}-${day.date.month}';
       byMonth.putIfAbsent(key, () => <ActivityOverviewDay>[]).add(day);
     }
-    raw = [for (final group in byMonth.values) _Bucket(group)];
+    raw = [
+      for (final group in byMonth.values) _Bucket(group.first.date, group),
+    ];
   } else {
-    raw = [for (final day in sorted) _Bucket([day])];
+    raw = [
+      for (final day in sorted) _Bucket(day.date, [day]),
+    ];
   }
   if (raw.isEmpty || maxBuckets <= 0) return const <_Bucket>[];
   if (raw.length <= maxBuckets) return raw;
@@ -574,10 +591,39 @@ List<_Bucket> _buckets(List<ActivityOverviewDay> days, TimeRange range) {
   final chunked = <_Bucket>[];
   for (var i = 0; i < raw.length; i += chunkSize) {
     final slice = raw.sublist(i, math.min(i + chunkSize, raw.length));
-    chunked.add(_Bucket([for (final b in slice) ...b.days]));
+    chunked.add(_Bucket(
+      slice.first.date,
+      [for (final b in slice) ...b.days],
+    ));
   }
   return chunked;
 }
+
+/// The per-bucket labels under a key-metric sparkline (Kotlin
+/// `activityOverviewBucketLabel`): DAY & WEEK → the weekday's initial;
+/// MONTH → day-of-month; YEAR → the month's initial. Uses [locale].
+List<String> _bucketLabels(
+  List<_Bucket> buckets,
+  TimeRange range,
+  String locale,
+) =>
+    [for (final bucket in buckets) _bucketLabel(bucket.date, range, locale)];
+
+String _bucketLabel(LocalDate date, TimeRange range, String locale) {
+  final dateTime = DateTime(date.year, date.month, date.day);
+  switch (range) {
+    case TimeRange.day:
+    case TimeRange.week:
+      return _initial(DateFormat.E(locale).format(dateTime));
+    case TimeRange.month:
+      return DateFormat.d(locale).format(dateTime);
+    case TimeRange.year:
+      return _initial(DateFormat.MMM(locale).format(dateTime));
+  }
+}
+
+String _initial(String text) =>
+    text.isEmpty ? '' : String.fromCharCode(text.runes.first);
 
 List<double> _series(
   List<_Bucket> buckets,
@@ -1174,6 +1220,7 @@ class _MetricCard extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     required this.series,
+    required this.bucketLabels,
     required this.onTap,
   });
 
@@ -1183,6 +1230,7 @@ class _MetricCard extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final List<double> series;
+  final List<String> bucketLabels;
   final VoidCallback onTap;
 
   @override
@@ -1244,11 +1292,35 @@ class _MetricCard extends StatelessWidget {
               const SizedBox(width: 12),
               SizedBox(
                 width: 120,
-                height: 58,
-                child: SparklineChart(
-                  values: series,
-                  accentColor: accentColor,
-                  singlePointLine: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 58,
+                      child: SparklineChart(
+                        values: series,
+                        accentColor: accentColor,
+                        singlePointLine: true,
+                      ),
+                    ),
+                    if (bucketLabels.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (final label in bucketLabels)
+                            Text(
+                              label,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

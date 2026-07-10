@@ -10,6 +10,7 @@ import '../../domain/model/refresh_mode.dart';
 import '../../health/health_permissions.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/health_date_picker.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/loading_state.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/period_navigator.dart';
@@ -228,6 +229,7 @@ class _Content extends StatelessWidget {
           ],
         ),
       ),
+      const DataSourceEducationItem(),
       const SizedBox(height: 16),
     ];
 

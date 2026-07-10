@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/presentation/display_value.dart';
+import '../../core/presentation/external_link.dart';
 import '../../core/presentation/screen_error.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../core/time/local_date.dart';
@@ -311,9 +312,9 @@ class _SleepEfficiencyReferencesCard extends StatelessWidget {
   }
 }
 
-/// One reference. Kotlin opens the URL via `LocalUriHandler`; the Flutter app
-/// has no url_launcher dependency, so the URL is rendered as selectable text
-/// under its title instead.
+/// One reference, rendered as a full-width outlined button that opens the URL
+/// in the browser (Kotlin opens it via `LocalUriHandler`; the Flutter app now
+/// has url_launcher through [openExternalUrl]).
 class _ReferenceItem extends StatelessWidget {
   const _ReferenceItem({required this.title, required this.url});
 
@@ -322,28 +323,15 @@ class _ReferenceItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.open_in_new, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleSmall),
-                SelectableText(
-                  url,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.primary),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () => openExternalUrl(context, url),
+          icon: const Icon(Icons.open_in_new, size: 18),
+          label: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ),
       ),
     );
   }

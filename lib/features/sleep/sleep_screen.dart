@@ -18,6 +18,7 @@ import '../../state/app_providers.dart';
 import '../../ui/charts/period_chart.dart';
 import '../../ui/components/daily_goal_components.dart';
 import '../../ui/components/health_connect_gate.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
 import '../../ui/theme/app_colors.dart';
 import 'sleep_cards.dart';
@@ -171,7 +172,7 @@ class _SleepContent extends StatelessWidget {
         ? const <SleepData>[]
         : display.sessionsByDate[selectedDay] ?? const <SleepData>[];
 
-    return OrderedMetricDetailSections(
+    final orderedSections = OrderedMetricDetailSections(
       sections: [
         MetricDetailSection(
           MetricDetailSectionId.intradayChart,
@@ -300,6 +301,17 @@ class _SleepContent extends StatelessWidget {
             onOpenSession: onOpenSession,
           ),
         ),
+      ],
+    );
+
+    // Kotlin appends the data-source education link only to the DAY content
+    // (`sleepDayContent`), after the ordered sections.
+    if (!isDay) return orderedSections;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        orderedSections,
+        const DataSourceEducationItem(),
       ],
     );
   }

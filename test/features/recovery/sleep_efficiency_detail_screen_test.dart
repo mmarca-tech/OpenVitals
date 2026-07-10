@@ -109,7 +109,8 @@ void main() {
       findsOneWidget,
     );
 
-    // 4. References.
+    // 4. References: three tappable outlined buttons, each with the
+    //    open-in-new icon and its title as the label.
     expect(find.text('Backed links'), findsOneWidget);
     expect(find.text('Sleep efficiency definition'), findsOneWidget);
     expect(
@@ -118,9 +119,28 @@ void main() {
     );
     expect(find.text('Sleep assessment methods review'), findsOneWidget);
     expect(
-      find.textContaining('https://www.ncbi.nlm.nih.gov/medgen/'),
-      findsOneWidget,
+      find.widgetWithIcon(OutlinedButton, Icons.open_in_new),
+      findsNWidgets(3),
     );
+  });
+
+  testWidgets('tapping a reference button opens the link without throwing',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(await _bootstrap(_state()));
+    await tester.pumpAndSettle();
+
+    // No url_launcher plugin in the test host: openExternalUrl swallows the
+    // failure and shows the fallback SnackBar rather than throwing.
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Sleep efficiency definition'),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the calculation card expands and collapses', (tester) async {

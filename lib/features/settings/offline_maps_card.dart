@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/presentation/external_link.dart';
 import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/components/ov_card.dart';
@@ -31,10 +31,9 @@ const List<String> kOfflineMapMimeTypes = [
 ///   [OfflineMapImportController] with its `onProgress` callback, so the
 ///   import lives with the UI; Kotlin's "import continues in the background
 ///   while you leave the app" note is omitted because it would be untrue here.
-/// * Kotlin's help link fires an `ACTION_VIEW` intent. The app has no
-///   url_launcher dependency (pubspec is frozen while the offline-maps work is
-///   in flight), so the link copies the guide URL to the clipboard and
-///   confirms with a SnackBar showing the URL.
+/// * Kotlin's help link fires an `ACTION_VIEW` intent; the Flutter port opens
+///   the guide URL in the browser via [openExternalUrl] (with a SnackBar
+///   fallback when no browser can handle it).
 class OfflineMapsCard extends ConsumerStatefulWidget {
   const OfflineMapsCard({super.key, this.pickOfflineMapFile});
 
@@ -94,7 +93,8 @@ class _OfflineMapsCardState extends ConsumerState<OfflineMapsCard> {
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         TextButton(
-          onPressed: _copyHelpUrl,
+          onPressed: () =>
+              openExternalUrl(context, l10n.settingsOfflineMapsHelpUrl),
           child: Text(l10n.settingsOfflineMapsHelpLink),
         ),
         const SizedBox(height: 12),
@@ -165,17 +165,6 @@ class _OfflineMapsCardState extends ConsumerState<OfflineMapsCard> {
           ),
         ),
       ],
-    );
-  }
-
-  Future<void> _copyHelpUrl() async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    await Clipboard.setData(
-      ClipboardData(text: l10n.settingsOfflineMapsHelpUrl),
-    );
-    messenger?.showSnackBar(
-      SnackBar(content: Text(l10n.settingsOfflineMapsHelpUrl)),
     );
   }
 

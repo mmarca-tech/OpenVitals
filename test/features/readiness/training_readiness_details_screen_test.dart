@@ -11,6 +11,8 @@ import 'package:openvitals/domain/insights/stress_tracking.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/features/readiness/training_readiness_details_screen.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 
 final LocalDate today = LocalDate.now();
@@ -102,6 +104,8 @@ Future<Widget> _bootstrap({
           .overrideWith((ref, arg) async => insight),
     ],
     child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: TrainingReadinessDetailsScreen(
         date: date.isEmpty ? '$today' : date,
       ),
@@ -135,6 +139,8 @@ void main() {
     expect(find.textContaining('Recommended:'), findsOneWidget);
     expect(find.textContaining('Avoid:'), findsOneWidget);
     expect(find.textContaining('Strain target:'), findsOneWidget);
+    // The data-source education link closes the detail content.
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
   });
 
   testWidgets('falls back to the no-signals message when factors are empty',

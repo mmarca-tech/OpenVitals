@@ -268,6 +268,9 @@ class AppLocalizationsEt extends AppLocalizations {
   String get homeMetricWidgetUpdateFailed => 'Värskendamine ebaõnnestus';
 
   @override
+  String get linkCouldNotOpen => 'Linki ei saanud avada.';
+
+  @override
   String get homeMetricWidgetOpenForDetails => 'Ava üksikasjade nägemiseks';
 
   @override

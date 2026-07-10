@@ -121,16 +121,34 @@ void main() {
       findsOneWidget,
     );
 
-    // 4. References.
+    // 4. References: four tappable outlined buttons, each with the open-in-new
+    //    icon and its title as the label.
     expect(find.text('Backed links'), findsOneWidget);
     expect(find.text('AASM adult sleep duration'), findsOneWidget);
     expect(find.text('Multidimensional sleep health'), findsOneWidget);
     expect(find.text('Sleep efficiency definition'), findsOneWidget);
     expect(find.text('Sleep regularity research'), findsOneWidget);
     expect(
-      find.textContaining('https://aasm.org/'),
-      findsOneWidget,
+      find.widgetWithIcon(OutlinedButton, Icons.open_in_new),
+      findsNWidgets(4),
     );
+  });
+
+  testWidgets('tapping a reference button opens the link without throwing',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(await _bootstrap(_state()));
+    await tester.pumpAndSettle();
+
+    // No url_launcher plugin in the test host: openExternalUrl swallows the
+    // failure and shows the fallback SnackBar rather than throwing.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'AASM adult sleep duration'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the calculation card expands and collapses', (tester) async {

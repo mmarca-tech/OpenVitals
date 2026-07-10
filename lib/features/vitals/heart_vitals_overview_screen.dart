@@ -25,6 +25,7 @@ import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/charts/line_chart.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
@@ -231,38 +232,46 @@ class _OverviewContent extends StatelessWidget {
     HeartPeriodLoadResult result,
     ChartDaySelection daySelection,
   ) {
-    return OrderedMetricDetailSections(
-      sections: [
-        MetricDetailSection(
-          MetricDetailSectionId.vitalsHeartSection,
-          _HeartSection(
-            state: state,
-            period: period,
-            formatter: formatter,
-            result: result,
-            daySelection: daySelection,
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OrderedMetricDetailSections(
+          sections: [
+            MetricDetailSection(
+              MetricDetailSectionId.vitalsHeartSection,
+              _HeartSection(
+                state: state,
+                period: period,
+                formatter: formatter,
+                result: result,
+                daySelection: daySelection,
+              ),
+            ),
+            MetricDetailSection(
+              MetricDetailSectionId.vitalsCardiovascularSection,
+              _CardiovascularSection(
+                state: state,
+                period: period,
+                formatter: formatter,
+                result: result,
+                daySelection: daySelection,
+              ),
+            ),
+            MetricDetailSection(
+              MetricDetailSectionId.vitalsRespiratorySection,
+              _RespiratorySection(
+                state: state,
+                period: period,
+                formatter: formatter,
+                result: result,
+                daySelection: daySelection,
+              ),
+            ),
+          ],
         ),
-        MetricDetailSection(
-          MetricDetailSectionId.vitalsCardiovascularSection,
-          _CardiovascularSection(
-            state: state,
-            period: period,
-            formatter: formatter,
-            result: result,
-            daySelection: daySelection,
-          ),
-        ),
-        MetricDetailSection(
-          MetricDetailSectionId.vitalsRespiratorySection,
-          _RespiratorySection(
-            state: state,
-            period: period,
-            formatter: formatter,
-            result: result,
-            daySelection: daySelection,
-          ),
-        ),
+        // Kotlin `HeartVitalsOverviewScreen` renders `dataSourceEducationItem()`
+        // as a bare trailing item after the grouped sections (line 155).
+        const DataSourceEducationItem(),
       ],
     );
   }

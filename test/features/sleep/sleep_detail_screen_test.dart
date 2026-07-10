@@ -132,6 +132,34 @@ void main() {
     expect(find.text('REM'), findsWidgets);
   });
 
+  testWidgets(
+      'the stage lane chart paints the cross-lane connector without throwing',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // _session()'s four stages are contiguous across the Light/Deep/REM/Awake
+    // lanes, so the painter walks the `previous.end == stage.start` connector
+    // branch (a diagonal lineTo) for every hop.
+    await tester.pumpWidget(
+      await _bootstrap(
+        sleepRepository: _FakeSleepRepository(session: _session()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final chart = find.byType(SleepStagesLaneChart);
+    expect(chart, findsOneWidget);
+    // The single multi-lane painter is mounted under the chart.
+    expect(
+      find.descendant(of: chart, matching: find.byType(CustomPaint)),
+      findsWidgets,
+    );
+  });
+
   testWidgets('shows the no-stages message when a session has no stages',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 4000);

@@ -102,6 +102,10 @@ dependencies:
   flutter_timezone: ^5.1.0
   audioplayers: ^6.8.1
   file_selector: ^1.1.0
+  # Opens external reference URLs (sleep-score/efficiency "backed links") and
+  # the offline-maps guide in the browser, matching the Kotlin app's
+  # LocalUriHandler.openUri.
+  url_launcher: ^6.3.2
   # Keeps the screen on while an activity recording is live (Kotlin
   # `view.keepScreenOn`). 1.6.x pulls package_info_plus 10, which does not
   # apply the Kotlin Gradle plugin and breaks this AGP 9 build with

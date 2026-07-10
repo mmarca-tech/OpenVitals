@@ -264,6 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeMetricWidgetUpdateFailed => 'Unable to update';
 
   @override
+  String get linkCouldNotOpen => 'The link could not be opened.';
+
+  @override
   String get homeMetricWidgetOpenForDetails => 'Open for details';
 
   @override

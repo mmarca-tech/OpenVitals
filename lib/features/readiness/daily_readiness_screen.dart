@@ -7,6 +7,7 @@ import '../../core/time/local_date.dart';
 import '../../domain/insights/daily_readiness.dart';
 import '../../health/health_permissions.dart';
 import '../../navigation/app_routes.dart';
+import '../../ui/components/data_source_education_item.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/health_date_picker.dart';
 import '../../ui/components/loading_state.dart';
@@ -270,6 +271,7 @@ class _ReadinessPanel extends StatelessWidget {
               for (final factor in insight.factors.take(5))
                 _FactorRow(factor: factor),
             ],
+            const DataSourceEducationItem(),
           ],
         ),
       ),

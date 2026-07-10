@@ -12,6 +12,8 @@ import 'package:openvitals/domain/usecase/load_dashboard_day_use_case.dart';
 import 'package:openvitals/features/readiness/daily_readiness_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/health/health_permissions.dart';
+import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/period_navigator.dart';
 
@@ -44,7 +46,11 @@ Future<Widget> _bootstrap({required Set<String> granted}) async {
       loadDashboardDayUseCaseProvider
           .overrideWithValue(_FakeUseCase(_sampleData)),
     ],
-    child: const MaterialApp(home: DailyReadinessScreen()),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const DailyReadinessScreen(),
+    ),
   );
 }
 
@@ -62,6 +68,8 @@ void main() {
     expect(find.byType(DayNavigator), findsOneWidget);
     expect(find.text('Daily readiness'), findsWidgets);
     expect(find.text('Score'), findsOneWidget);
+    // The data-source education link closes the readiness panel.
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
   });
 
   testWidgets('Daily readiness shows the access gate when permission missing',

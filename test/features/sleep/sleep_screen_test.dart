@@ -25,6 +25,7 @@ import 'package:openvitals/domain/query/sleep_period_data.dart';
 import 'package:openvitals/features/sleep/sleep_screen.dart';
 import 'package:openvitals/health/health_permissions.dart';
 import 'package:openvitals/ui/charts/period_chart.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 
 /// A fake [SleepRepository] returning canned period data.
@@ -95,8 +96,9 @@ Future<Widget> _bootstrap({
   required _FakeSleepRepository sleepRepository,
   required Set<String> granted,
   List<DailyHrv> hrv = const <DailyHrv>[],
+  Map<String, Object> prefsValues = const <String, Object>{},
 }) async {
-  SharedPreferences.setMockInitialValues(const <String, Object>{});
+  SharedPreferences.setMockInitialValues(prefsValues);
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
@@ -224,6 +226,28 @@ void main() {
 
     expect(find.byType(CrossMetricInsightCard), findsOneWidget);
     expect(find.text('Sleep vs HRV'), findsOneWidget);
+  });
+
+  testWidgets('the day view closes with the data-source education link',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // Seed the persisted range so the screen opens on the DAY view, where
+    // Kotlin's `sleepDayContent` appends the education item.
+    await tester.pumpWidget(
+      await _bootstrap(
+        sleepRepository: _FakeSleepRepository(sessions: [_session()]),
+        granted: {HcPermissions.readSleep},
+        prefsValues: const {'detail_range_sleep': 'day'},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
   });
 
   testWidgets('Sleep screen shows the access gate when permission missing',

@@ -20,6 +20,7 @@ import 'package:openvitals/features/heart/heart_metric_screen.dart';
 import 'package:openvitals/health/health_permissions.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/charts/line_chart.dart';
+import 'package:openvitals/ui/components/data_source_education_item.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
 import 'package:openvitals/ui/components/metric_card.dart';
 
@@ -130,6 +131,17 @@ void main() {
     expect(find.byType(HeartRateDayRow), findsWidgets);
     // DATA_CONFIDENCE
     expect(find.text('Data confidence'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Average heart rate period view renders the data-source education item',
+      (tester) async {
+    // Kotlin `averageHeartRateContent` appends `dataSourceEducationItem()` after
+    // the period sections (HeartMetricContent.kt:219).
+    await pumpLoadedHeartRateScreen(tester);
+
+    expect(find.byType(DataSourceEducationItem), findsOneWidget);
+    expect(find.text('Manage data sources'), findsOneWidget);
   });
 
   testWidgets('Heart rate screen shows the access gate when permission missing',
