@@ -20,16 +20,27 @@ class BleDevicesScreen extends ConsumerStatefulWidget {
 
 class _BleDevicesScreenState extends ConsumerState<BleDevicesScreen> {
   bool _scanning = false;
+  late final BleSensorCoordinator _coordinator;
+
+  @override
+  void initState() {
+    super.initState();
+    // Capture the (long-lived) coordinator now: `ref` is unsafe to touch in
+    // dispose(), and reading it there threw before super.dispose() could tear
+    // down the provider subscriptions — leaving the BLE stream to call
+    // markNeedsBuild on the defunct element.
+    _coordinator = ref.read(bleSensorCoordinatorProvider);
+  }
 
   @override
   void dispose() {
     // Best-effort: stop scanning when leaving the screen.
-    ref.read(bleSensorCoordinatorProvider).stopScan();
+    _coordinator.stopScan();
     super.dispose();
   }
 
   Future<void> _toggleScan() async {
-    final coordinator = ref.read(bleSensorCoordinatorProvider);
+    final coordinator = _coordinator;
     if (_scanning) {
       await coordinator.stopScan();
       if (mounted) setState(() => _scanning = false);
