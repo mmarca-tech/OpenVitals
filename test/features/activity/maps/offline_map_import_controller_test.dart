@@ -62,6 +62,22 @@ void main() {
     );
   });
 
+  test('rejects a mapsforge pack that is not a valid map file', () async {
+    // Kotlin validates by opening `MapFile(...)`; garbage bytes must fail the
+    // import and leave nothing behind.
+    final source = sourceFile('broken.map', List.filled(4096, 0xAB));
+    final ctrl = controller();
+
+    await expectLater(ctrl.importMap(source), throwsArgumentError);
+
+    expect(ctrl.state.value.mapPacks, isEmpty);
+    expect(
+      mapsDir.existsSync() ? mapsDir.listSync() : const <FileSystemEntity>[],
+      isEmpty,
+      reason: 'failed imports must clean up temp and final files',
+    );
+  });
+
   test('deleteMap removes the file and its metadata entry', () async {
     final ctrl = controller();
     final pack = await ctrl.importMap(

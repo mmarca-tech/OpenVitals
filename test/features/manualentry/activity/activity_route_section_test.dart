@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:openvitals/core/presentation/unit_formatter.dart';
@@ -134,16 +135,20 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: ActivityEntryCard(
-                state: state,
-                unitFormatter: formatter(),
-                controllers: controllers,
-                callbacks: _noopCallbacks(),
+        // ProviderScope: the route preview map reads the offline map library
+        // (which resolves to "no active pack" in tests).
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: ActivityEntryCard(
+                  state: state,
+                  unitFormatter: formatter(),
+                  controllers: controllers,
+                  callbacks: _noopCallbacks(),
+                ),
               ),
             ),
           ),

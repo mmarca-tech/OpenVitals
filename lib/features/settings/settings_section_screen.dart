@@ -13,6 +13,7 @@ import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/placeholder_screen.dart';
+import 'offline_maps_card.dart';
 import 'settings_notifier.dart';
 import 'settings_section.dart';
 
@@ -118,6 +119,9 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
             onSelect: notifier.selectActivityWeekMode,
           ),
         ),
+        // Kotlin renders OfflineMapsCard as the last card of the ACTIVITIES
+        // section (SettingsScreenContent.kt).
+        const OfflineMapsCard(),
       ];
     case SettingsSection.nutrition:
       final formatter = ref.watch(unitFormatterProvider);

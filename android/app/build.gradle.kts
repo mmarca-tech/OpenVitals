@@ -35,6 +35,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Mirrors the Kotlin source's debug build type. Without the suffix a
+            // debug build shares `tech.mmarca.openvitals` with the installed
+            // release app: the install fails on the signature mismatch, and
+            // uninstalling to force it would destroy that app's health data.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

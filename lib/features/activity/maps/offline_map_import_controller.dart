@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mapsforge_flutter_mapfile/mapfile.dart';
 import 'package:path/path.dart' as p;
 
 import 'offline_map_metadata_store.dart';
@@ -20,8 +21,8 @@ import 'offline_map_models.dart';
 ///   render a progress bar.
 /// * File selection (SAF / document picker) is device UI; the controller takes
 ///   an already-resolved source [File] plus its original name.
-/// * Mapsforge validation (`MapFile(...)`) has no pure-Dart equivalent, so it is
-///   skipped with a `// TODO(offline-maps)` — real validation is on-device.
+/// * Mapsforge validation mirrors Kotlin's `MapFile(...)` open-check via the
+///   pure-Dart `mapsforge_flutter_mapfile` reader.
 class OfflineMapImportController {
   OfflineMapImportController({
     required this.metadataStore,
@@ -51,8 +52,10 @@ class OfflineMapImportController {
     String? originalFileName,
     void Function(OfflineMapImportProgress progress)? onProgress,
   }) async {
-    await Directory(mapsDirectoryPath).create(recursive: true);
-
+    // Format check first: an unsupported file must fail before any disk work
+    // (Kotlin's `require` runs before the copy too). The cheap setup IO is
+    // synchronous, mirroring Kotlin's Dispatchers.IO block — only the chunked
+    // copy itself stays async for progress reporting.
     final fileName = (originalFileName != null && originalFileName.isNotEmpty)
         ? originalFileName
         : p.basename(source.path);
@@ -62,11 +65,12 @@ class OfflineMapImportController {
         'Only .pmtiles, .map, and .maps offline map packs are supported.',
       );
     }
+    Directory(mapsDirectoryPath).createSync(recursive: true);
     final originalExtension =
         format.extensionForFileName(fileName) ?? format.fileExtension;
 
     final id = _mapIdFor(fileName, originalExtension);
-    final totalBytes = await source.length();
+    final totalBytes = source.lengthSync();
     final tempFile = File(p.join(mapsDirectoryPath, '$id${format.fileExtension}.tmp'));
     final finalFile = File(p.join(mapsDirectoryPath, '$id${format.fileExtension}'));
     var finalFileRecorded = false;
@@ -80,7 +84,7 @@ class OfflineMapImportController {
       if (copiedBytes <= 0) {
         throw ArgumentError('The selected offline map pack is empty.');
       }
-      _validateImportedMap(tempFile, format);
+      await _validateImportedMap(tempFile, format);
       tempFile.renameSync(finalFile.path);
 
       final finalLength = finalFile.lengthSync();
@@ -188,11 +192,25 @@ class OfflineMapImportController {
     return bytesCopied;
   }
 
-  void _validateImportedMap(File file, OfflineMapPackFormat format) {
-    // TODO(offline-maps): validate Mapsforge packs (Kotlin opens them with
-    // `MapFile(...)`). No pure-Dart Mapsforge reader exists; validation is
-    // deferred to on-device. PMTILES needs no structural validation here.
+  /// Kotlin `validateImportedMap`: a Mapsforge pack must open as a `MapFile`
+  /// (header + index parse) or the import fails as invalid; PMTiles packs are
+  /// not structurally validated, exactly like Kotlin.
+  Future<void> _validateImportedMap(
+      File file, OfflineMapPackFormat format) async {
     if (format == OfflineMapPackFormat.pmtiles) return;
+    Mapfile? mapfile;
+    try {
+      mapfile = await Mapfile.createFromFile(filename: file.path);
+      // Opening is lazy; the bounding-box read forces the header parse and
+      // throws on anything that is not a Mapsforge map.
+      await mapfile.getBoundingBox();
+    } catch (error) {
+      throw ArgumentError(
+        'The selected file is not a valid or supported Mapsforge map: $error',
+      );
+    } finally {
+      mapfile?.dispose();
+    }
   }
 
   String _mapIdFor(String originalFileName, String fileExtension) {

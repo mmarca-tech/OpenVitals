@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../domain/model/activity_models.dart';
 import '../../../l10n/app_localizations.dart';
+import 'offline_base_map_layer.dart';
 import 'route_geometry.dart';
 
 /// Renders a workout GPS route on a [FlutterMap], replacing the Kotlin
@@ -14,17 +15,12 @@ import 'route_geometry.dart';
 /// route bounds.
 ///
 /// Base map: OpenVitals is offline-only (the shipped app declares no INTERNET
-/// permission), so by default NO base-map tiles are drawn — the route renders on
-/// a plain [_offlineBackground] canvas. A tile source is only used when the
-/// caller explicitly supplies one via [tileProvider] or [urlTemplate].
-///
-/// // TODO(offline-maps): plug the imported offline vector pack in here — a
-/// PMTiles/MBTiles raster `TileProvider` (or a Mapsforge renderer) sourced from
-/// `OfflineMapImportController`'s active pack would supply [tileProvider]. Full
-/// offline vector parity with the Kotlin MapLibre/Mapsforge path is deferred to
-/// on-device. An online raster URL can be passed via [urlTemplate] for debugging
-/// but MUST NOT be the default (it would require the INTERNET permission and
-/// diverge from the source app's no-network stance).
+/// permission). The base map comes from the user's imported offline packs via
+/// [OfflineBaseMapLayer] (PMTiles rendered as vector tiles, Mapsforge `.map`
+/// packs rasterised on demand); with no active pack the route renders on a
+/// plain [_offlineBackground] canvas — the Kotlin `RoutePreview` fallback. A
+/// caller-supplied [tileProvider]/[urlTemplate] (tests, debugging) replaces
+/// the offline layer entirely and must never be the shipped default.
 class RouteMapView extends StatefulWidget {
   const RouteMapView({
     super.key,
@@ -114,10 +110,10 @@ class _RouteMapViewState extends State<RouteMapView> {
     ];
     final bounds = RouteBounds.fromPoints(cameraPoints);
 
-    // Only draw a base-map tile layer when a source is explicitly provided.
-    // With none (the shipped, offline-only default) the route sits on a plain
-    // canvas and no network fetch is attempted.
-    final hasTileSource =
+    // An explicitly provided tile source (tests, debugging) replaces the
+    // offline base-map layer; otherwise the active imported pack renders and,
+    // with none, the route sits on a plain canvas with no network fetch.
+    final hasExplicitTileSource =
         widget.tileProvider != null || widget.urlTemplate != null;
 
     final scheme = Theme.of(context).colorScheme;
@@ -132,12 +128,14 @@ class _RouteMapViewState extends State<RouteMapView> {
               mapController: _mapController,
               options: _mapOptions(bounds),
               children: [
-                if (hasTileSource)
+                if (hasExplicitTileSource)
                   TileLayer(
                     urlTemplate: widget.urlTemplate,
                     userAgentPackageName: 'tech.mmarca.openvitals',
                     tileProvider: widget.tileProvider,
-                  ),
+                  )
+                else
+                  const OfflineBaseMapLayer(),
                 if (segments.isNotEmpty)
                   PolylineLayer(
                     polylines: [

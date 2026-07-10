@@ -66,6 +66,30 @@ dependencies:
   gpx: ^2.3.0
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
+  # Offline base-map rendering (Kotlin MapLibre/Mapsforge parity):
+  # vector_map_tiles renders the PMTiles vector packs through flutter_map.
+  # The 10.x line draws the tiles on the GPU via flutter_scene; its
+  # flutter_scene_importer build hook shells out to CMake >= 3.21, so a host
+  # CMake that old (or a snap-bundled one shadowing it) fails the build with
+  # "Building native assets failed".
+  vector_map_tiles: 10.0.0-beta.2
+  # Direct dependency for ThemeReader/Theme (vector_map_tiles' rendering
+  # core); kept on the exact line vector_map_tiles 10.0.0-beta.2 pins.
+  vector_tile_renderer: 7.0.0-beta.1
+  # PMTiles archive reader; feeds a custom VectorTileProvider (the published
+  # vector_map_tiles_pmtiles bridge does not support vector_map_tiles 10.x).
+  # Pinned to 1.2.x: pmtiles 2.x needs protobuf ^6.0.0 while vector_map_tiles'
+  # vector_tile dependency still requires protobuf ^3.0.0, and pmtiles 1.3.0
+  # pins archive ^3 against this app's archive ^4.
+  pmtiles: '>=1.2.0 <1.3.0'
+  # Mapsforge .map reading + software tile rendering with the bundled default
+  # render theme (Kotlin MapsforgeThemes.DEFAULT equivalent). Only the split
+  # packages are needed — the tiles are bridged into flutter_map, not shown
+  # through the mapsforge_flutter map view widget.
+  mapsforge_flutter_core: ^4.0.0
+  mapsforge_flutter_mapfile: ^4.0.0
+  mapsforge_flutter_renderer: ^4.0.0
+  mapsforge_flutter_rendertheme: ^4.0.0
   home_widget: ^0.9.3
   android_alarm_manager_plus: ^5.1.0
   timezone: ^0.11.1
@@ -128,6 +152,11 @@ flutter_launcher_icons:
 # transitive sqlparser below 0.44.6 until drift_dev catches up.
 dependency_overrides:
   sqlparser: '>=0.44.0 <0.44.6'
+  # vector_map_tiles (10.0.0-beta.2) still pins latlong2 ^0.9.1 while
+  # flutter_map 8.3.1 already allows <0.11.0. The app (and flutter_map) use
+  # latlong2 0.10.x; vector_map_tiles only touches the stable LatLng surface,
+  # so forcing 0.10.x is safe. Drop when vector_map_tiles widens its pin.
+  latlong2: ^0.10.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -148,6 +177,36 @@ flutter:
     # Singing-bowl bells + ambient loops for the mindfulness timer, copied from
     # the Kotlin app's `res/raw`.
     - assets/sounds/
+    # Protomaps base style for offline PMTiles rendering, copied verbatim from
+    # the Kotlin app's `assets/offline_maps/`.
+    - assets/offline_maps/
+    # Mapsforge default render theme + its symbol/pattern resources, extracted
+    # from the same org.mapsforge:mapsforge-themes:0.25.0 jar the Kotlin app
+    # renders with (MapsforgeThemes.DEFAULT). The theme's `jar:` resource refs
+    # resolve here via the ImageBundleLoader override in
+    # offline_base_map_layer.dart.
+    - assets/mapsforge/
+    - assets/mapsforge/patterns/
+    - assets/mapsforge/symbols/
+    - assets/mapsforge/symbols/accommodation/
+    - assets/mapsforge/symbols/amenity/
+    - assets/mapsforge/symbols/barrier/
+    - assets/mapsforge/symbols/custom/
+    - assets/mapsforge/symbols/custom/amenity/
+    - assets/mapsforge/symbols/custom/money/
+    - assets/mapsforge/symbols/custom/tourist/
+    - assets/mapsforge/symbols/custom/transport/
+    - assets/mapsforge/symbols/education/
+    - assets/mapsforge/symbols/food/
+    - assets/mapsforge/symbols/health/
+    - assets/mapsforge/symbols/money/
+    - assets/mapsforge/symbols/place_of_worship/
+    - assets/mapsforge/symbols/poi/
+    - assets/mapsforge/symbols/shopping/
+    - assets/mapsforge/symbols/sport/
+    - assets/mapsforge/symbols/tourist/
+    - assets/mapsforge/symbols/transport/
+    - assets/mapsforge/symbols/water/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

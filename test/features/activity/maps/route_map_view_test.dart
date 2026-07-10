@@ -3,10 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/domain/model/activity_models.dart';
 import 'package:openvitals/features/activity/maps/route_map_view.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 /// A tile provider that never touches the network: it returns a 1x1
 /// transparent PNG so widget tests can pump [RouteMapView] without fetching
@@ -71,12 +73,16 @@ void main() {
     ];
 
     // No tileProvider and no urlTemplate: the shipped offline-only default.
+    // The ProviderScope carries the offline map library, which resolves to "no
+    // active pack" here, so the base-map layer stays empty.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 300,
-            child: RouteMapView(points: points),
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              child: RouteMapView(points: points),
+            ),
           ),
         ),
       ),
@@ -84,9 +90,11 @@ void main() {
     await tester.pump();
 
     expect(find.byType(FlutterMap), findsOneWidget);
-    // The route still renders, but there is no base-map TileLayer (so nothing
-    // attempts a network fetch without the INTERNET permission).
+    // The route still renders, but with no imported pack there is no base-map
+    // TileLayer (so nothing attempts a network fetch without the INTERNET
+    // permission).
     expect(find.byType(TileLayer), findsNothing);
+    expect(find.byType(VectorTileLayer), findsNothing);
     expect(find.byType(PolylineLayer), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
