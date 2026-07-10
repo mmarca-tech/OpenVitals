@@ -1106,86 +1106,11 @@ class ActivityEntryController {
   // ── Internal transforms ─────────────────────────────────────────────────
 
   void _applyRouteImport(RouteFileImport routeImport, UnitSystem unitSystem) {
-    final current = _state.value;
-    final start = clock.toZone(routeImport.startTime);
-    final selectedActivityType =
-        inferActivityType(routeImport, current.selectedActivityType);
-    final String routeDurationMinutes;
-    if (routeImport.hasImportedTimeRange) {
-      final routeDurationSeconds =
-          _atLeast(routeImport.endTime.difference(routeImport.startTime).inSeconds, 1);
-      final durationSecondsForDisplay =
-          routeImport.points.isNotEmpty && routeImport.hasRecordedTimestamps
-              ? routeDurationSeconds + 1
-              : routeDurationSeconds;
-      routeDurationMinutes = (durationSecondsForDisplay / 60.0)
-          .ceil()
-          .clamp(1, maxActivityDurationMinutes)
-          .toString();
-    } else if (routeImport.durationSeconds != null) {
-      routeDurationMinutes = (_atLeast(routeImport.durationSeconds!, 1) / 60.0)
-          .ceil()
-          .clamp(1, maxActivityDurationMinutes)
-          .toString();
-    } else {
-      routeDurationMinutes = current.durationMinutesText.trim().isEmpty
-          ? '30'
-          : current.durationMinutesText;
-    }
-    final calorieEstimate = (current.activeCaloriesText.trim().isEmpty &&
-            current.totalCaloriesText.trim().isEmpty)
-        ? activityCalorieEstimate(
-            activityType: selectedActivityType,
-            distanceMeters: routeImport.distanceMeters,
-            durationMinutesText: routeDurationMinutes,
-          )
-        : null;
-    final importedActiveCaloriesText = (routeImport.activeCaloriesKcal != null &&
-            routeImport.activeCaloriesKcal! > 0.0)
-        ? toInputText(routeImport.activeCaloriesKcal!, 1)
-        : null;
-    final importedTotalCaloriesText = (routeImport.totalCaloriesKcal != null &&
-            routeImport.totalCaloriesKcal! > 0.0)
-        ? toInputText(routeImport.totalCaloriesKcal!, 1)
-        : null;
-
-    _set(_state.value.copyWith(
-      mode: ActivityEntryFormMode.routeImport,
-      selectedActivityType: selectedActivityType,
-      titleText: current.titleText.trim().isNotEmpty
-          ? current.titleText
-          : (routeImport.name ?? _substringBeforeLastDot(routeImport.fileName)),
-      notesText: current.notesText.trim().isNotEmpty
-          ? current.notesText
-          : (routeImport.description ?? ''),
-      distanceText: current.distanceText.trim().isNotEmpty
-          ? current.distanceText
-          : routeDistanceInputText(routeImport, unitSystem),
-      elevationText: current.elevationText.trim().isNotEmpty
-          ? current.elevationText
-          : routeElevationInputText(routeImport, unitSystem),
-      activeCaloriesText: current.activeCaloriesText.trim().isNotEmpty
-          ? current.activeCaloriesText
-          : (importedActiveCaloriesText ?? calorieEstimate?.activeCaloriesText ?? ''),
-      totalCaloriesText: current.totalCaloriesText.trim().isNotEmpty
-          ? current.totalCaloriesText
-          : (importedTotalCaloriesText ?? calorieEstimate?.totalCaloriesText ?? ''),
-      importedRoute: routeImport,
-      recordedPauseIntervals: const [],
-      recordedLaps: const [],
-      recordedMarkers: const [],
-      isRecordingDraft: false,
-      startDateText: routeImport.hasImportedTimeRange
-          ? isoLocalDate(start)
-          : current.startDateText,
-      startTimeText: routeImport.hasImportedTimeRange
-          ? timeFormatterText(start)
-          : current.startTimeText,
-      durationMinutesText: routeDurationMinutes,
-      isImportingRoute: false,
-      entryError: null,
-      detailError: null,
-      validationErrors: const {},
+    _set(activityStateWithRouteImport(
+      _state.value,
+      routeImport,
+      unitSystem,
+      clock,
     ));
     refreshPermission();
   }
@@ -1299,24 +1224,12 @@ class ActivityEntryController {
   ActivityEntryType _preferredActivityType({
     bool requireGpsRoute = false,
     bool requireLiveRecording = false,
-  }) {
-    var activityTypes = defaultActivityEntryTypes
-        .where((t) =>
-            (!requireGpsRoute || t.supportsGpsRoute) &&
-            (!requireLiveRecording || t.supportsLiveRecording))
-        .toList();
-    if (activityTypes.isEmpty) activityTypes = defaultActivityEntryTypes;
-    final favorite = preferencesRepository?.favoriteActivityExerciseType;
-    final last = preferencesRepository?.lastActivityExerciseType;
-    int? preferred;
-    if (favorite != null && activityTypes.any((t) => t.exerciseType == favorite)) {
-      preferred = favorite;
-    } else if (last != null && activityTypes.any((t) => t.exerciseType == last)) {
-      preferred = last;
-    }
-    return activityTypes.firstWhereOrNull((t) => t.exerciseType == preferred) ??
-        activityTypes.first;
-  }
+  }) =>
+      preferredActivityEntryType(
+        preferencesRepository,
+        requireGpsRoute: requireGpsRoute,
+        requireLiveRecording: requireLiveRecording,
+      );
 
   void _rememberLastActivityType(int exerciseType) {
     preferencesRepository?.lastActivityExerciseType = exerciseType;
@@ -1359,13 +1272,6 @@ class ActivityEntryController {
 
   LocalDate _todayLocalDate() => LocalDate.fromDateTime(clock.nowInZone());
 
-  /// Port of the Kotlin `fileName.substringBeforeLast('.', fileName)`.
-  String _substringBeforeLastDot(String? fileName) {
-    if (fileName == null) return '';
-    final dot = fileName.lastIndexOf('.');
-    return dot < 0 ? fileName : fileName.substring(0, dot);
-  }
-
   DateTime _truncateToMinute(DateTime value) =>
       DateTime(value.year, value.month, value.day, value.hour, value.minute);
 
@@ -1374,6 +1280,133 @@ class ActivityEntryController {
         endTime: lap.endTime,
         lengthMeters: lap.distanceMeters,
       );
+}
+
+// ── Pure route-import + preferred-type helpers (tested directly) ────────────
+
+/// Port of the Kotlin `ActivityEntryUiState.withRouteImport` extension. Folds a
+/// parsed [routeImport] into [current], returning the route-import form state.
+/// Shared by the single-entry controller ([ActivityEntryController.importRouteFile]
+/// via `_applyRouteImport`) and the settings bulk importer.
+ActivityEntryUiState activityStateWithRouteImport(
+  ActivityEntryUiState current,
+  RouteFileImport routeImport,
+  UnitSystem unitSystem,
+  ActivityEntryClock clock,
+) {
+  final start = clock.toZone(routeImport.startTime);
+  final selectedActivityType =
+      inferActivityType(routeImport, current.selectedActivityType);
+  final String routeDurationMinutes;
+  if (routeImport.hasImportedTimeRange) {
+    final routeDurationSeconds =
+        _atLeast(routeImport.endTime.difference(routeImport.startTime).inSeconds, 1);
+    final durationSecondsForDisplay =
+        routeImport.points.isNotEmpty && routeImport.hasRecordedTimestamps
+            ? routeDurationSeconds + 1
+            : routeDurationSeconds;
+    routeDurationMinutes = (durationSecondsForDisplay / 60.0)
+        .ceil()
+        .clamp(1, maxActivityDurationMinutes)
+        .toString();
+  } else if (routeImport.durationSeconds != null) {
+    routeDurationMinutes = (_atLeast(routeImport.durationSeconds!, 1) / 60.0)
+        .ceil()
+        .clamp(1, maxActivityDurationMinutes)
+        .toString();
+  } else {
+    routeDurationMinutes = current.durationMinutesText.trim().isEmpty
+        ? '30'
+        : current.durationMinutesText;
+  }
+  final calorieEstimate = (current.activeCaloriesText.trim().isEmpty &&
+          current.totalCaloriesText.trim().isEmpty)
+      ? activityCalorieEstimate(
+          activityType: selectedActivityType,
+          distanceMeters: routeImport.distanceMeters,
+          durationMinutesText: routeDurationMinutes,
+        )
+      : null;
+  final importedActiveCaloriesText = (routeImport.activeCaloriesKcal != null &&
+          routeImport.activeCaloriesKcal! > 0.0)
+      ? toInputText(routeImport.activeCaloriesKcal!, 1)
+      : null;
+  final importedTotalCaloriesText = (routeImport.totalCaloriesKcal != null &&
+          routeImport.totalCaloriesKcal! > 0.0)
+      ? toInputText(routeImport.totalCaloriesKcal!, 1)
+      : null;
+
+  return current.copyWith(
+    mode: ActivityEntryFormMode.routeImport,
+    selectedActivityType: selectedActivityType,
+    titleText: current.titleText.trim().isNotEmpty
+        ? current.titleText
+        : (routeImport.name ?? substringBeforeLastDot(routeImport.fileName)),
+    notesText: current.notesText.trim().isNotEmpty
+        ? current.notesText
+        : (routeImport.description ?? ''),
+    distanceText: current.distanceText.trim().isNotEmpty
+        ? current.distanceText
+        : routeDistanceInputText(routeImport, unitSystem),
+    elevationText: current.elevationText.trim().isNotEmpty
+        ? current.elevationText
+        : routeElevationInputText(routeImport, unitSystem),
+    activeCaloriesText: current.activeCaloriesText.trim().isNotEmpty
+        ? current.activeCaloriesText
+        : (importedActiveCaloriesText ?? calorieEstimate?.activeCaloriesText ?? ''),
+    totalCaloriesText: current.totalCaloriesText.trim().isNotEmpty
+        ? current.totalCaloriesText
+        : (importedTotalCaloriesText ?? calorieEstimate?.totalCaloriesText ?? ''),
+    importedRoute: routeImport,
+    recordedPauseIntervals: const [],
+    recordedLaps: const [],
+    recordedMarkers: const [],
+    isRecordingDraft: false,
+    startDateText: routeImport.hasImportedTimeRange
+        ? isoLocalDate(start)
+        : current.startDateText,
+    startTimeText: routeImport.hasImportedTimeRange
+        ? timeFormatterText(start)
+        : current.startTimeText,
+    durationMinutesText: routeDurationMinutes,
+    isImportingRoute: false,
+    entryError: null,
+    detailError: null,
+    validationErrors: const {},
+  );
+}
+
+/// Port of the Kotlin `ActivityEntryViewModel.preferredActivityType`. Picks the
+/// favourite/last-used activity type that satisfies the requested capabilities,
+/// falling back to the first supported type.
+ActivityEntryType preferredActivityEntryType(
+  PreferencesRepository? preferencesRepository, {
+  bool requireGpsRoute = false,
+  bool requireLiveRecording = false,
+}) {
+  var activityTypes = defaultActivityEntryTypes
+      .where((t) =>
+          (!requireGpsRoute || t.supportsGpsRoute) &&
+          (!requireLiveRecording || t.supportsLiveRecording))
+      .toList();
+  if (activityTypes.isEmpty) activityTypes = defaultActivityEntryTypes;
+  final favorite = preferencesRepository?.favoriteActivityExerciseType;
+  final last = preferencesRepository?.lastActivityExerciseType;
+  int? preferred;
+  if (favorite != null && activityTypes.any((t) => t.exerciseType == favorite)) {
+    preferred = favorite;
+  } else if (last != null && activityTypes.any((t) => t.exerciseType == last)) {
+    preferred = last;
+  }
+  return activityTypes.firstWhereOrNull((t) => t.exerciseType == preferred) ??
+      activityTypes.first;
+}
+
+/// Port of the Kotlin `fileName.substringBeforeLast('.', fileName)`.
+String substringBeforeLastDot(String? fileName) {
+  if (fileName == null) return '';
+  final dot = fileName.lastIndexOf('.');
+  return dot < 0 ? fileName : fileName.substring(0, dot);
 }
 
 // ── Pure planned-workout builders (tested directly) ─────────────────────────

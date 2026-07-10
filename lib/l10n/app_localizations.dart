@@ -7861,6 +7861,71 @@ abstract class AppLocalizations {
   /// **'Import FIT file'**
   String get settingsFitImportAction;
 
+  /// No description provided for @settingsRouteImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GPX/KML/KMZ Importer'**
+  String get settingsRouteImportTitle;
+
+  /// No description provided for @settingsRouteImportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Import GPX, KML, or KMZ route files. Review one file before saving, or bulk import multiple files directly into Health Connect.'**
+  String get settingsRouteImportBody;
+
+  /// No description provided for @settingsRouteImportPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'{granted}/{total} route import permissions granted.'**
+  String settingsRouteImportPermissions(int granted, int total);
+
+  /// No description provided for @settingsRouteImportGrant.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant route import permissions'**
+  String get settingsRouteImportGrant;
+
+  /// No description provided for @settingsRouteImportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import GPX/KML/KMZ file'**
+  String get settingsRouteImportAction;
+
+  /// No description provided for @settingsRouteImportBulkAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Bulk import GPX/KML/KMZ files'**
+  String get settingsRouteImportBulkAction;
+
+  /// No description provided for @settingsRouteImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing routes...'**
+  String get settingsRouteImporting;
+
+  /// No description provided for @settingsRouteImportProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'File {current}/{total}. Imported {imported}, failed {failed}.'**
+  String settingsRouteImportProgress(
+    int current,
+    int total,
+    int imported,
+    int failed,
+  );
+
+  /// No description provided for @settingsRouteImportResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {imported}. Failed {failed}. Selected {selected}.'**
+  String settingsRouteImportResult(int imported, int failed, int selected);
+
+  /// No description provided for @settingsRouteImportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Route import warning: {message}'**
+  String settingsRouteImportError(String message);
+
   /// No description provided for @settingsOfflineMapsTitle.
   ///
   /// In en, this message translates to:

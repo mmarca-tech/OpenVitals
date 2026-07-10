@@ -1,4 +1,3 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +6,7 @@ import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
+import '../imports/pending_route_import.dart';
 import 'activity/activity_entry_clock.dart';
 import 'activity/activity_entry_form.dart';
 import 'activity/activity_entry_notifier.dart';
@@ -16,7 +16,6 @@ import 'activity/activity_entry_state.dart';
 import 'activity/recording/activity_recording_device_support.dart';
 import 'activity/recording/activity_recording_screen.dart';
 import 'activity/recording/activity_recording_setup_screen.dart';
-import 'activity/routeimport/activity_route_import_types.dart';
 import 'activity/activity_plan_picker_cards.dart';
 import 'activity/recording/activity_recording.dart';
 import 'manual_entry_form_scaffold.dart';
@@ -74,6 +73,18 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
     if (widget.activityEntryId != null) {
       _controller.loadEditEntry(ref.read(unitSystemProvider));
     }
+    // A route/FIT file picked in the Settings "Data import" cards is handed off
+    // here for review, the Dart analogue of Kotlin's `ExternalRouteImportRequest`
+    // consumption in `ActivityEntryScreen`. Deferred past the build phase
+    // (Riverpod forbids mutating a provider during initState) and consumed
+    // exactly once via `take()`.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pendingRoute = ref.read(pendingRouteImportProvider.notifier).take();
+      if (pendingRoute != null) {
+        _controller.importRouteFile(pendingRoute, ref.read(unitSystemProvider));
+      }
+    });
   }
 
   @override
@@ -115,8 +126,6 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
         _controller.startManualEntry();
       case ActivityEntrySourceAction.existingPlan:
         _controller.startFromExistingPlan();
-      case ActivityEntrySourceAction.importRouteFile:
-        await _importRouteFile();
       case ActivityEntrySourceAction.recordGps:
         // Kotlin asks for POST_NOTIFICATIONS before opening the recorder: the
         // session runs in a foreground service, which cannot start without it.
@@ -128,28 +137,6 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
         }
         _controller.prepareGpsRecording();
     }
-  }
-
-  /// Kotlin launches `ActivityResultContracts.OpenDocument()` with
-  /// `RouteImportMimeTypes`; `openFile` is the same SAF picker underneath.
-  Future<void> _importRouteFile() async {
-    final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(
-          label: 'Routes',
-          mimeTypes: kRouteImportMimeTypes,
-          extensions: ['gpx', 'kml', 'kmz', 'fit'],
-        ),
-      ],
-    );
-    if (file == null) return;
-    // The parsers take bytes: a content:// URI is not a readable path.
-    final bytes = await file.readAsBytes();
-    if (!mounted) return;
-    _controller.importRouteFile(
-      ActivityRouteFileHandle(bytes: bytes, fileName: file.name),
-      ref.read(unitSystemProvider),
-    );
   }
 
   Future<void> _requestWritePermission() async {

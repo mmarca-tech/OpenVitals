@@ -4476,6 +4476,51 @@ class AppLocalizationsEt extends AppLocalizations {
   String get settingsFitImportAction => 'Impordi FIT-fail';
 
   @override
+  String get settingsRouteImportTitle => 'GPX/KML/KMZ-importija';
+
+  @override
+  String get settingsRouteImportBody =>
+      'Impordi GPX-, KML- või KMZ-marsruudifaile. Vaata üks fail enne salvestamist üle või impordi mitu faili otse Health Connectisse.';
+
+  @override
+  String settingsRouteImportPermissions(int granted, int total) {
+    return '$granted/$total marsruudiimpordi õigust antud.';
+  }
+
+  @override
+  String get settingsRouteImportGrant => 'Anna marsruudiimpordi õigused';
+
+  @override
+  String get settingsRouteImportAction => 'Impordi GPX/KML/KMZ-fail';
+
+  @override
+  String get settingsRouteImportBulkAction =>
+      'Impordi GPX/KML/KMZ-failid hulgana';
+
+  @override
+  String get settingsRouteImporting => 'Marsruute imporditakse...';
+
+  @override
+  String settingsRouteImportProgress(
+    int current,
+    int total,
+    int imported,
+    int failed,
+  ) {
+    return 'Fail $current/$total. Imporditud $imported, ebaõnnestunud $failed.';
+  }
+
+  @override
+  String settingsRouteImportResult(int imported, int failed, int selected) {
+    return 'Imporditud $imported. Ebaõnnestunud $failed. Valitud $selected.';
+  }
+
+  @override
+  String settingsRouteImportError(String message) {
+    return 'Marsruudiimpordi hoiatus: $message';
+  }
+
+  @override
   String get settingsOfflineMapsTitle => 'Võrguühenduseta kaardid';
 
   @override

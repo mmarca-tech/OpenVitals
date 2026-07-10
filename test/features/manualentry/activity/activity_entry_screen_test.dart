@@ -79,7 +79,7 @@ void main() {
   }
 
   group('source card', () {
-    testWidgets('offers all four Kotlin sources, including route import',
+    testWidgets('offers the three Kotlin sources; route import is not here',
         (tester) async {
       await pumpScreen(tester);
 
@@ -87,8 +87,9 @@ void main() {
       expect(find.text('Create manually'), findsOneWidget);
       expect(find.text('Create from existing plan'), findsOneWidget);
       expect(find.text('Record activity'), findsOneWidget);
-      // The route import was entirely absent from the pre-port scaffold.
-      expect(find.text('Import GPX/KML/KMZ'), findsOneWidget);
+      // Route/FIT import moved to Settings → Data import, matching Kotlin
+      // (the activity-entry source card has no route-file picker).
+      expect(find.text('Import GPX/KML/KMZ'), findsNothing);
     });
 
     testWidgets('shows the permission explainer and a Grant action when the '

@@ -9,11 +9,12 @@ import 'activity_entry_ui_text.dart';
 /// Port of the Kotlin `ActivityEntrySourceCard.kt`.
 
 /// Kotlin `ActivityEntrySourceAction`. Each maps to a controller call, but only
-/// after the Health Connect write permission is granted.
+/// after the Health Connect write permission is granted. Route-file import is
+/// deliberately absent: a route file enters the form only via the Settings Data
+/// Import cards (matching Kotlin), never from the source card.
 enum ActivityEntrySourceAction {
   manual,
   existingPlan,
-  importRouteFile,
   recordGps,
 }
 
@@ -74,13 +75,6 @@ class ActivityEntrySourceCard extends StatelessWidget {
                   : null,
               icon: const Icon(Icons.my_location_outlined, size: 18),
               label: Text(l10n.activityEntryRecordGps),
-            ),
-            OutlinedButton.icon(
-              onPressed: enabled
-                  ? () => onSourceAction(ActivityEntrySourceAction.importRouteFile)
-                  : null,
-              icon: const Icon(Icons.folder_open_outlined, size: 18),
-              label: Text(l10n.activityEntryImportRouteFile),
             ),
             ActivityEntryErrorText(state: state),
           ],

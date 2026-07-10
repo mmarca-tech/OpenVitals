@@ -2380,6 +2380,62 @@
   "settingsFitImportTitle": "FIT Importer",
   "settingsFitImportBody": "Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.",
   "settingsFitImportAction": "Import FIT file",
+  "settingsRouteImportTitle": "GPX/KML/KMZ Importer",
+  "settingsRouteImportBody": "Import GPX, KML, or KMZ route files. Review one file before saving, or bulk import multiple files directly into Health Connect.",
+  "settingsRouteImportPermissions": "{granted}/{total} route import permissions granted.",
+  "@settingsRouteImportPermissions": {
+    "placeholders": {
+      "granted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRouteImportGrant": "Grant route import permissions",
+  "settingsRouteImportAction": "Import GPX/KML/KMZ file",
+  "settingsRouteImportBulkAction": "Bulk import GPX/KML/KMZ files",
+  "settingsRouteImporting": "Importing routes...",
+  "settingsRouteImportProgress": "File {current}/{total}. Imported {imported}, failed {failed}.",
+  "@settingsRouteImportProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "imported": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRouteImportResult": "Imported {imported}. Failed {failed}. Selected {selected}.",
+  "@settingsRouteImportResult": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "selected": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRouteImportError": "Route import warning: {message}",
+  "@settingsRouteImportError": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "settingsOfflineMapsTitle": "Offline maps",
   "settingsOfflineMapsBody": "Import PMTiles or Mapsforge .map/.maps packs for fully offline activity maps. Protomaps-compatible PMTiles basemaps and Mapsforge maps are supported.",
   "settingsOfflineMapsEmpty": "No offline maps imported yet.",

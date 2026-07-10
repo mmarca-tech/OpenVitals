@@ -4509,6 +4509,51 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsFitImportAction => 'FIT-Datei importieren';
 
   @override
+  String get settingsRouteImportTitle => 'GPX/KML/KMZ-Importer';
+
+  @override
+  String get settingsRouteImportBody =>
+      'Importiere GPX-, KML- oder KMZ-Routendateien. Prüfe eine Datei vor dem Speichern oder importiere mehrere Dateien direkt in Health Connect.';
+
+  @override
+  String settingsRouteImportPermissions(int granted, int total) {
+    return '$granted/$total Routenimport-Berechtigungen erteilt.';
+  }
+
+  @override
+  String get settingsRouteImportGrant => 'Routenimport-Berechtigungen erteilen';
+
+  @override
+  String get settingsRouteImportAction => 'GPX/KML/KMZ-Datei importieren';
+
+  @override
+  String get settingsRouteImportBulkAction =>
+      'GPX/KML/KMZ-Dateien gesammelt importieren';
+
+  @override
+  String get settingsRouteImporting => 'Routen werden importiert...';
+
+  @override
+  String settingsRouteImportProgress(
+    int current,
+    int total,
+    int imported,
+    int failed,
+  ) {
+    return 'Datei $current/$total. Importiert $imported, fehlgeschlagen $failed.';
+  }
+
+  @override
+  String settingsRouteImportResult(int imported, int failed, int selected) {
+    return 'Importiert $imported. Fehlgeschlagen $failed. Ausgewählt $selected.';
+  }
+
+  @override
+  String settingsRouteImportError(String message) {
+    return 'Routenimport-Warnung: $message';
+  }
+
+  @override
   String get settingsOfflineMapsTitle => 'Offline-Karten';
 
   @override

@@ -11,11 +11,14 @@ import '../../state/app_providers.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/placeholder_screen.dart';
 import 'cards/activity_recording_preferences_card.dart';
+import 'cards/apple_health_import_card.dart';
 import 'cards/body_energy_calibration_card.dart';
 import 'cards/body_profile_card.dart';
 import 'cards/caffeine_preferences_card.dart';
 import 'cards/favorite_activity_card.dart';
+import 'cards/fit_import_card.dart';
 import 'cards/permission_categories_card.dart';
+import 'cards/route_import_card.dart';
 import 'offline_maps_card.dart';
 import 'settings_notifier.dart';
 import 'settings_section.dart';
@@ -42,10 +45,6 @@ class SettingsSectionScreen extends ConsumerWidget {
         SettingsSection.sensors => const _ComingSoonBody(
             // TODO(phase6): BLE heart-rate sensor pairing is a Phase-6 subsystem.
             message: 'Bluetooth sensor pairing is coming in a later update.',
-          ),
-        SettingsSection.dataImport => const _ComingSoonBody(
-            // TODO(phase6): Apple Health / .fit import is a Phase-6 subsystem.
-            message: 'Apple Health and .fit import are coming in a later update.',
           ),
         _ => Align(
             alignment: Alignment.topCenter,
@@ -206,8 +205,15 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
         ),
         const PermissionCategoriesCard(),
       ];
-    case SettingsSection.sensors:
     case SettingsSection.dataImport:
+      // Kotlin DATA_IMPORT order: Apple Health, route (single + bulk), FIT
+      // (SettingsScreenContent.kt:182-231).
+      return const [
+        AppleHealthImportCard(),
+        RouteImportCard(),
+        FitImportCard(),
+      ];
+    case SettingsSection.sensors:
       return const [];
   }
 }
