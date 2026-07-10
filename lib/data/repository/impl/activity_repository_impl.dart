@@ -99,10 +99,33 @@ class ActivityRepositoryImpl implements ActivityRepository {
     final granted = await _grantedIfAvailable();
     if (!granted.contains(HcPermissions.readSteps)) return const [];
     return _dataSource.readDailySteps(
-      start,
+      _activityHistoryStart(start, end, granted),
       end,
       includeActiveCalories: granted.contains(HcPermissions.readActiveCalories),
+      includeFloors: granted.contains(HcPermissions.readFloors),
+      includeElevation: granted.contains(HcPermissions.readElevation),
     );
+  }
+
+  /// Port of Kotlin `ActivityRepository.activityHistoryStart`: when the platform
+  /// gates historical reads behind READ_HEALTH_DATA_HISTORY and that permission
+  /// is not granted, Health Connect only surfaces the last 30 days, so scanning
+  /// back to the legacy 2009 start is pointless — clamp to `end - 29 days`.
+  LocalDate _activityHistoryStart(
+    LocalDate start,
+    LocalDate end,
+    Set<String> granted,
+  ) {
+    final historyRequired = _dataSource
+        .permissionService.additionalDataAccessPermissions
+        .contains(HealthPermissionService.readHealthDataHistoryPermission);
+    if (historyRequired &&
+        !granted
+            .contains(HealthPermissionService.readHealthDataHistoryPermission)) {
+      final clamped = end.minusDays(29);
+      return clamped.isAfter(start) ? clamped : start;
+    }
+    return start;
   }
 
   @override

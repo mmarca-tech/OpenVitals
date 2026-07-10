@@ -37,6 +37,10 @@ class FakeHostApi extends HealthConnectHostApi {
   /// The arguments the last `aggregateGroupByDurationJson` call was made with.
   ({List<String> metrics, int startEpochMs, int endEpochMs, int bucketMinutes})?
       lastDurationQuery;
+
+  /// Every `aggregateGroupByDurationJson` call, in order — lets tests assert the
+  /// range was chunked instead of issued as one over-large query.
+  final List<({int startEpochMs, int endEpochMs})> durationQueries = [];
   List<String> existingClientIds = const [];
 
   final List<({String type, List<String> ids})> filterQueries = [];
@@ -122,6 +126,7 @@ class FakeHostApi extends HealthConnectHostApi {
       endEpochMs: endEpochMs,
       bucketMinutes: bucketMinutes,
     );
+    durationQueries.add((startEpochMs: startEpochMs, endEpochMs: endEpochMs));
     return durationBuckets;
   }
 
@@ -527,6 +532,59 @@ void main() {
       expect(query!.bucketMinutes, 24 * 60);
       expect(query.startEpochMs, dayStartMs);
       expect(query.endEpochMs, DateTime(2026, 1, 3).millisecondsSinceEpoch);
+    });
+
+    test('readDailySteps chunks a multi-year range into <=366-day queries',
+        () async {
+      final api = FakeHostApi();
+      // A 3-year span (>2*366 days). A single aggregateGroupByDuration over this
+      // slices into >1000 buckets and Health Connect rejects it — the reason the
+      // achievements scan (from the 2009 legacy start) returned nothing.
+      final daily = await _source(api).readDailySteps(
+        LocalDate(2023, 1, 1),
+        LocalDate(2025, 12, 31),
+        includeFloors: true,
+      );
+
+      // Every requested day is still materialised (empty days included).
+      expect(daily.length, greaterThan(2 * 366));
+      // Split into ceil(1096 / 366) = 3 chunks, each spanning at most 366 days.
+      expect(api.durationQueries, hasLength(3));
+      const maxSpanMs = 366 * 24 * 60 * 60 * 1000;
+      for (final q in api.durationQueries) {
+        expect(q.endEpochMs - q.startEpochMs, lessThanOrEqualTo(maxSpanMs));
+      }
+      // The chunks tile the range without gaps or overlap: first starts at the
+      // range start, last ends at the day after the range end.
+      expect(
+        api.durationQueries.first.startEpochMs,
+        DateTime(2023, 1, 1).millisecondsSinceEpoch,
+      );
+      expect(
+        api.durationQueries.last.endEpochMs,
+        DateTime(2026, 1, 1).millisecondsSinceEpoch,
+      );
+      // Floors were requested, so the metric set carries the floors aggregate.
+      expect(api.lastDurationQuery!.metrics, contains('FloorsClimbed.floors'));
+    });
+
+    test('readDailySteps maps floors when requested', () async {
+      final api = FakeHostApi();
+      api.durationBuckets = [
+        jsonEncode({
+          'startEpochMs': DateTime(2026, 1, 2).millisecondsSinceEpoch,
+          'endEpochMs': DateTime(2026, 1, 3).millisecondsSinceEpoch,
+          'values': {'Steps.count': 100.0, 'FloorsClimbed.floors': 12.0},
+        }),
+      ];
+      final daily = await _source(api).readDailySteps(
+        LocalDate(2026, 1, 2),
+        LocalDate(2026, 1, 2),
+        includeFloors: true,
+      );
+      expect(daily.single.floorsClimbed, 12);
+      // Not requested → left null (device-records-nothing vs zero distinction).
+      expect(daily.single.elevationGainedMeters, isNull);
     });
 
     test('single Sleep session maps stages from a typed msg', () async {

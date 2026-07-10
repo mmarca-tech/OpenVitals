@@ -110,6 +110,9 @@ class HealthDataSource {
     LocalDate startDate,
     LocalDate endDate, {
     bool includeActiveCalories = false,
+    bool includeFloors = false,
+    bool includeWheelchairPushes = false,
+    bool includeElevation = false,
   }) async =>
       const <DailySteps>[];
 

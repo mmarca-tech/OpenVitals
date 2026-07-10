@@ -200,11 +200,17 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     LocalDate startDate,
     LocalDate endDate, {
     bool includeActiveCalories = false,
+    bool includeFloors = false,
+    bool includeWheelchairPushes = false,
+    bool includeElevation = false,
   }) async {
     final metrics = <String>[
       'Steps.count',
       'Distance.distance',
       if (includeActiveCalories) 'ActiveCaloriesBurned.energy',
+      if (includeFloors) 'FloorsClimbed.floors',
+      if (includeWheelchairPushes) 'WheelchairPushes.count',
+      if (includeElevation) 'ElevationGained.elevation',
     ];
     // Kotlin `readDailyStepsChunk` slices with `aggregateGroupByDuration` over
     // an instant range, not `aggregateGroupByPeriod` over a local one. The
@@ -212,27 +218,34 @@ class HealthConnectNativeDataSource extends HealthDataSource {
     // offset, so records written under a different offset drop out of the day
     // and the total comes in under the plain `aggregate` the dashboard uses.
     const dayMinutes = 24 * 60;
-    final buckets = await _catch(
-      () => _api.aggregateGroupByDurationJson(
-        metrics,
-        _dayStart(startDate).millisecondsSinceEpoch,
-        _dayEnd(endDate).millisecondsSinceEpoch,
-        dayMinutes,
-      ),
-      const <String>[],
-    );
     final byDate = <LocalDate, Map<String, double?>>{};
-    for (final bucket in buckets) {
-      final map = jsonDecode(bucket) as Map<String, dynamic>;
-      final startMs = (map['startEpochMs'] as num).toInt();
-      final date = LocalDate.fromDateTime(
-        DateTime.fromMillisecondsSinceEpoch(startMs),
+    // Health Connect's aggregateGroupByDuration rejects windows that slice into
+    // too many buckets, so — like Kotlin `dailyStepDateChunks` — split the range
+    // into <=366-day chunks. Without this the achievements scan (which runs from
+    // the legacy 2009 start) issues one multi-thousand-bucket query that fails
+    // and returns nothing, so no badges ever count.
+    for (final chunk in _dailyStepDateChunks(startDate, endDate)) {
+      final buckets = await _catch(
+        () => _api.aggregateGroupByDurationJson(
+          metrics,
+          _dayStart(chunk.$1).millisecondsSinceEpoch,
+          _dayEnd(chunk.$2).millisecondsSinceEpoch,
+          dayMinutes,
+        ),
+        const <String>[],
       );
-      final values = (map['values'] as Map).cast<String, dynamic>();
-      byDate[date] = {
-        for (final entry in values.entries)
-          entry.key: (entry.value as num?)?.toDouble(),
-      };
+      for (final bucket in buckets) {
+        final map = jsonDecode(bucket) as Map<String, dynamic>;
+        final startMs = (map['startEpochMs'] as num).toInt();
+        final date = LocalDate.fromDateTime(
+          DateTime.fromMillisecondsSinceEpoch(startMs),
+        );
+        final values = (map['values'] as Map).cast<String, dynamic>();
+        byDate[date] = {
+          for (final entry in values.entries)
+            entry.key: (entry.value as num?)?.toDouble(),
+        };
+      }
     }
     final result = <DailySteps>[];
     var date = startDate;
@@ -246,11 +259,41 @@ class HealthConnectNativeDataSource extends HealthDataSource {
           activeCaloriesKcal: includeActiveCalories
               ? (values?['ActiveCaloriesBurned.energy'])
               : null,
+          floorsClimbed: includeFloors
+              ? (values?['FloorsClimbed.floors'] ?? 0).round()
+              : null,
+          wheelchairPushes: includeWheelchairPushes
+              ? (values?['WheelchairPushes.count'] ?? 0).round()
+              : null,
+          elevationGainedMeters: includeElevation
+              ? (values?['ElevationGained.elevation'] ?? 0.0)
+              : null,
         ),
       );
       date = date.plusDays(1);
     }
     return result;
+  }
+
+  /// Port of Kotlin `dailyStepDateChunks` — split `[start, end]` into inclusive
+  /// windows of at most 366 days so no single aggregate query exceeds Health
+  /// Connect's bucket limit.
+  static const int _dailyStepsMaxQueryDays = 366;
+
+  List<(LocalDate, LocalDate)> _dailyStepDateChunks(
+    LocalDate start,
+    LocalDate end,
+  ) {
+    if (end.isBefore(start)) return const [];
+    final chunks = <(LocalDate, LocalDate)>[];
+    var chunkStart = start;
+    while (!chunkStart.isAfter(end)) {
+      final tentativeEnd = chunkStart.plusDays(_dailyStepsMaxQueryDays - 1);
+      final chunkEnd = tentativeEnd.isAfter(end) ? end : tentativeEnd;
+      chunks.add((chunkStart, chunkEnd));
+      chunkStart = chunkEnd.plusDays(1);
+    }
+    return chunks;
   }
 
   @override
