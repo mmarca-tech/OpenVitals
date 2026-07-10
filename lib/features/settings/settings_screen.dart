@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/presentation/external_link.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/ov_card.dart';
@@ -28,6 +30,11 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: _SettingsCategoryCard(section: section),
               ),
+            SectionHeader(l10n.sectionSupport),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: _SupportCard(),
+            ),
             SectionHeader(l10n.sectionPrivacy),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -53,15 +60,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Text(
-                l10n.appName,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: _SettingsVersionText(),
             ),
           ],
         ),
@@ -111,6 +112,127 @@ class _SettingsCategoryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The hub support card. Port of Kotlin `SupportOpenVitalsCard`: a heart-marked
+/// header plus three outlined link buttons (report an issue, join discussions,
+/// open the funding page) that open their URLs in the system browser.
+class _SupportCard extends StatelessWidget {
+  const _SupportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return OpenVitalsCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.favorite_border,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.settingsSupportTitle,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.settingsSupportBody,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _SupportLinkButton(
+              label: l10n.settingsSupportIssuesAction,
+              url: l10n.settingsSupportIssuesUrl,
+            ),
+            const SizedBox(height: 8),
+            _SupportLinkButton(
+              label: l10n.settingsSupportDiscussionAction,
+              url: l10n.settingsSupportDiscussionUrl,
+            ),
+            const SizedBox(height: 8),
+            _SupportLinkButton(
+              label: l10n.settingsSupportAction,
+              url: l10n.settingsSupportUrl,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SupportLinkButton extends StatelessWidget {
+  const _SupportLinkButton({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => openExternalUrl(context, url),
+        icon: const Icon(Icons.open_in_new, size: 18),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+/// The hub version footer. Port of Kotlin `SettingsVersionText`: reads the app
+/// version and build number from the platform package metadata via
+/// package_info_plus and renders the localized "Version X (Y)" string.
+class _SettingsVersionText extends StatelessWidget {
+  const _SettingsVersionText();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        final text = info == null
+            ? ''
+            : l10n.settingsAppVersion(
+                info.version,
+                int.tryParse(info.buildNumber) ?? 0,
+              );
+        return Text(
+          text,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        );
+      },
     );
   }
 }

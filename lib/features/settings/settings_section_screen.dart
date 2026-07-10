@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../di/providers.dart';
-import '../../domain/model/health_connect_availability.dart';
 import '../../domain/preferences/activity_week_mode.dart';
 import '../../domain/preferences/app_language.dart';
 import '../../domain/preferences/app_theme_mode.dart';
@@ -10,9 +8,14 @@ import '../../domain/preferences/sleep_range_mode.dart';
 import '../../domain/preferences/unit_system.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
-import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/placeholder_screen.dart';
+import 'cards/activity_recording_preferences_card.dart';
+import 'cards/body_energy_calibration_card.dart';
+import 'cards/body_profile_card.dart';
+import 'cards/caffeine_preferences_card.dart';
+import 'cards/favorite_activity_card.dart';
+import 'cards/permission_categories_card.dart';
 import 'offline_maps_card.dart';
 import 'settings_notifier.dart';
 import 'settings_section.dart';
@@ -110,25 +113,27 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
     case SettingsSection.activities:
       return [
         _SettingsCard(
-          title: 'Week layout',
-          body: 'How the weekly period is defined.',
+          title: l10n.settingsActivityWeekTitle,
+          body: l10n.settingsActivityWeekBody,
           child: _ChoiceRow<ActivityWeekMode>(
             options: ActivityWeekMode.values,
             selected: state.activityWeekMode,
-            labelFor: _weekLabel,
+            labelFor: (value) => _weekLabel(l10n, value),
             onSelect: notifier.selectActivityWeekMode,
           ),
         ),
-        // Kotlin renders OfflineMapsCard as the last card of the ACTIVITIES
-        // section (SettingsScreenContent.kt).
+        // Kotlin ACTIVITIES order: week mode, favorite activity, recording
+        // preferences, offline maps (SettingsScreenContent.kt:89-129).
+        const FavoriteActivityCard(),
+        const ActivityRecordingPreferencesCard(),
         const OfflineMapsCard(),
       ];
     case SettingsSection.nutrition:
       final formatter = ref.watch(unitFormatterProvider);
       return [
         _SwitchCard(
-          title: 'Show calculated calories',
-          body: 'Display OpenVitals-estimated calories when no data exists.',
+          title: l10n.settingsCalorieDataTitle,
+          body: l10n.settingsCalorieDataBody,
           value: state.showOpenVitalsCalculatedCalories,
           onChanged: notifier.setShowOpenVitalsCalculatedCalories,
         ),
@@ -143,21 +148,17 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
             state.hydrationDailyGoalLiters + 0.25,
           ),
         ),
-        const _StubEntryCard(
-          title: 'Caffeine preferences',
-          // TODO(phase6): the caffeine profile editor lands in Phase 6.
-          body: 'Caffeine metabolism settings are coming in a later update.',
-        ),
+        const CaffeinePreferencesCard(),
       ];
     case SettingsSection.recovery:
       return [
         _SettingsCard(
-          title: 'Sleep window',
-          body: 'Which day a sleep session is attributed to.',
+          title: l10n.settingsSleepRangeTitle,
+          body: l10n.settingsSleepRangeBody,
           child: _ChoiceRow<SleepRangeMode>(
             options: SleepRangeMode.values,
             selected: state.sleepRangeMode,
-            labelFor: _sleepLabel,
+            labelFor: (value) => _sleepLabel(l10n, value),
             onSelect: notifier.selectSleepRangeMode,
           ),
         ),
@@ -183,27 +184,27 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
             state.lowHeartRateThresholdBpm + 5,
           ),
         ),
-        const _StubEntryCard(
-          title: 'Body energy calibration',
-          // TODO(phase6): the manual heart-zone calibration editor lands in Phase 6.
-          body: 'Manual heart-zone calibration is coming in a later update.',
-        ),
+        // Kotlin RECOVERY order: sleep range, body profile, body energy
+        // calibration (SettingsScreenContent.kt:154-181). The high/low HR
+        // steppers above are a deliberate Flutter-side extra.
+        const BodyProfileCard(),
+        const BodyEnergyCalibrationCard(),
       ];
     case SettingsSection.healthConnect:
       return [
         _SwitchCard(
-          title: 'Health Connect sync',
-          body: 'Read and write health data through Health Connect.',
+          title: l10n.settingsHealthConnectSyncTitle,
+          body: l10n.settingsHealthConnectSyncBody,
           value: state.healthConnectSyncEnabled,
           onChanged: notifier.setHealthConnectSyncEnabled,
         ),
         _SwitchCard(
-          title: 'App lock',
-          body: 'Require device authentication to open OpenVitals.',
+          title: l10n.settingsAppLockTitle,
+          body: l10n.settingsAppLockBody,
           value: state.appLockEnabled,
           onChanged: notifier.setAppLockEnabled,
         ),
-        const _PermissionsCard(),
+        const PermissionCategoriesCard(),
       ];
     case SettingsSection.sensors:
     case SettingsSection.dataImport:
@@ -223,15 +224,17 @@ String _themeLabel(AppLocalizations l10n, AppThemeMode value) => switch (value) 
       AppThemeMode.amoled => l10n.settingsThemeAmoled,
     };
 
-String _sleepLabel(SleepRangeMode value) => switch (value) {
-      SleepRangeMode.rolling24h => 'Rolling 24h',
-      SleepRangeMode.noon => 'Noon',
-      SleepRangeMode.evening18h => 'Evening',
+String _sleepLabel(AppLocalizations l10n, SleepRangeMode value) =>
+    switch (value) {
+      SleepRangeMode.rolling24h => l10n.settingsSleepRangeRolling24h,
+      SleepRangeMode.noon => l10n.settingsSleepRangeNoon,
+      SleepRangeMode.evening18h => l10n.settingsSleepRangeEvening,
     };
 
-String _weekLabel(ActivityWeekMode value) => switch (value) {
-      ActivityWeekMode.mondayToSunday => 'Mon–Sun',
-      ActivityWeekMode.last7Days => 'Last 7 days',
+String _weekLabel(AppLocalizations l10n, ActivityWeekMode value) =>
+    switch (value) {
+      ActivityWeekMode.mondayToSunday => l10n.settingsActivityWeekMondayToSunday,
+      ActivityWeekMode.last7Days => l10n.settingsActivityWeekLast7Days,
     };
 
 // The language picker options are intentionally shown as autonyms (each
@@ -485,102 +488,6 @@ class _StepperCard extends StatelessWidget {
                 icon: const Icon(Icons.add_circle_outline),
                 tooltip: 'Increase',
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A card that names a Phase-6 settings entry that is not yet available.
-class _StubEntryCard extends StatelessWidget {
-  const _StubEntryCard({required this.title, required this.body});
-
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: OpenVitalsCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Text(
-                body,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The Health Connect permission summary + grant action. Reads the availability
-/// and granted-permission providers. A trimmed port of the Kotlin
-/// `PermissionCategoryCard` list.
-class _PermissionsCard extends ConsumerWidget {
-  const _PermissionsCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final availability = ref.watch(healthConnectAvailabilityProvider).value;
-    final granted = ref.watch(grantedHealthPermissionsProvider).value;
-    final all = ref.watch(healthRepositoryProvider).allPermissions;
-
-    final String body;
-    Widget? action;
-    if (availability == null || granted == null) {
-      body = 'Checking Health Connect access…';
-    } else if (availability != HealthConnectAvailability.available) {
-      body = 'Health Connect is not available on this device.';
-    } else {
-      final grantedCount = all.where(granted.contains).length;
-      final missing = all.difference(granted);
-      body = '$grantedCount of ${all.length} permissions granted.';
-      if (missing.isNotEmpty) {
-        action = Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: FilledButton.tonal(
-            onPressed: () async {
-              await ref
-                  .read(healthRepositoryProvider)
-                  .requestPermissions(missing);
-              ref.invalidate(grantedHealthPermissionsProvider);
-            },
-            child: const Text('Manage permissions'),
-          ),
-        );
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: OpenVitalsCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Permissions', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Text(
-                body,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-              ?action,
             ],
           ),
         ),
