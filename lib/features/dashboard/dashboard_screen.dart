@@ -27,8 +27,6 @@ import '../../ui/components/widget_edit_controls.dart';
 import '../../ui/theme/app_colors.dart';
 import '../activity/exercise_labels.dart';
 import 'dashboard_notifier.dart';
-import 'dashboard_sensor_status.dart';
-import 'dashboard_sensor_status_card.dart';
 import 'dashboard_summary_presentation.dart';
 
 /// The OpenVitals summary dashboard — the nav-suite home branch rendered inside
@@ -136,7 +134,6 @@ class _DashboardBodyState extends ConsumerState<_DashboardBody>
     final state = widget.state;
     final formatter = widget.formatter;
     final notifier = widget.notifier;
-    final sensorStatus = ref.watch(dashboardSensorStatusProvider);
     final data = state.data;
     if (state.isLoading && data == null) {
       return const FullScreenLoading();
@@ -318,12 +315,14 @@ class _DashboardBodyState extends ConsumerState<_DashboardBody>
                 recordPlacement: summary.unsupportedTitles.contains(title),
               ),
             ),
-          if (sensorStatus.hasDevices)
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: _gutter, vertical: 4),
-              child: DashboardSensorStatusCard(status: sensorStatus),
-            ),
+          // DELIBERATE DEVIATION from the Kotlin app — do not "fix" this back.
+          // Kotlin renders a `DashboardSensorStatusCard` here (between the widget
+          // carousel and today's activities). We deliberately omit it: the
+          // top-bar battery action (adaptive_scaffold.dart, also gated on
+          // `hasDevices`) is a sufficient entry point to the Sensors screen, and
+          // the card only pushed the activities section further down. The
+          // underlying `dashboardSensorStatusProvider` is still what gates that
+          // top-bar action. A parity audit will flag the missing card — intended.
           const SizedBox(height: 8),
           _ActivitiesSection(
             data: data,

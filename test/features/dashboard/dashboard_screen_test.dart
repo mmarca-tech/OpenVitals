@@ -13,7 +13,6 @@ import 'package:openvitals/domain/model/ble_sensor_models.dart';
 import 'package:openvitals/domain/usecase/load_dashboard_day_use_case.dart';
 import 'package:openvitals/features/dashboard/dashboard_screen.dart';
 import 'package:openvitals/features/dashboard/dashboard_sensor_status.dart';
-import 'package:openvitals/features/dashboard/dashboard_sensor_status_card.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
@@ -449,8 +448,13 @@ void main() {
     expect(find.text('Set up your health data'), findsNothing);
   });
 
-  group('sensor status card', () {
-    testWidgets('renders the lowest battery and the active/connected summary',
+  group('sensor status', () {
+    // DELIBERATE DEVIATION from Kotlin, which renders a DashboardSensorStatusCard
+    // between the widget carousel and today's activities. We omit it: the top-bar
+    // battery action is entry point enough, and the card only pushed the
+    // activities section further down. `dashboardSensorStatusProvider` still
+    // exists — it is what gates that top-bar action (see adaptive_scaffold).
+    testWidgets('is never rendered in the dashboard body, even with sensors',
         (tester) async {
       _usePhoneViewport(tester);
       await tester.pumpWidget(
@@ -465,41 +469,15 @@ void main() {
                 connectionStatus: BleConnectionStatus.connected,
                 batteryPercent: 64,
               ),
-              DashboardSensorDeviceStatus(
-                id: 'b',
-                displayName: 'Cadence',
-                enabled: true,
-                connectionStatus: BleConnectionStatus.disconnected,
-                batteryPercent: 18,
-              ),
             ],
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.byType(DashboardSensorStatusCard),
-        200,
-        scrollable: _dashboardScrollable(),
-      );
-      expect(find.text('Sensor battery'), findsOneWidget);
-      expect(find.text('18% lowest'), findsOneWidget);
-      expect(find.text('2 active • 1 connected'), findsOneWidget);
-    });
-
-    testWidgets('renders nothing when no sensor is paired', (tester) async {
-      _usePhoneViewport(tester);
-      await tester.pumpWidget(
-        await _bootstrap(
-          availability: HealthConnectAvailability.available,
-          sensorStatus: const DashboardSensorStatus(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DashboardSensorStatusCard), findsNothing);
       expect(find.text('Sensor battery'), findsNothing);
+      expect(find.textContaining('lowest'), findsNothing);
+      expect(find.textContaining('connected'), findsNothing);
     });
   });
 
