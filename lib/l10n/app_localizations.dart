@@ -7095,12 +7095,6 @@ abstract class AppLocalizations {
   /// **'View privacy policy'**
   String get settingsPrivacyPolicyLink;
 
-  /// No description provided for @settingsPrivacyPolicyUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'https://codeberg.org/OpenVitals/android-app/src/branch/main/PRIVACY.md'**
-  String get settingsPrivacyPolicyUrl;
-
   /// No description provided for @settingsAppLockTitle.
   ///
   /// In en, this message translates to:
@@ -8178,12 +8172,6 @@ abstract class AppLocalizations {
   /// **'Open offline maps guide'**
   String get settingsOfflineMapsHelpLink;
 
-  /// No description provided for @settingsOfflineMapsHelpUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'https://openvitals.codeberg.page/website/how-to/offline-maps/'**
-  String get settingsOfflineMapsHelpUrl;
-
   /// No description provided for @sectionSupport.
   ///
   /// In en, this message translates to:
@@ -8219,24 +8207,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Liberapay'**
   String get settingsSupportAction;
-
-  /// No description provided for @settingsSupportIssuesUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'https://codeberg.org/mmarca-tech/OpenVitals/issues'**
-  String get settingsSupportIssuesUrl;
-
-  /// No description provided for @settingsSupportDiscussionUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'http://openvitals.zulipchat.com/'**
-  String get settingsSupportDiscussionUrl;
-
-  /// No description provided for @settingsSupportUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'https://liberapay.com/manuel.mmarca.tech/donate'**
-  String get settingsSupportUrl;
 
   /// No description provided for @crashReportEmailChooserTitle.
   ///

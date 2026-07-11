@@ -4047,10 +4047,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsPrivacyPolicyLink => 'Ver política de privacidad';
 
   @override
-  String get settingsPrivacyPolicyUrl =>
-      'https://codeberg.org/OpenVitals/android-app/src/branch/main/PRIVACY.md';
-
-  @override
   String get settingsAppLockTitle => 'Bloqueo de la app';
 
   @override
@@ -4737,10 +4733,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsOfflineMapsHelpLink => 'Abrir guía de mapas sin conexión';
 
   @override
-  String get settingsOfflineMapsHelpUrl =>
-      'https://openvitals.codeberg.page/website/how-to/offline-maps/';
-
-  @override
   String get sectionSupport => 'Apoyo';
 
   @override
@@ -4758,17 +4750,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsSupportAction => 'Abrir Liberapay';
-
-  @override
-  String get settingsSupportIssuesUrl =>
-      'https://codeberg.org/mmarca-tech/OpenVitals/issues';
-
-  @override
-  String get settingsSupportDiscussionUrl => 'http://openvitals.zulipchat.com/';
-
-  @override
-  String get settingsSupportUrl =>
-      'https://liberapay.com/manuel.mmarca.tech/donate';
 
   @override
   String get crashReportEmailChooserTitle =>

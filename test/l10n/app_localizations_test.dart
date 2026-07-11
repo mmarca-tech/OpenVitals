@@ -44,4 +44,39 @@ void main() {
     // Two int args (Android `%1$d ... %2$d`).
     expect(en.dashboardSensorStatusActiveConnected(2, 3), '2 active • 3 connected');
   });
+
+  // PINS gen-l10n's template-fallback semantics, which the whole ARB-native
+  // cutover rests on: the locale ARBs are genuinely PARTIAL, and a key a locale
+  // omits must fall back to the English template message — NOT to a blank
+  // string, and NOT to a build error.
+  //
+  // `settingsAppleHealthImportRoutesIncomplete` is currently untranslated in all
+  // four locales (it is one of the three strings `flutter gen-l10n` reports as
+  // `"de": 3 untranslated message(s).`). It used to be back-filled with English
+  // INTO the ARBs by `tool/xml_to_arb.dart`, which made every catalog look 100%
+  // complete; now the key is simply absent and gen-l10n supplies the fallback.
+  //
+  // If a future Flutter changes `_generateBaseClassFile` so a missing message no
+  // longer falls back to the template, this test fails loudly instead of the app
+  // silently shipping empty strings to every non-English user.
+  test('an untranslated key falls back to the English template message',
+      () async {
+    final en = await AppLocalizations.delegate.load(const Locale('en'));
+
+    for (final code in <String>['de', 'es', 'it', 'et']) {
+      final l10n = await AppLocalizations.delegate.load(Locale(code));
+
+      expect(
+        l10n.settingsAppleHealthImportRoutesIncomplete,
+        isNotEmpty,
+        reason: '$code fell back to a BLANK string, not the template',
+      );
+      expect(
+        l10n.settingsAppleHealthImportRoutesIncomplete,
+        en.settingsAppleHealthImportRoutesIncomplete,
+        reason: '$code did not fall back to the English template message; '
+            'gen-l10n fallback semantics have changed',
+      );
+    }
+  });
 }

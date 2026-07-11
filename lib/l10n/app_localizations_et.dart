@@ -4008,10 +4008,6 @@ class AppLocalizationsEt extends AppLocalizations {
   String get settingsPrivacyPolicyLink => 'Vaata privaatsuspoliitikat';
 
   @override
-  String get settingsPrivacyPolicyUrl =>
-      'https://codeberg.org/OpenVitals/android-app/src/branch/main/PRIVACY.md';
-
-  @override
   String get settingsAppLockTitle => 'Rakenduse lukk';
 
   @override
@@ -4691,10 +4687,6 @@ class AppLocalizationsEt extends AppLocalizations {
       'Ava võrguühenduseta kaartide juhend';
 
   @override
-  String get settingsOfflineMapsHelpUrl =>
-      'https://openvitals.codeberg.page/website/how-to/offline-maps/';
-
-  @override
   String get sectionSupport => 'Tugi';
 
   @override
@@ -4712,17 +4704,6 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get settingsSupportAction => 'Ava Liberapay';
-
-  @override
-  String get settingsSupportIssuesUrl =>
-      'https://codeberg.org/mmarca-tech/OpenVitals/issues';
-
-  @override
-  String get settingsSupportDiscussionUrl => 'http://openvitals.zulipchat.com/';
-
-  @override
-  String get settingsSupportUrl =>
-      'https://liberapay.com/manuel.mmarca.tech/donate';
 
   @override
   String get crashReportEmailChooserTitle =>

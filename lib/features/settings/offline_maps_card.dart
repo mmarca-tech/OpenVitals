@@ -93,8 +93,7 @@ class _OfflineMapsCardState extends ConsumerState<OfflineMapsCard> {
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         TextButton(
-          onPressed: () =>
-              openExternalUrl(context, l10n.settingsOfflineMapsHelpUrl),
+          onPressed: () => openExternalUrl(context, offlineMapsHelpUrl),
           child: Text(l10n.settingsOfflineMapsHelpLink),
         ),
         const SizedBox(height: 12),

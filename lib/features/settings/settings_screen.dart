@@ -175,17 +175,17 @@ class _SupportCard extends StatelessWidget {
             const SizedBox(height: 12),
             _SupportLinkButton(
               label: l10n.settingsSupportIssuesAction,
-              url: l10n.settingsSupportIssuesUrl,
+              url: supportIssuesUrl,
             ),
             const SizedBox(height: 8),
             _SupportLinkButton(
               label: l10n.settingsSupportDiscussionAction,
-              url: l10n.settingsSupportDiscussionUrl,
+              url: supportDiscussionUrl,
             ),
             const SizedBox(height: 8),
             _SupportLinkButton(
               label: l10n.settingsSupportAction,
-              url: l10n.settingsSupportUrl,
+              url: supportUrl,
             ),
           ],
         ),
