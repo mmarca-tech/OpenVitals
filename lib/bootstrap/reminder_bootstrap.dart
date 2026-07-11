@@ -5,6 +5,7 @@ import '../core/reminders/alarm_manager_reminder_scheduler.dart';
 import '../core/reminders/reminder_notifications.dart';
 import '../core/reminders/reminder_time_zone.dart';
 import '../di/providers.dart';
+import '../features/homewidgets/home_widget_alarm.dart';
 
 /// Brings the reminder subsystem up at app start, standing in for the Kotlin
 /// boot receivers and `Application.onCreate` wiring.
@@ -50,11 +51,24 @@ Future<ReminderBootstrapResult> bootstrapReminders(
     return true;
   }, 'reminder schedules');
 
+  // The home-screen widgets' periodic refresh rides the same alarm manager (it
+  // is the Dart stand-in for Glance's `updatePeriodMillis`), so it is armed from
+  // here, where the alarm service has just come up. Android-only: there is no
+  // alarm manager, and no widgets, anywhere else. Re-arming an already-armed
+  // alarm id simply replaces it, so a re-run is harmless.
+  final homeWidgets = isAndroid
+      ? await _guard(() async {
+          await scheduleHomeWidgetRefresh();
+          return true;
+        }, 'home widget refresh')
+      : false;
+
   return ReminderBootstrapResult(
     timeZoneReady: timeZone,
     notificationsReady: notifications,
     alarmServiceReady: alarmService,
     schedulesRestored: restored,
+    homeWidgetRefreshArmed: homeWidgets,
   );
 }
 
@@ -73,6 +87,7 @@ class ReminderBootstrapResult {
     required this.notificationsReady,
     required this.alarmServiceReady,
     required this.schedulesRestored,
+    this.homeWidgetRefreshArmed = false,
   });
 
   final bool timeZoneReady;
@@ -81,4 +96,8 @@ class ReminderBootstrapResult {
   /// Always false off Android, where there is no alarm manager to start.
   final bool alarmServiceReady;
   final bool schedulesRestored;
+
+  /// Whether the periodic home-screen-widget refresh was armed. Always false off
+  /// Android.
+  final bool homeWidgetRefreshArmed;
 }

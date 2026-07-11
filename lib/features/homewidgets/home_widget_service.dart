@@ -183,6 +183,10 @@ class HomeWidgetInstance {
 abstract interface class HomeWidgetClient {
   Future<void> saveWidgetData(String key, Object? value);
 
+  /// Reads a key back out of widget storage. The configuration activity writes
+  /// an instance's selection natively; Dart reads it here to know what to push.
+  Future<String?> readWidgetData(String key);
+
   Future<void> updateWidget({String? qualifiedAndroidName, String? iOSName});
 
   /// The widget instances the user has actually placed. Needed to push
@@ -197,6 +201,10 @@ class PluginHomeWidgetClient implements HomeWidgetClient {
   @override
   Future<void> saveWidgetData(String key, Object? value) =>
       HomeWidget.saveWidgetData<Object?>(key, value);
+
+  @override
+  Future<String?> readWidgetData(String key) =>
+      HomeWidget.getWidgetData<String>(key);
 
   @override
   Future<void> updateWidget({String? qualifiedAndroidName, String? iOSName}) =>
@@ -269,4 +277,20 @@ class HomeWidgetService {
     final installed = await client.installedWidgets();
     return installed.where((w) => w.className == target).toList();
   }
+
+  /// The configuration [appWidgetId] was set up with — the metric id for the
+  /// metric widget, the drink id for the beverage widgets — or null while the
+  /// instance is still unconfigured.
+  ///
+  /// This is the `selection_id` key the configuration activity persists (Kotlin
+  /// keeps the same value in `HomeMetricWidgetState.metricIdKey` /
+  /// `quick_beverage_drink_id`); reading it back is what lets a refresh know
+  /// which metric each placed tile is showing.
+  Future<String?> selectionIdOf(
+    HomeWidgetId widget, {
+    required int appWidgetId,
+  }) =>
+      client.readWidgetData(
+        '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}selection_id',
+      );
 }

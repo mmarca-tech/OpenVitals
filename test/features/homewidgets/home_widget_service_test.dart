@@ -1,24 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/features/homewidgets/home_widget_service.dart';
 
-class _FakeClient implements HomeWidgetClient {
-  _FakeClient([this.installed = const []]);
-
-  final Map<String, Object?> saved = {};
-  final List<String?> updated = [];
-  final List<HomeWidgetInstance> installed;
-
-  @override
-  Future<void> saveWidgetData(String key, Object? value) async =>
-      saved[key] = value;
-
-  @override
-  Future<void> updateWidget({String? qualifiedAndroidName, String? iOSName}) async =>
-      updated.add(qualifiedAndroidName);
-
-  @override
-  Future<List<HomeWidgetInstance>> installedWidgets() async => installed;
-}
+import 'fake_home_widget_client.dart';
 
 void main() {
   group('homeWidgetKeyPrefix', () {
@@ -124,7 +107,7 @@ void main() {
 
   group('HomeWidgetService', () {
     test('persists every key then updates the qualified receiver', () async {
-      final client = _FakeClient();
+      final client = FakeHomeWidgetClient();
       final service = HomeWidgetService(client: client);
 
       await service.pushSnapshot(
@@ -141,7 +124,7 @@ void main() {
     });
 
     test('a per-instance push is keyed by appWidgetId', () async {
-      final client = _FakeClient();
+      final client = FakeHomeWidgetClient();
       final service = HomeWidgetService(client: client);
 
       await service.pushSnapshot(
@@ -160,7 +143,7 @@ void main() {
           'tech.mmarca.openvitals.features.homewidgets.HomeMetricWidgetReceiver';
       const energyClass =
           'tech.mmarca.openvitals.features.homewidgets.HomeBodyEnergyWidgetReceiver';
-      final client = _FakeClient(const [
+      final client = FakeHomeWidgetClient(installed: const [
         HomeWidgetInstance(appWidgetId: 1, className: metricClass),
         HomeWidgetInstance(appWidgetId: 2, className: energyClass),
         HomeWidgetInstance(appWidgetId: 3, className: metricClass),

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'bootstrap/reminder_bootstrap.dart';
 import 'di/providers.dart';
+import 'features/homewidgets/home_widget_launch.dart';
 import 'features/imports/route_import_intent.dart';
 
 /// App entry point.
@@ -39,8 +40,11 @@ Future<void> main() async {
       container: container,
       // Drains any route file the app was opened with ("Open with" on a
       // .gpx/.kml/.kmz/.fit) into the activity-entry form — the Kotlin
-      // `ExternalRouteImportRequest` path.
-      child: const RouteImportIntentBootstrap(child: OpenVitalsApp()),
+      // `ExternalRouteImportRequest` path — and routes a home-screen-widget tap
+      // to the screen it points at (the Kotlin `EXTRA_OPENVITALS_ROUTE` path).
+      child: const RouteImportIntentBootstrap(
+        child: HomeWidgetLaunchBootstrap(child: OpenVitalsApp()),
+      ),
     ),
   );
 

@@ -371,15 +371,46 @@
             </intent-filter>
         </receiver>
 
-        <!-- TODO(phase8-native-widget): the Kotlin source ships six home-screen
-             AppWidget providers (HomeMetricWidget, HomeQuickBeverageWidget,
-             HomeQuickBeverageOneTapWidget, HomeDailyReadinessWidget,
-             HomeBodyEnergyWidget, HomeTodayVitalsWidget) plus two widget
-             configuration activities. Each needs a native AppWidgetProvider
-             subclass, an `@xml/*_widget_info` appwidget-provider descriptor, and
-             a native RemoteViews `@layout`. Those native widget layouts are
-             deferred; wire the `<receiver>`/`<activity>` provider entries here
-             once the native layouts land. -->
+        <!-- =====================================================================
+             Home-screen widgets (Glance). Read-only status widgets: Dart pushes a
+             snapshot into the shared `HomeWidgetPreferences` and the composables
+             render it. The three configurable widgets from the Kotlin source
+             (HomeMetricWidget, HomeQuickBeverageWidget,
+             HomeQuickBeverageOneTapWidget) additionally need a configuration
+             activity and are not wired up yet.
+             ===================================================================== -->
+        <receiver
+            android:name=".features.homewidgets.HomeDailyReadinessWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/home_daily_readiness_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".features.homewidgets.HomeBodyEnergyWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/home_body_energy_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".features.homewidgets.HomeTodayVitalsWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/home_today_vitals_widget_info" />
+        </receiver>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

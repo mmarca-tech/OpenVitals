@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -350,6 +352,27 @@ class DashboardNotifier extends Notifier<DashboardState> {
       unacknowledgedPermissions:
           data.missingPermissions.difference(acknowledged),
     );
+    _refreshHomeWidgets(data, loadingMetrics: loadingMetrics);
+  }
+
+  /// Pushes the freshly-committed data to the home-screen widgets.
+  ///
+  /// This is the single funnel every load ends in — including a resume and a
+  /// back-nav from a detail screen — so it is where the widgets learn that
+  /// today's data moved, standing in for Kotlin's per-widget `onUpdate` reload.
+  ///
+  /// Only the *complete* commit for *today* is pushed: the quick pass carries a
+  /// subset of the metrics (readiness and body energy would read as "--"), and a
+  /// past day the user has navigated to is not what the widgets show. Never
+  /// awaited, and the refresher swallows its own failures — a widget must not be
+  /// able to stall or crash the dashboard.
+  void _refreshHomeWidgets(
+    DashboardData data, {
+    required Set<DashboardMetric> loadingMetrics,
+  }) {
+    if (loadingMetrics.isNotEmpty) return;
+    if (data.date != LocalDate.now()) return;
+    unawaited(ref.read(homeWidgetRefresherProvider).push(data));
   }
 }
 

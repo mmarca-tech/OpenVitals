@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/presentation/unit_formatter.dart';
 import '../core/reminders/local_notifications_reminder_device.dart';
 import '../features/manualentry/mindfulness/mindfulness_sound_player.dart';
 import '../features/hydration/reminders/hydration_reminder_alarm.dart';
@@ -56,6 +57,7 @@ import '../domain/usecase/load_heart_period_use_case.dart';
 import '../domain/usecase/load_sleep_period_use_case.dart';
 import '../features/activity/maps/offline_map_import_controller.dart';
 import '../features/activity/maps/offline_map_metadata_store.dart';
+import '../features/homewidgets/home_widget_refresher.dart';
 import '../features/homewidgets/home_widget_service.dart';
 import '../features/hydration/reminders/hydration_reminder_controller.dart';
 import '../features/hydration/reminders/hydration_reminder_device.dart';
@@ -338,6 +340,27 @@ final mindfulnessSoundPlayerProvider = Provider<MindfulnessSoundPlayer>((ref) {
 final homeWidgetServiceProvider = Provider<HomeWidgetService>(
   (ref) => const HomeWidgetService(),
 );
+
+/// Pushes today's data to every placed home-screen widget. Foreground path: the
+/// dashboard hands its merged data straight over (see `DashboardNotifier`); the
+/// periodic path runs in the alarm isolate, which builds its own graph.
+final homeWidgetRefresherProvider = Provider<HomeWidgetRefresher>((ref) {
+  final preferences = ref.watch(preferencesRepositoryProvider);
+  return HomeWidgetRefresher(
+    service: ref.watch(homeWidgetServiceProvider),
+    loadDashboardDay: ref.watch(loadDashboardDayUseCaseProvider),
+    // Built here rather than watched off `unitFormatterProvider` (which lives in
+    // the shell's `app_providers`, and would make this low-level DI file import
+    // it back): the closure reads the preference live, so a unit-system change
+    // is picked up by the next push either way.
+    unitFormatter:
+        UnitFormatter(unitSystemProvider: () => preferences.unitSystem),
+    localizations: homeWidgetLocalizations(),
+    goals: homeWidgetReadinessGoals(preferences),
+    sleepRangeMode: preferences.sleepRangeMode,
+    activityWeekMode: preferences.activityWeekMode,
+  );
+});
 
 // ── Offline maps ──────────────────────────────────────────────────────────
 
