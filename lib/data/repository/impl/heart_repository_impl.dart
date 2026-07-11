@@ -3,6 +3,7 @@ import '../../../core/period/time_range.dart';
 import '../../../core/time/local_date.dart';
 import '../../../domain/model/health_connect_availability.dart';
 import '../../../domain/model/heart_models.dart';
+import '../../../domain/model/heart_rate_sample_reduction.dart';
 import '../../../domain/model/refresh_mode.dart';
 import '../../../domain/query/heart_period_data.dart';
 import '../../../health/health_data_source.dart';
@@ -15,6 +16,12 @@ import 'repository_time.dart';
 /// is not granted (matching the Kotlin `readXPermission !in granted` guards).
 class HeartRepositoryImpl implements HeartRepository {
   HeartRepositoryImpl(this._dataSource);
+
+  /// Health Connect filters series records by their record boundary, not each nested
+  /// sample. Gadgetbridge can group roughly an hour of samples into one
+  /// HeartRateRecord, so a record that starts before a workout can still contain
+  /// samples from the start of that workout.
+  static const _heartRateSeriesLookback = Duration(hours: 1);
 
   final HealthDataSource _dataSource;
 
@@ -133,7 +140,19 @@ class HeartRepositoryImpl implements HeartRepository {
   ) async {
     final granted = await _grantedIfAvailable();
     if (!granted.contains(HcPermissions.readHeartRate)) return const [];
-    return _dataSource.readHeartRateSamples(localDayStart(start), localDayEnd(end));
+    final samples = await _dataSource.readHeartRateSamples(
+      localDayStart(start),
+      localDayEnd(end),
+    );
+    // Reduce per day, not across the whole range: the chart draws one series per
+    // day, so a range-wide reduction would thin early days away to nothing.
+    final byDay = <LocalDate, List<HeartRateSample>>{};
+    for (final sample in samples) {
+      byDay.putIfAbsent(instantToLocalDate(sample.time), () => []).add(sample);
+    }
+    return [
+      for (final daySamples in byDay.values) ...daySamples.reducedForChart(),
+    ];
   }
 
   @override
@@ -143,7 +162,21 @@ class HeartRepositoryImpl implements HeartRepository {
   ) async {
     final granted = await _grantedIfAvailable();
     if (!granted.contains(HcPermissions.readHeartRate)) return const [];
-    return _dataSource.readHeartRateSamples(start, end);
+    if (!end.isAfter(start)) return const [];
+
+    // Health Connect filters series records by their record boundary, not each nested
+    // sample. Gadgetbridge can group roughly an hour of samples into one HeartRateRecord,
+    // so a record that starts before a workout can still contain samples from the start
+    // of that workout -- read back an hour, then filter to the window we actually want.
+    final raw = await _dataSource.readRawHeartRateSamples(
+      start.subtract(_heartRateSeriesLookback),
+      end,
+    );
+    final windowed = raw
+        .where((s) => !s.time.isBefore(start) && s.time.isBefore(end))
+        .toList()
+      ..sort((a, b) => a.time.compareTo(b.time));
+    return windowed.reducedForChart();
   }
 
   @override
