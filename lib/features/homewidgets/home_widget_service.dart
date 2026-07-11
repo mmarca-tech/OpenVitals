@@ -294,6 +294,58 @@ class HomeWidgetService {
         '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}selection_id',
       );
 
+  /// Which widget [appWidgetId] belongs to, or null when nothing is placed under
+  /// that id (the instance was removed, or the host has no widgets at all).
+  ///
+  /// The configure launch hands Dart only an `appWidgetId`
+  /// (`initiallyLaunchedFromHomeWidgetConfigure`), and the background log
+  /// callback only gets one off its URI — but the two beverage widgets and the
+  /// metric widget all configure through the same `MainActivity`, so the id must
+  /// be resolved back to a widget *type* before anything can be shown or pushed.
+  /// The receiver class name is what tells them apart, exactly as Kotlin's
+  /// `isQuickBeverageOneTapWidget` checks the provider's `className`.
+  Future<HomeWidgetId?> widgetOfInstance(int appWidgetId) async {
+    final installed = await client.installedWidgets();
+    for (final instance in installed) {
+      if (instance.appWidgetId != appWidgetId) continue;
+      return widgetForReceiver(instance.className);
+    }
+    return null;
+  }
+
+  /// The widget registered under the fully-qualified [className], or null when it
+  /// is not one of ours.
+  HomeWidgetId? widgetForReceiver(String className) {
+    for (final widget in HomeWidgetId.values) {
+      if (qualifiedReceiver(widget) == className) return widget;
+    }
+    return null;
+  }
+
+  /// Reads one extra per-instance key — data an instance needs that is not part
+  /// of the rendered snapshot (the beverage widgets' cached drink payload).
+  Future<String?> readInstanceKey(
+    HomeWidgetId widget, {
+    required int appWidgetId,
+    required String key,
+  }) =>
+      client.readWidgetData(
+        '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}$key',
+      );
+
+  /// Writes one extra per-instance key. Does not redraw: callers pair it with a
+  /// [pushSnapshot], which does.
+  Future<void> saveInstanceKey(
+    HomeWidgetId widget, {
+    required int appWidgetId,
+    required String key,
+    required String value,
+  }) =>
+      client.saveWidgetData(
+        '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}$key',
+        value,
+      );
+
   /// Records what [appWidgetId] was configured with, without pushing a snapshot.
   ///
   /// The configuration screen writes this *before* it loads any data, so that a

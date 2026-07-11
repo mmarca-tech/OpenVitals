@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'bootstrap/reminder_bootstrap.dart';
 import 'di/providers.dart';
+import 'features/homewidgets/home_widget_beverage_log.dart';
 import 'features/homewidgets/home_widget_configure.dart';
 import 'features/homewidgets/home_widget_launch.dart';
 import 'features/imports/route_import_intent.dart';
@@ -29,6 +30,10 @@ Future<void> main() async {
   // Receives activity-recording notification-button presses relayed from the
   // foreground-service isolate (see activity_recording_task_handler.dart).
   FlutterForegroundTask.initCommunicationPort();
+  // Re-registered on every start, never once: the plugin stores a raw AOT
+  // callback handle for the quick-beverage widgets' one-tap logging, and an app
+  // update or reinstall invalidates it (see home_widget_beverage_log.dart).
+  unawaited(registerHomeWidgetInteractivity());
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
@@ -36,18 +41,19 @@ Future<void> main() async {
     ],
   );
 
-  // A metric widget being placed (or reconfigured) launches this same activity
-  // with ACTION_APPWIDGET_CONFIGURE — MainActivity is the widget's
-  // `android:configure` target, because the metric catalog lives in Dart. It is a
-  // modal, single-purpose launch: show the picker and nothing else, and skip the
-  // reminder bootstrap, which belongs to a real app start.
+  // A metric or quick-beverage widget being placed (or reconfigured) launches
+  // this same activity with ACTION_APPWIDGET_CONFIGURE — MainActivity is every
+  // configurable widget's `android:configure` target, because the metric catalog
+  // and the drink catalog both live in Dart. It is a modal, single-purpose
+  // launch: show the picker and nothing else, and skip the reminder bootstrap,
+  // which belongs to a real app start.
   final configureAppWidgetId =
       await container.read(homeWidgetConfigureChannelProvider).pendingAppWidgetId();
   if (configureAppWidgetId != null) {
     runApp(
       UncontrolledProviderScope(
         container: container,
-        child: HomeMetricWidgetConfigureApp(appWidgetId: configureAppWidgetId),
+        child: HomeWidgetConfigureApp(appWidgetId: configureAppWidgetId),
       ),
     );
     return;

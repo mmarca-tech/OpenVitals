@@ -8,12 +8,14 @@ import '../../domain/insights/daily_goals.dart';
 import '../../domain/insights/daily_readiness.dart';
 import '../../domain/model/dashboard_data.dart';
 import '../../domain/model/dashboard_query.dart';
+import '../../domain/model/nutrition_models.dart';
 import '../../domain/model/refresh_mode.dart';
 import '../../data/prefs/preferences_repository.dart';
 import '../../domain/preferences/activity_week_mode.dart';
 import '../../domain/preferences/sleep_range_mode.dart';
 import '../../domain/usecase/load_dashboard_day_use_case.dart';
 import '../../l10n/app_localizations.dart';
+import 'home_widget_beverage.dart';
 import 'home_widget_service.dart';
 import 'home_widget_snapshots.dart';
 
@@ -88,12 +90,77 @@ class HomeWidgetRefresher {
       );
     });
     await _guard('metric widgets', () => _pushMetricWidgets(data));
-    // Extension point: the quick-beverage widgets (HomeWidgetId.quickBeverage /
-    // quickBeverageOneTap) push their configured drink here, once the beverage
-    // phase lands. They are per-instance like the metric widget, so they follow
-    // the same instancesOf → selectionIdOf → pushSnapshot shape — but they read
-    // the drink catalog from drift, which the alarm isolate deliberately does
-    // not open (see home_widget_alarm.dart).
+    await _guard('beverage widgets', _pushBeverageWidgets);
+  }
+
+  /// One push per placed quick-beverage tile (both the 2x1 and the 1x1), each
+  /// showing the drink that instance was configured with — Kotlin
+  /// `refreshHomeQuickBeverageWidget` per `appWidgetId`.
+  ///
+  /// Rebuilt from the drink *payload cached at configure time*, never from the
+  /// catalog: `hydrationRepository.customHydrationDrinks()` reads the drift
+  /// `BeverageStore`, and this also runs in the alarm isolate, which deliberately
+  /// does not open drift (see `home_widget_alarm.dart`). Re-pushing also resets
+  /// the subtitle to "Tap to log", clearing a stale error from a failed tap.
+  Future<void> _pushBeverageWidgets() async {
+    for (final widget in const [
+      HomeWidgetId.quickBeverage,
+      HomeWidgetId.quickBeverageOneTap,
+    ]) {
+      final instances = await service.instancesOf(widget);
+      for (final instance in instances) {
+        final drink = await readQuickBeverageDrink(
+          service,
+          widget: widget,
+          appWidgetId: instance.appWidgetId,
+        );
+        // An unconfigured instance keeps its native "Select a beverage" state:
+        // pushing a snapshot over it would claim it is configured.
+        if (drink == null) continue;
+        await service.pushSnapshot(
+          widget,
+          buildQuickBeverageSnapshot(drink, unitFormatter, localizations),
+          appWidgetId: instance.appWidgetId,
+          selectionId: drink.id,
+        );
+      }
+    }
+  }
+
+  /// Configures one placed beverage tile: records [drink] as [appWidgetId]'s
+  /// selection, caches its payload, then pushes the first snapshot (Kotlin
+  /// `HomeQuickBeverageWidgetConfigurationActivity.configure` +
+  /// `refreshConfiguredWidget`).
+  ///
+  /// The selection *and the payload* are written first and outside the guard:
+  /// together they are the handshake [_pushBeverageWidgets] and the background
+  /// log callback read back, so they must survive a failed push. The payload is
+  /// what makes the tap loggable without drift — the caller is the picker, which
+  /// read the drink from drift in the foreground.
+  Future<void> configureBeverageInstance(
+    CustomHydrationDrink drink, {
+    required HomeWidgetId widget,
+    required int appWidgetId,
+  }) async {
+    await service.saveSelectionId(
+      widget,
+      appWidgetId: appWidgetId,
+      selectionId: drink.id,
+    );
+    await service.saveInstanceKey(
+      widget,
+      appWidgetId: appWidgetId,
+      key: homeWidgetDrinkPayloadKey,
+      value: encodeQuickBeverageDrink(drink),
+    );
+    await _guard('beverage widget $appWidgetId', () async {
+      await service.pushSnapshot(
+        widget,
+        buildQuickBeverageSnapshot(drink, unitFormatter, localizations),
+        appWidgetId: appWidgetId,
+        selectionId: drink.id,
+      );
+    });
   }
 
   /// One push per *placed* metric tile, each showing the metric that instance was

@@ -15,11 +15,18 @@ class FakeHomeWidgetClient implements HomeWidgetClient {
   /// The qualified receiver of each `updateWidget` call, in order.
   final List<String?> updated = [];
 
+  /// Every subtitle ever written, in order — [saved] only keeps the last one.
+  /// The beverage widgets push a *sequence* ("Saved now", then back to "Tap to
+  /// log"), which is the thing worth asserting on.
+  final List<String> subtitles = [];
+
   final List<HomeWidgetInstance> installed;
 
   @override
-  Future<void> saveWidgetData(String key, Object? value) async =>
-      saved[key] = value;
+  Future<void> saveWidgetData(String key, Object? value) async {
+    saved[key] = value;
+    if (key.endsWith('.subtitle') && value is String) subtitles.add(value);
+  }
 
   @override
   Future<String?> readWidgetData(String key) async => saved[key] as String?;
