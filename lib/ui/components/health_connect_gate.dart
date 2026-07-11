@@ -40,6 +40,15 @@ final healthConnectSyncEnabledProvider = Provider<bool>((ref) {
 /// shown. Port of Kotlin `resolveHealthConnectAccessGateMode`, extended with an
 /// [HealthConnectGateMode.unavailable] state so the gate also covers the case
 /// where Health Connect itself is missing.
+///
+/// DELIBERATE DEVIATION from the Kotlin app — do not "fix" this back.
+/// Where Kotlin keeps the dashboard visible and shows a small inline
+/// `DashboardHealthConnectPromo` card, Flutter replaces the whole screen with
+/// this gate for the *unavailable* and *sync-paused* states — a stronger, harder
+/// -to-ignore treatment. Only Kotlin's third promo variant (Health Connect is
+/// available and syncing, but the minimum permissions are missing) is reproduced
+/// inline on the dashboard, because the gate does not cover that case. A parity
+/// audit will flag the two missing promo variants — that is intentional.
 enum HealthConnectGateMode {
   unavailable,
   insufficientAccess,

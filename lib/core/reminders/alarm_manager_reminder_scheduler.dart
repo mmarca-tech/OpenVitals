@@ -29,6 +29,14 @@ class AlarmManagerReminderScheduler implements ReminderScheduler {
   final void Function() callback;
   final AndroidAlarmManagerApi alarms;
 
+  /// DELIBERATE DEVIATION from the Kotlin app — do not "fix" this back.
+  ///
+  /// Kotlin arms *inexact* alarms (`setAndAllowWhileIdle`) and declares no
+  /// exact-alarm permission. Flutter arms **exact** alarms (and so declares
+  /// `SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM`), which fires reminders on time
+  /// instead of whenever Doze next relents. The trade is a Play Store
+  /// exact-alarm justification that Kotlin never had; that was accepted
+  /// knowingly. A parity audit will flag this — it is intentional.
   @override
   Future<void> schedule(DateTime triggerAt) => alarms.oneShotAt(
         triggerAt,

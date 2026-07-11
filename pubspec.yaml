@@ -179,6 +179,9 @@ flutter:
   generate: true
 
   assets:
+    # App icon + the wide OpenVitals wordmark shown in the onboarding header,
+    # copied from the Kotlin app's `res/drawable-nodpi/open_vitals_logo_wide`.
+    - assets/icon/
     # Singing-bowl bells + ambient loops for the mindfulness timer, copied from
     # the Kotlin app's `res/raw`.
     - assets/sounds/

@@ -9,8 +9,11 @@ import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/model/dashboard_data.dart';
 import 'package:openvitals/domain/model/dashboard_query.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/domain/model/ble_sensor_models.dart';
 import 'package:openvitals/domain/usecase/load_dashboard_day_use_case.dart';
 import 'package:openvitals/features/dashboard/dashboard_screen.dart';
+import 'package:openvitals/features/dashboard/dashboard_sensor_status.dart';
+import 'package:openvitals/features/dashboard/dashboard_sensor_status_card.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
@@ -89,27 +92,38 @@ DashboardData _threePageData(DashboardQuery query) {
   );
 }
 
+/// The permissions the dashboard needs before it stops offering the inline
+/// Health Connect promo card.
+final Set<String> _minimumPermissions =
+    HealthDataSource().permissionService.minimumOnboardingPermissions;
+
 Future<Widget> _bootstrap({
   required HealthConnectAvailability availability,
-  Set<String> granted = const <String>{},
+  Set<String>? granted,
   Set<String> missing = const <String>{},
   DashboardData Function(DashboardQuery query)? dataBuilder,
+  DashboardSensorStatus? sensorStatus,
 }) async {
+  // Default to a fully-permissioned install; a test that wants the promo card
+  // passes an empty granted set explicitly.
+  final grantedSet = granted ?? _minimumPermissions;
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       healthDataSourceProvider.overrideWithValue(
-        _FakeHealthDataSource(availability: availability, granted: granted),
+        _FakeHealthDataSource(availability: availability, granted: grantedSet),
       ),
       healthConnectAvailabilityProvider.overrideWith((ref) async => availability),
-      grantedHealthPermissionsProvider.overrideWith((ref) async => granted),
+      grantedHealthPermissionsProvider.overrideWith((ref) async => grantedSet),
       loadDashboardDayUseCaseProvider.overrideWithValue(
         _FakeUseCase(
           dataBuilder ?? (query) => _sampleData(query, missing: missing),
         ),
       ),
+      if (sensorStatus != null)
+        dashboardSensorStatusProvider.overrideWithValue(sensorStatus),
     ],
     child: const MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -133,6 +147,12 @@ void _usePhoneViewport(WidgetTester tester) {
 
 /// Mirrors the carousel's private `_MetricCarousel._tileHeight`.
 const double _kTileHeight = 82;
+
+/// The dashboard's outer [ListView] scrollable — the carousel's [PageView] is a
+/// second scrollable inside it, so scroll helpers must be told which one.
+Finder _dashboardScrollable() => find
+    .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+    .first;
 
 void main() {
   testWidgets('shows a loader then renders the summary dashboard',
@@ -399,5 +419,131 @@ void main() {
     expect(find.text('Health Connect unavailable'), findsOneWidget);
     expect(find.byType(SummaryRingCard), findsNothing);
     expect(find.byType(MetricStatCard), findsNothing);
+  });
+
+  testWidgets('offers the Health Connect promo when minimum permissions '
+      'are missing', (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(
+        availability: HealthConnectAvailability.available,
+        granted: const <String>{},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set up your health data'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Get started'), findsOneWidget);
+    // The dashboard still renders below it (Kotlin degrades gracefully).
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
+  });
+
+  testWidgets('hides the Health Connect promo once the minimum permissions '
+      'are granted', (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(availability: HealthConnectAvailability.available),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set up your health data'), findsNothing);
+  });
+
+  group('sensor status card', () {
+    testWidgets('renders the lowest battery and the active/connected summary',
+        (tester) async {
+      _usePhoneViewport(tester);
+      await tester.pumpWidget(
+        await _bootstrap(
+          availability: HealthConnectAvailability.available,
+          sensorStatus: const DashboardSensorStatus(
+            devices: [
+              DashboardSensorDeviceStatus(
+                id: 'a',
+                displayName: 'Chest strap',
+                enabled: true,
+                connectionStatus: BleConnectionStatus.connected,
+                batteryPercent: 64,
+              ),
+              DashboardSensorDeviceStatus(
+                id: 'b',
+                displayName: 'Cadence',
+                enabled: true,
+                connectionStatus: BleConnectionStatus.disconnected,
+                batteryPercent: 18,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byType(DashboardSensorStatusCard),
+        200,
+        scrollable: _dashboardScrollable(),
+      );
+      expect(find.text('Sensor battery'), findsOneWidget);
+      expect(find.text('18% lowest'), findsOneWidget);
+      expect(find.text('2 active • 1 connected'), findsOneWidget);
+    });
+
+    testWidgets('renders nothing when no sensor is paired', (tester) async {
+      _usePhoneViewport(tester);
+      await tester.pumpWidget(
+        await _bootstrap(
+          availability: HealthConnectAvailability.available,
+          sensorStatus: const DashboardSensorStatus(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DashboardSensorStatusCard), findsNothing);
+      expect(find.text('Sensor battery'), findsNothing);
+    });
+  });
+
+  testWidgets('edit mode offers a metric the device does not support',
+      (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      await _bootstrap(
+        availability: HealthConnectAvailability.available,
+        // The provider cannot serve blood oxygen on this device.
+        dataBuilder: (query) => _sampleData(query).copyWith(
+          supportedMetrics: DashboardMetric.values.toSet()
+            ..remove(DashboardMetric.spo2),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    List<String> carouselTitles() => tester
+        .widgetList<MetricStatCard>(find.byType(MetricStatCard))
+        .map((c) => c.title)
+        .toList();
+
+    // Outside edit mode it has no tile at all.
+    expect(carouselTitles(), isNot(contains('Blood oxygen')));
+
+    await tester.tap(find.byTooltip('Edit dashboard'));
+    await tester.pumpAndSettle();
+
+    // In edit mode it is materialised — but into the add tray, not the carousel
+    // (the user never placed it).
+    expect(carouselTitles(), isNot(contains('Blood oxygen')));
+    final addButton = find.widgetWithText(OutlinedButton, 'Blood oxygen');
+    await tester.scrollUntilVisible(
+      addButton,
+      200,
+      scrollable: _dashboardScrollable(),
+    );
+    expect(addButton, findsOneWidget);
+
+    // Adding it back is not a dead end: it joins the carousel.
+    await tester.tap(addButton);
+    await tester.pumpAndSettle();
+    expect(carouselTitles(), contains('Blood oxygen'));
+    expect(find.widgetWithText(OutlinedButton, 'Blood oxygen'), findsNothing);
   });
 }

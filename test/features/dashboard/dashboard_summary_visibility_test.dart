@@ -16,6 +16,7 @@ DashboardSummary _summaryFor(
   AppLocalizations l10n, {
   double? spo2,
   BodyEnergyTimeline? bodyEnergyTimeline,
+  bool includeUnsupported = false,
 }) =>
     buildDashboardSummary(
       DashboardData(
@@ -26,6 +27,7 @@ DashboardSummary _summaryFor(
       ),
       UnitFormatter(unitSystemProvider: () => UnitSystem.metric),
       l10n,
+      includeUnsupported: includeUnsupported,
     );
 
 BodyEnergyTimeline _bodyEnergyTimeline() => BodyEnergyTimeline(
@@ -118,6 +120,44 @@ void main() {
 
   test('no tiles at all when the device supports nothing', () {
     expect(_summaryFor(const <DashboardMetric>{}, l10n).tiles, isEmpty);
+  });
+
+  // Edit mode (Kotlin expands the spec list to every widget id): without this a
+  // metric the provider cannot serve has no tile, so it can never be added back.
+  group('includeUnsupported', () {
+    test('materialises metrics absent from supportedMetrics', () {
+      final supported = DashboardMetric.values.toSet()
+        ..remove(DashboardMetric.spo2);
+      final summary =
+          _summaryFor(supported, l10n, includeUnsupported: true);
+
+      expect(_titles(summary), contains('Blood oxygen'));
+      expect(summary.unsupportedTitles, contains('Blood oxygen'));
+      // An unsupported tile is empty, like any other metric with no reading.
+      expect(_tile(summary, 'Blood oxygen').value, isEmpty);
+      // Supported metrics are not mistaken for unsupported ones.
+      expect(summary.unsupportedTitles, hasLength(1));
+    });
+
+    test('materialises every metric when the device supports nothing', () {
+      final summary = _summaryFor(
+        const <DashboardMetric>{},
+        l10n,
+        includeUnsupported: true,
+      );
+
+      expect(summary.tiles, isNotEmpty);
+      expect(summary.unsupportedTitles, hasLength(summary.tiles.length));
+    });
+
+    test('defaults to false: unsupported metrics stay dropped', () {
+      final supported = DashboardMetric.values.toSet()
+        ..remove(DashboardMetric.spo2);
+      final summary = _summaryFor(supported, l10n);
+
+      expect(_titles(summary), isNot(contains('Blood oxygen')));
+      expect(summary.unsupportedTitles, isEmpty);
+    });
   });
 
   group('Body Energy tile', () {

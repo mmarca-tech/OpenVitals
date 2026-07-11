@@ -2,7 +2,10 @@ package tech.mmarca.openvitals
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -61,6 +64,9 @@ class MainActivity : FlutterFragmentActivity() {
 
     private var pendingPermissionResult: MethodChannel.Result? = null
 
+    /** The route file the app was opened with, until Dart takes it. */
+    private var pendingRouteImportUri: Uri? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
@@ -114,7 +120,105 @@ class MainActivity : FlutterFragmentActivity() {
                 System.currentTimeMillis()
             },
         )
+        // "Open with" / "Share" of a .gpx/.kml/.kmz/.fit. Port of the Kotlin
+        // `MainActivity.updateRouteImportRequest` + `ExternalRouteImportRequest`:
+        // resolve the URI, read the bytes, and park them until Dart takes them
+        // (exactly once). Dart drains this on launch and on every resume, which
+        // covers both a cold start and an `onNewIntent` on a running app.
+        MethodChannel(messenger, ROUTE_IMPORT_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "takePendingRouteImport" -> {
+                    val uri = pendingRouteImportUri
+                    pendingRouteImportUri = null
+                    result.success(uri?.let(::readRouteImport))
+                }
+                else -> result.notImplemented()
+            }
+        }
+        // Cold start: the launching intent is already set on the activity.
+        capturePendingRouteImport(intent)
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        capturePendingRouteImport(intent)
+    }
+
+    /** Kotlin `updateRouteImportRequest`: stash a supported route URI, if any. */
+    private fun capturePendingRouteImport(intent: Intent?) {
+        routeImportUri(intent)?.let { pendingRouteImportUri = it }
+    }
+
+    /**
+     * Kotlin `Intent.routeImportUri()`: VIEW carries the file in `data`, SEND in
+     * `EXTRA_STREAM`, SEND_MULTIPLE in the first supported stream. Only
+     * .gpx/.kml/.kmz/.fit are accepted — the manifest's wildcard-MIME
+     * path-pattern filter is deliberately broad, so the real check happens here.
+     */
+    private fun routeImportUri(intent: Intent?): Uri? {
+        if (intent == null) return null
+        val uri: Uri? = when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> intent.streamExtra()
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val streams = intent.streamExtras()
+                streams.firstOrNull { isSupportedRouteImport(it) }
+                    ?: streams.firstOrNull()
+            }
+            else -> null
+        }
+        return uri?.takeIf { isSupportedRouteImport(it) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun Intent.streamExtra(): Uri? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            getParcelableExtra(Intent.EXTRA_STREAM)
+        }
+
+    @Suppress("DEPRECATION")
+    private fun Intent.streamExtras(): List<Uri> =
+        (
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+            ) ?: emptyList()
+
+    private fun isSupportedRouteImport(uri: Uri): Boolean {
+        val name = routeImportFileName(uri) ?: uri.lastPathSegment ?: return false
+        return ROUTE_IMPORT_EXTENSIONS.any { name.endsWith(it, ignoreCase = true) }
+    }
+
+    /** Resolves the display name of a `content://` (or `file://`) URI. */
+    private fun routeImportFileName(uri: Uri): String? {
+        if (uri.scheme == "file") return uri.lastPathSegment
+        return runCatching {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+                }
+        }.getOrNull() ?: uri.lastPathSegment
+    }
+
+    /**
+     * Reads the file's bytes for Dart. Returned as a raw byte array so it lands
+     * as a `Uint8List`, matching the `ActivityRouteFileHandle(bytes, fileName)`
+     * the Settings import cards already build.
+     */
+    private fun readRouteImport(uri: Uri): Map<String, Any?>? = runCatching {
+        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: return@runCatching null
+        mapOf(
+            "fileName" to routeImportFileName(uri),
+            "bytes" to bytes,
+        )
+    }.getOrNull()
 
     override fun onDestroy() {
         altitudeExecutor.shutdown()
@@ -247,7 +351,11 @@ class MainActivity : FlutterFragmentActivity() {
         const val DIAGNOSTICS_CHANNEL = "tech.mmarca.openvitals/diagnostics"
         const val PROXIMITY_CHANNEL = "tech.mmarca.openvitals/recording_sensors/proximity"
         const val STEP_DETECTOR_CHANNEL = "tech.mmarca.openvitals/recording_sensors/step_detector"
+        const val ROUTE_IMPORT_CHANNEL = "tech.mmarca.openvitals/route_import"
         const val ACTIVITY_RECOGNITION_REQUEST_CODE = 4031
+
+        /** The route formats the activity-entry form can parse (no TCX). */
+        val ROUTE_IMPORT_EXTENSIONS = listOf(".gpx", ".kml", ".kmz", ".fit")
     }
 }
 

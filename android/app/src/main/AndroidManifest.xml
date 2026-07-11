@@ -244,6 +244,67 @@
             <intent-filter>
                 <action android:name="es.antonborri.home_widget.action.LAUNCH" />
             </intent-filter>
+
+            <!-- "Open with" / "Share" a route file (.gpx/.kml/.kmz/.fit) into the
+                 activity-entry form. Mirrors the Kotlin manifest: one filter by
+                 MIME type, one by filename suffix (many providers report route
+                 files as `*/*` or octet-stream, so the suffix filter is the one
+                 that actually fires in practice), and one for SEND/SEND_MULTIPLE.
+                 The `*/*` filter is deliberately broad — MainActivity re-checks
+                 the extension and ignores anything unsupported. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/vnd.google-earth.kml+xml" />
+                <data android:mimeType="application/vnd.google-earth.kmz" />
+                <data android:mimeType="application/vnd.google-earth.kmz+xml" />
+                <data android:mimeType="application/vnd.ant.fit" />
+                <data android:mimeType="application/vnd.garmin.fit" />
+                <data android:mimeType="application/fit" />
+                <data android:mimeType="application/x-fit" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern="/.*\\.gpx" />
+                <data android:pathPattern="/.*\\.GPX" />
+                <data android:pathPattern="/.*\\.kml" />
+                <data android:pathPattern="/.*\\.KML" />
+                <data android:pathPattern="/.*\\.kmz" />
+                <data android:pathPattern="/.*\\.KMZ" />
+                <data android:pathPattern="/.*\\.fit" />
+                <data android:pathPattern="/.*\\.FIT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/vnd.google-earth.kml+xml" />
+                <data android:mimeType="application/vnd.google-earth.kmz" />
+                <data android:mimeType="application/vnd.google-earth.kmz+xml" />
+                <data android:mimeType="application/vnd.ant.fit" />
+                <data android:mimeType="application/vnd.garmin.fit" />
+                <data android:mimeType="application/fit" />
+                <data android:mimeType="application/x-fit" />
+            </intent-filter>
         </activity>
 
         <!-- Health Connect permission-usage rationale (Android 14+). -->

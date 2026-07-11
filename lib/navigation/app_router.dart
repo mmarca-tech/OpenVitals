@@ -51,6 +51,13 @@ import 'app_routes.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
+/// Observes pushes/pops on the root navigator so a screen can react to being
+/// revealed again (`RouteAware.didPopNext`) — the Flutter stand-in for the
+/// Kotlin `LifecycleEventEffect(ON_RESUME)` that fires when a detail screen is
+/// popped off the back stack. The dashboard reloads the day through it.
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
+
 /// The app's [GoRouter], built once and cached by Riverpod so its navigation
 /// state survives theme/locale rebuilds of `MaterialApp.router`.
 ///
@@ -64,6 +71,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation:
         onboardingComplete ? AppRoutes.dashboard : AppRoutes.onboarding,
+    observers: [routeObserver],
     routes: _buildRoutes(ref),
   );
 });

@@ -6,10 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvitals/data/repository/impl/health_repository_impl.dart';
 import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/domain/preferences/app_language.dart';
 import 'package:openvitals/features/onboarding/onboarding_notifier.dart';
 import 'package:openvitals/features/onboarding/onboarding_screen.dart';
 import 'package:openvitals/health/health_data_source.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
+import 'package:openvitals/ui/components/app_language_dropdown.dart';
 
 class _FakeHealthDataSource extends HealthDataSource {
   _FakeHealthDataSource({
@@ -20,12 +22,26 @@ class _FakeHealthDataSource extends HealthDataSource {
   }
 
   Set<String> granted;
+  final List<Set<String>> requested = <Set<String>>[];
+  bool openedSettings = false;
 
   @override
   Future<HealthConnectAvailability> availability() async => cachedAvailability;
 
   @override
   Future<Set<String>> grantedPermissions() async => granted;
+
+  @override
+  Future<bool> requestPermissions(Set<String> permissions) async {
+    requested.add(permissions);
+    return true;
+  }
+
+  @override
+  Future<bool> openHealthConnectSettings() async {
+    openedSettings = true;
+    return true;
+  }
 }
 
 /// The dashboard-minimum permission set the base permission taxonomy produces.
@@ -36,6 +52,7 @@ Future<(Widget, SharedPreferences)> _bootstrap({
   required HealthConnectAvailability availability,
   Set<String> granted = const <String>{},
   VoidCallback? onComplete,
+  _FakeHealthDataSource? dataSource,
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
@@ -43,7 +60,8 @@ Future<(Widget, SharedPreferences)> _bootstrap({
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       healthDataSourceProvider.overrideWithValue(
-        _FakeHealthDataSource(availability: availability, granted: granted),
+        dataSource ??
+            _FakeHealthDataSource(availability: availability, granted: granted),
       ),
     ],
     child: MaterialApp(
@@ -81,10 +99,14 @@ void main() {
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    // With the minimum granted the primary action is "Continue".
+    // With the minimum granted the primary action is "Continue". The header
+    // (language picker + logo) pushes it below the 600px test viewport, so
+    // scroll it into view before tapping.
     expect(find.text('Continue'), findsOneWidget);
     expect(prefs.getBool('onboarding_done'), isNot(true));
 
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
@@ -104,6 +126,118 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Grant required Health Connect permissions'), findsNothing);
+  });
+
+  testWidgets('the header renders the wide logo and the language dropdown',
+      (tester) async {
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    // The shared AppLanguageDropdown, defaulting to "follow the system" (a
+    // closed DropdownButton only builds its selected item).
+    expect(find.byType(AppLanguageDropdown), findsOneWidget);
+    expect(find.text('System default'), findsOneWidget);
+    // The wide wordmark (decorative: excluded from semantics).
+    final logo = tester.widget<Image>(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/icon/openvitals_logo_wide.png',
+      ),
+    );
+    expect(logo.width, 152);
+    expect(logo.height, 104);
+    expect(logo.excludeFromSemantics, isTrue);
+  });
+
+  testWidgets('picking a language persists the app-language preference',
+      (tester) async {
+    final (widget, prefs) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(AppLanguageDropdown));
+    await tester.pumpAndSettle();
+    // The menu overlay adds a second "Deutsch" — tap the one in the menu.
+    await tester.tap(find.text('Deutsch').last);
+    await tester.pumpAndSettle();
+
+    expect(prefs.getString('app_language'), AppLanguage.german.name);
+  });
+
+  testWidgets(
+      'a manual-only category shows the manual status and an Open button',
+      (tester) async {
+    // With the base feature flags, history/background reads are unavailable, so
+    // "additional data access" reduces to the manual-only exercise-routes
+    // permission: no requestable permission is missing → isManualGrant.
+    final dataSource = _FakeHealthDataSource(
+      availability: HealthConnectAvailability.available,
+    );
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      dataSource: dataSource,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open settings'), findsOneWidget);
+
+    final openButton = find.widgetWithText(FilledButton, 'Open');
+    expect(openButton, findsOneWidget);
+
+    await tester.ensureVisible(openButton);
+    await tester.pumpAndSettle();
+    await tester.tap(openButton);
+    await tester.pumpAndSettle();
+
+    // A manual-only category opens Health Connect settings rather than firing
+    // the (useless) runtime permission dialog.
+    expect(dataSource.openedSettings, isTrue);
+    expect(dataSource.requested, isEmpty);
+  });
+
+  testWidgets('needsProviderUpdate offers an install action', (tester) async {
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.needsProviderUpdate,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Health Connect needs to be installed or updated to use this app.'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(FilledButton, 'Install Health Connect'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the other unavailable states offer no install action',
+      (tester) async {
+    for (final availability in const [
+      HealthConnectAvailability.notSupported,
+      HealthConnectAvailability.needsPlayStore,
+    ]) {
+      final (widget, _) = await _bootstrap(availability: availability);
+      await tester.pumpWidget(widget);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Install Health Connect'),
+        findsNothing,
+        reason: '$availability must not offer an install action',
+      );
+    }
   });
 
   test('permissionCategories match the Kotlin source groups and order', () async {

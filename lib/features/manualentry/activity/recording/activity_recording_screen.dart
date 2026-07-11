@@ -229,20 +229,35 @@ class _ActivityRecordingScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 12,
       children: [
-        // Kotlin hoists this toggle into the host app bar via
-        // `onDashboardEditStateChanged`; here it sits above the grid it edits.
-        if (_canEditDashboard)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () =>
-                  setState(() => _isEditingDashboard = !_isEditingDashboard),
-              icon: Icon(_isEditingDashboard ? Icons.check : Icons.edit_outlined,
-                  size: 18),
-              label: Text(
-                  AppLocalizations.of(context).activityEntryRecordingDashboardLayout),
+        // Kotlin hoists both controls into the host app bar (via
+        // `onDashboardEditStateChanged` and
+        // `onActivityRecordingOutdoorModeStateChanged`); here they sit above the
+        // grid they act on. Kotlin publishes the outdoor toggle exactly when
+        // `isRecordingDashboardVisible && !isRecordingFocusMode`
+        // (ActivityEntryScreen.kt:139-141) — which is precisely when this body
+        // renders, so no extra visibility condition is needed. Focus mode shows
+        // its own copy of the toggle, so outdoor mode stays reachable in both.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (_canEditDashboard)
+              TextButton.icon(
+                onPressed: () =>
+                    setState(() => _isEditingDashboard = !_isEditingDashboard),
+                icon: Icon(
+                    _isEditingDashboard ? Icons.check : Icons.edit_outlined,
+                    size: 18),
+                label: Text(AppLocalizations.of(context)
+                    .activityEntryRecordingDashboardLayout),
+              ),
+            ActivityRecordingOutdoorModeToggle(
+              enabled: _isOutdoorMode,
+              onEnabledChange: (value) =>
+                  setState(() => _isOutdoorMode = value),
+              appThemeMode: widget.appThemeMode,
             ),
-          ),
+          ],
+        ),
         ...switch (state.recordingKind) {
           ActivityRecordingKind.repetition => _repetitionBody(theme, totalTime, movingTime),
           ActivityRecordingKind.timed => _timedBody(theme, totalTime, movingTime),

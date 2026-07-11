@@ -63,11 +63,17 @@ class DashboardSummary {
     required this.steps,
     required this.weeklyCardio,
     required this.tiles,
+    this.unsupportedTitles = const <String>{},
   });
 
   final RingCardData steps;
   final RingCardData weeklyCardio;
   final List<StatTileData> tiles;
+
+  /// The titles of tiles that were only materialised because
+  /// `buildDashboardSummary(includeUnsupported: true)` was asked for — i.e. the
+  /// device does not support the metric. Always empty otherwise.
+  final Set<String> unsupportedTitles;
 }
 
 /// Default daily goals, from the Kotlin `DashboardDailyGoals` /
@@ -108,11 +114,20 @@ int? _positiveInt(int? value) => (value != null && value > 0) ? value : null;
 /// provider cannot serve are dropped, via [DashboardData.supportedMetrics]. The
 /// required set (distance, hydration, body fat, heart rate, resting HR,
 /// mindfulness) always shows its value, because zero is a real reading there.
+///
+/// [includeUnsupported] materialises a tile for *every* metric, device support
+/// or not — the Kotlin `DashboardContent` edit-mode expansion to
+/// `DashboardWidgetId.entries`. Without it a metric the provider cannot serve
+/// gets no tile at all, so a user who removes one can never add it back. The
+/// titles so materialised are reported in [DashboardSummary.unsupportedTitles];
+/// the caller is expected to keep them out of the live carousel.
 DashboardSummary buildDashboardSummary(
   DashboardData data,
   UnitFormatter f,
-  AppLocalizations l10n,
-) {
+  AppLocalizations l10n, {
+  bool includeUnsupported = false,
+}) {
+  final unsupportedTitles = <String>{};
   final steps = RingCardData(
     title: 'Steps',
     value: f.count(data.steps),
@@ -159,7 +174,9 @@ DashboardSummary buildDashboardSummary(
     bool showTitle = true,
     double? progress,
   }) {
-    if (!data.supportedMetrics.contains(metric)) return;
+    final supported = data.supportedMetrics.contains(metric);
+    if (!includeUnsupported && !supported) return;
+    if (!supported) unsupportedTitles.add(title);
     final empty = value == null;
     tiles.add(StatTileData(
       title: title,
@@ -638,6 +655,7 @@ DashboardSummary buildDashboardSummary(
     steps: steps,
     weeklyCardio: weeklyCardio,
     tiles: tiles,
+    unsupportedTitles: unsupportedTitles,
   );
 }
 

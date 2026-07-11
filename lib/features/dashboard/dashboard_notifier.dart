@@ -84,6 +84,10 @@ abstract class DashboardState with _$DashboardState {
 class DashboardNotifier extends Notifier<DashboardState> {
   int _generation = 0;
 
+  /// True once the user has deliberately navigated to a day before today, so a
+  /// resume must not yank them back to today (Kotlin `userPinnedPastDay`).
+  bool _userPinnedPastDay = false;
+
   @override
   DashboardState build() {
     final prefs = ref.read(preferencesRepositoryProvider);
@@ -151,15 +155,50 @@ class DashboardNotifier extends Notifier<DashboardState> {
     state = state.copyWith(hiddenTiles: next);
   }
 
-  void previousDay() => _load(state.selectedDate.minusDays(1));
+  /// Restores a widget from the edit-mode add-tray.
+  ///
+  /// [recordPlacement] is for a widget the device does not support: those have
+  /// no tile outside edit mode, so the layout treats them as *absent* rather
+  /// than merely hidden, and un-hiding alone would leave them in the tray.
+  /// Recording the title in [DashboardState.tileOrder] is what marks it as
+  /// deliberately placed (the Kotlin allow-list append).
+  void addWidget(String title, {bool recordPlacement = false}) {
+    setTileHidden(title, false);
+    if (!recordPlacement || state.tileOrder.contains(title)) return;
+    final merged = <String>[...state.tileOrder, title];
+    ref.read(preferencesRepositoryProvider).setDashboardWidgetOrder(merged);
+    state = state.copyWith(tileOrder: merged);
+  }
+
+  void previousDay() {
+    _userPinnedPastDay = true;
+    _load(state.selectedDate.minusDays(1));
+  }
 
   void nextDay() {
     final today = LocalDate.now();
     final next = state.selectedDate.plusDays(1);
-    if (!next.isAfter(today)) _load(next);
+    if (next.isAfter(today)) return;
+    _userPinnedPastDay = next.isBefore(today);
+    _load(next);
   }
 
-  void selectDate(LocalDate date) => _load(date.coerceAtMost(LocalDate.now()));
+  void selectDate(LocalDate date) {
+    final clamped = date.coerceAtMost(LocalDate.now());
+    _userPinnedPastDay = clamped.isBefore(LocalDate.now());
+    _load(clamped);
+  }
+
+  /// Reloads on resume — when the app returns to the foreground, or when the
+  /// user pops back from a pushed detail screen (Kotlin `resumeCurrentDay`).
+  ///
+  /// The dashboard notifier outlives those screens, so a resume is the only
+  /// signal that Health Connect data may have changed underneath it. Snaps back
+  /// to today (covering a midnight rollover too) unless the user deliberately
+  /// pinned a past day. [_load] re-reads the preference snapshot, so no separate
+  /// refresh step is needed.
+  void resumeCurrentDay() =>
+      _load(_userPinnedPastDay ? state.selectedDate : LocalDate.now());
 
   /// Persists the acknowledgement of the currently-surfaced missing permissions
   /// and hides the inline callout (Kotlin `acknowledgeWidgetMissingPermissions`).

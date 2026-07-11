@@ -11,6 +11,7 @@ import 'package:openvitals/features/manualentry/activity/activity_entry_state.da
 import 'package:openvitals/features/manualentry/activity/activity_entry_types.dart';
 import 'package:openvitals/features/manualentry/activity/recording/activity_recording.dart';
 import 'package:openvitals/features/manualentry/activity/recording/activity_recording_device_support.dart';
+import 'package:openvitals/features/manualentry/activity/recording/activity_recording_focus_mode.dart';
 import 'package:openvitals/features/manualentry/activity/recording/activity_recording_screen.dart';
 import 'package:openvitals/features/manualentry/activity/recording/activity_recording_setup_screen.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
@@ -289,6 +290,49 @@ void main() {
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Pause'), findsNothing);
       expect(find.text('Finish'), findsNothing);
+    });
+
+    // Kotlin exposes the outdoor toggle whenever the recording dashboard is
+    // visible and focus mode is off (ActivityEntryScreen.kt:139-141). Flutter
+    // used to render it only inside focus mode, so outdoor mode was unreachable
+    // from the normal dashboard.
+    testWidgets('the outdoor toggle is reachable from normal recording mode',
+        (tester) async {
+      await pump(
+        tester,
+        screen(ActivityRecordingState(
+          recordingKind: ActivityRecordingKind.gpsRoute,
+          activityTypeId: 'running',
+          status: ActivityRecordingStatus.recording,
+          startTime: DateTime.now().subtract(const Duration(minutes: 5)),
+        )),
+        support: _FakeDeviceSupport(hasLocationPermission: true),
+      );
+
+      expect(find.byType(ActivityRecordingOutdoorModeToggle), findsOneWidget);
+      // It toggles without needing focus mode first.
+      await tester.tap(find.byType(ActivityRecordingOutdoorModeToggle));
+      await tester.pump();
+      expect(find.byType(ActivityRecordingOutdoorModeToggle), findsOneWidget);
+    });
+
+    // The regression that mattered most: repetition recordings cannot enter
+    // focus mode at all (_canUseFocusMode), so before this the toggle was
+    // completely unreachable for them.
+    testWidgets('the outdoor toggle is reachable for repetition recordings',
+        (tester) async {
+      await pump(
+        tester,
+        screen(ActivityRecordingState(
+          recordingKind: ActivityRecordingKind.repetition,
+          activityTypeId: 'pull_ups',
+          status: ActivityRecordingStatus.recording,
+          startTime: DateTime.now().subtract(const Duration(minutes: 2)),
+        )),
+        support: _FakeDeviceSupport(hasLocationPermission: false),
+      );
+
+      expect(find.byType(ActivityRecordingOutdoorModeToggle), findsOneWidget);
     });
 
     testWidgets('a running GPS session shows the tabs, pause, lap and marker',

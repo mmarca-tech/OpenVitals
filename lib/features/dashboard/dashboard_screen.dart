@@ -11,6 +11,7 @@ import '../../core/presentation/unit_formatter.dart';
 import '../../domain/model/activity_models.dart';
 import '../../domain/model/dashboard_data.dart';
 import '../../l10n/app_localizations.dart';
+import '../../navigation/app_router.dart' show routeObserver;
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
@@ -18,6 +19,7 @@ import '../../ui/components/health_date_picker.dart';
 import '../../ui/components/loading_state.dart';
 import '../../ui/components/metric_card.dart' show SourceChip;
 import '../../ui/components/metric_stat_card.dart';
+import '../../ui/components/ov_card.dart';
 import '../../ui/components/period_navigator.dart';
 import '../../ui/components/permission_callout.dart';
 import '../../ui/components/summary_ring_card.dart';
@@ -25,6 +27,8 @@ import '../../ui/components/widget_edit_controls.dart';
 import '../../ui/theme/app_colors.dart';
 import '../activity/exercise_labels.dart';
 import 'dashboard_notifier.dart';
+import 'dashboard_sensor_status.dart';
+import 'dashboard_sensor_status_card.dart';
 import 'dashboard_summary_presentation.dart';
 
 /// The OpenVitals summary dashboard — the nav-suite home branch rendered inside
@@ -69,7 +73,16 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardBody extends StatelessWidget {
+/// The dashboard body.
+///
+/// Stateful because it must reload the day whenever the screen is *resumed* —
+/// the Kotlin `LifecycleEventEffect(ON_RESUME) { resumeCurrentDay() }`. That
+/// fires on two Flutter signals, both wired here: the app returning to the
+/// foreground ([AppLifecycleListener]) and a pushed detail route being popped
+/// back off ([RouteAware.didPopNext] via the router's [routeObserver]). The
+/// notifier outlives both, so without this the dashboard keeps showing data
+/// captured before the user went off to change it.
+class _DashboardBody extends ConsumerStatefulWidget {
   const _DashboardBody({
     required this.state,
     required this.formatter,
@@ -80,11 +93,50 @@ class _DashboardBody extends StatelessWidget {
   final UnitFormatter formatter;
   final DashboardNotifier notifier;
 
+  @override
+  ConsumerState<_DashboardBody> createState() => _DashboardBodyState();
+}
+
+class _DashboardBodyState extends ConsumerState<_DashboardBody>
+    with RouteAware {
   static const double _gutter = 16;
+
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _resume);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of<void>(context);
+    if (route != null) routeObserver.subscribe(this, route);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  /// A pushed screen (a metric detail, an entry form, settings…) was popped and
+  /// the dashboard is on top again.
+  @override
+  void didPopNext() => _resume();
+
+  void _resume() => widget.notifier.resumeCurrentDay();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final state = widget.state;
+    final formatter = widget.formatter;
+    final notifier = widget.notifier;
+    final sensorStatus = ref.watch(dashboardSensorStatusProvider);
     final data = state.data;
     if (state.isLoading && data == null) {
       return const FullScreenLoading();
@@ -96,7 +148,25 @@ class _DashboardBody extends StatelessWidget {
       return const ErrorMessage('No dashboard data yet.');
     }
 
-    final summary = buildDashboardSummary(data, formatter, l10n);
+    // Edit mode materialises a tile for every metric, device-supported or not,
+    // so one the user removed can always be added back (Kotlin expands the spec
+    // list to `DashboardWidgetId.entries` while editing).
+    final summary = buildDashboardSummary(
+      data,
+      formatter,
+      l10n,
+      includeUnsupported: state.editing,
+    );
+    // Flutter's layout is a deny-list (hiddenTiles) where Kotlin's is an
+    // allow-list, so a freshly-materialised unsupported tile would default to
+    // *visible* in the carousel. Treat one the user has never placed as hidden:
+    // it belongs in the add-tray until they choose it.
+    final hiddenTiles = <String>{
+      ...state.hiddenTiles,
+      if (state.editing)
+        for (final title in summary.unsupportedTitles)
+          if (!state.tileOrder.contains(title)) title,
+    };
     // All data-present tiles in the user's saved order (hidden included, for the
     // edit grid); the carousel shows only the non-hidden subset.
     final orderedTiles = applyDashboardTileLayout(
@@ -106,7 +176,7 @@ class _DashboardBody extends StatelessWidget {
     );
     final visibleTiles = [
       for (final t in orderedTiles)
-        if (!state.hiddenTiles.contains(t.title)) t,
+        if (!hiddenTiles.contains(t.title)) t,
     ];
     // Hero rings share the same edit mode + hidden set; only their order is
     // stored separately (they render in their own top row).
@@ -118,7 +188,7 @@ class _DashboardBody extends StatelessWidget {
     );
     final visibleRings = [
       for (final r in orderedRings)
-        if (!state.hiddenTiles.contains(r.title)) r,
+        if (!hiddenTiles.contains(r.title)) r,
     ];
 
     return RefreshIndicator(
@@ -136,6 +206,20 @@ class _DashboardBody extends StatelessWidget {
               onOpenCalendar: () => _openCalendar(context),
             ),
           ),
+          // The inline Health Connect promo (Kotlin
+          // `DashboardHealthConnectPromoCard`). Flutter's full-screen
+          // HealthConnectGate already covers the unavailable / sync-paused
+          // states; the remaining gap is "available, but the minimum
+          // permissions were never granted", where the dashboard renders but
+          // stays empty.
+          if (!state.minimumPermissionsGranted)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: _gutter, vertical: 4),
+              child: _HealthConnectPromoCard(
+                onAction: notifier.grantPermissions,
+              ),
+            ),
           if (state.unacknowledgedPermissions.isNotEmpty)
             Padding(
               padding:
@@ -225,11 +309,20 @@ class _DashboardBody extends StatelessWidget {
             HiddenWidgetsSection(
               titles: [
                 for (final r in orderedRings)
-                  if (state.hiddenTiles.contains(r.title)) r.title,
+                  if (hiddenTiles.contains(r.title)) r.title,
                 for (final t in orderedTiles)
-                  if (state.hiddenTiles.contains(t.title)) t.title,
+                  if (hiddenTiles.contains(t.title)) t.title,
               ],
-              onAdd: (title) => notifier.setTileHidden(title, false),
+              onAdd: (title) => notifier.addWidget(
+                title,
+                recordPlacement: summary.unsupportedTitles.contains(title),
+              ),
+            ),
+          if (sensorStatus.hasDevices)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: _gutter, vertical: 4),
+              child: DashboardSensorStatusCard(status: sensorStatus),
             ),
           const SizedBox(height: 8),
           _ActivitiesSection(
@@ -245,9 +338,76 @@ class _DashboardBody extends StatelessWidget {
   Future<void> _openCalendar(BuildContext context) async {
     final picked = await showHealthDatePicker(
       context,
-      selectedDate: state.selectedDate,
+      selectedDate: widget.state.selectedDate,
     );
-    if (picked != null) notifier.selectDate(picked);
+    if (picked != null) widget.notifier.selectDate(picked);
+  }
+}
+
+/// The inline Health Connect promo (Kotlin `DashboardHealthConnectPromoCard`,
+/// missing-permissions variant): the dashboard is live but Health Connect has
+/// never handed over the minimum read permissions, so every widget would be
+/// empty. Offers a one-tap re-request.
+class _HealthConnectPromoCard extends StatelessWidget {
+  const _HealthConnectPromoCard({required this.onAction});
+
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return OpenVitalsCard(
+      color: scheme.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Kotlin uses the Health Connect brand drawable, which the
+                // Flutter port does not ship.
+                Icon(
+                  Icons.favorite_outline,
+                  size: 32,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.dashboardHealthConnectPromoTitle,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          l10n.dashboardHealthConnectPromoBody,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: FilledButton(
+                onPressed: onAction,
+                child: Text(l10n.dashboardHealthConnectPromoAction),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

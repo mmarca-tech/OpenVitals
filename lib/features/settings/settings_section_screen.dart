@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/preferences/activity_week_mode.dart';
-import '../../domain/preferences/app_language.dart';
 import '../../domain/preferences/app_theme_mode.dart';
 import '../../domain/preferences/sleep_range_mode.dart';
 import '../../domain/preferences/unit_system.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
+import '../../ui/components/app_language_dropdown.dart';
 import '../../ui/components/ov_card.dart';
 import '../../ui/components/placeholder_screen.dart';
 import 'cards/activity_recording_preferences_card.dart';
@@ -72,7 +72,7 @@ List<Widget> _cards(BuildContext context, WidgetRef ref, SettingsSection section
         _SettingsCard(
           title: l10n.settingsLanguageTitle,
           body: l10n.settingsLanguageBody,
-          child: _LanguageDropdown(
+          child: AppLanguageDropdown(
             selected: state.appLanguage,
             onSelect: notifier.selectAppLanguage,
           ),
@@ -248,19 +248,6 @@ String _weekLabel(AppLocalizations l10n, ActivityWeekMode value) =>
       ActivityWeekMode.last7Days => l10n.settingsActivityWeekLast7Days,
     };
 
-// The language picker options are intentionally shown as autonyms (each
-// language in its own name, e.g. "Deutsch") rather than routed through the ARB
-// catalog: an autonym is the same in every locale, which is the accepted i18n
-// practice for a language selector so users can always recognise their language.
-String _languageLabel(AppLanguage value) => switch (value) {
-      AppLanguage.system => 'System default',
-      AppLanguage.english => 'English',
-      AppLanguage.spanish => 'Español',
-      AppLanguage.german => 'Deutsch',
-      AppLanguage.italian => 'Italiano',
-      AppLanguage.estonian => 'Eesti',
-    };
-
 /// A titled card wrapping a settings control. Port of the Kotlin settings card
 /// chrome (title + body + control).
 class _SettingsCard extends StatelessWidget {
@@ -330,39 +317,6 @@ class _ChoiceRow<T> extends StatelessWidget {
             onSelected: (_) => onSelect(option),
           ),
       ],
-    );
-  }
-}
-
-class _LanguageDropdown extends StatelessWidget {
-  const _LanguageDropdown({required this.selected, required this.onSelect});
-
-  final AppLanguage selected;
-  final ValueChanged<AppLanguage> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<AppLanguage>(
-          value: selected,
-          isExpanded: true,
-          items: [
-            for (final language in AppLanguage.values)
-              DropdownMenuItem(
-                value: language,
-                child: Text(_languageLabel(language)),
-              ),
-          ],
-          onChanged: (value) {
-            if (value != null) onSelect(value);
-          },
-        ),
-      ),
     );
   }
 }

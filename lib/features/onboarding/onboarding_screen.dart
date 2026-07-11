@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/presentation/external_link.dart';
+import '../../di/providers.dart';
 import '../../domain/model/health_connect_availability.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/app_providers.dart';
+import '../../ui/components/app_language_dropdown.dart';
 import '../../ui/components/loading_state.dart';
 import '../../ui/components/ov_card.dart';
 import 'onboarding_notifier.dart';
+
+// File-private constants, mirroring the Kotlin `OnboardingScreen.kt` HC_PACKAGE
+// / PLAY_STORE_URL pair used by the "needs provider update" install action.
+const _healthConnectPackage = 'com.google.android.apps.healthdata';
+const _playStoreUrl =
+    'https://play.google.com/store/apps/details?id=$_healthConnectPackage';
 
 /// Onboarding flow, shown as the start destination when onboarding is not yet
 /// complete. Rendered full-screen outside the adaptive shell.
@@ -78,7 +88,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 }
 
-class _OnboardingContent extends StatelessWidget {
+class _OnboardingContent extends ConsumerWidget {
   const _OnboardingContent({
     required this.state,
     required this.notifier,
@@ -90,13 +100,37 @@ class _OnboardingContent extends StatelessWidget {
   final VoidCallback onComplete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
 
+    // Kotlin header order (OnboardingScreen.kt:118-150): the language dropdown
+    // aligned to the end, then the wide logo, the app name and the tagline.
+    // Changing the language re-renders the whole app: `appLanguageProvider`
+    // drives `MaterialApp.locale` in app.dart.
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: 200,
+            child: AppLanguageDropdown(
+              selected: ref.watch(appLanguageProvider),
+              onSelect: (value) =>
+                  ref.read(preferencesRepositoryProvider).appLanguage = value,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Image.asset(
+          'assets/icon/openvitals_logo_wide.png',
+          width: 152,
+          height: 104,
+          fit: BoxFit.contain,
+          excludeFromSemantics: true,
+        ),
+        const SizedBox(height: 24),
         Text(
           l10n.appName,
           style: theme.textTheme.headlineMedium
@@ -196,13 +230,31 @@ class _OnboardingContent extends StatelessWidget {
             child: _PermissionCategoryRow(
               category: category,
               granted: granted,
-              onGrant: () => notifier.requestPermissions(
-                category.permissions.difference(granted),
-              ),
+              onGrant: () => _onGrant(ref, category, granted),
             ),
           ),
       ],
     );
+  }
+
+  /// Kotlin `PermissionCategoryRow(onGrant = ...)` (OnboardingScreen.kt:274-287):
+  /// anything the runtime dialog can ask for is requested; a category whose only
+  /// missing permissions are manual-only (e.g. exercise routes) instead opens the
+  /// Health Connect settings page.
+  Future<void> _onGrant(
+    WidgetRef ref,
+    OnboardingPermissionCategory category,
+    Set<String> granted,
+  ) async {
+    if (!category.available) return;
+    final missing = category.permissions.difference(granted);
+    final requestable = missing.difference(category.manualPermissions);
+    final manual = missing.intersection(category.manualPermissions);
+    if (requestable.isNotEmpty) {
+      await notifier.requestPermissions(requestable);
+    } else if (manual.isNotEmpty) {
+      await ref.read(healthRepositoryProvider).openHealthConnectSettings();
+    }
   }
 }
 
@@ -281,9 +333,14 @@ class _PermissionCategoryRow extends StatelessWidget {
       category.id,
       available: category.available,
     );
-    final missingManual = category.manualPermissions
-        .intersection(category.permissions)
-        .difference(granted);
+    final missing = category.permissions.difference(granted);
+    final missingRequestable = missing.difference(category.manualPermissions);
+    final missingManual = missing.intersection(category.manualPermissions);
+    // A category whose remaining permissions are all manual-only can't be
+    // granted through the runtime dialog — it shows "Open settings" and an
+    // "Open" action instead of "Grant" (Kotlin `isManualGrant`).
+    final isManualGrant =
+        missingRequestable.isEmpty && missingManual.isNotEmpty;
     final description = category.available && missingManual.isNotEmpty
         ? l10n.onboardingCategoryAdditionalDataAccessManualNote(baseDescription)
         : baseDescription;
@@ -293,9 +350,11 @@ class _PermissionCategoryRow extends StatelessWidget {
             ? l10n.onboardingStatusGranted
             : partial
                 ? l10n.onboardingStatusPartiallyGranted(grantedCount, total)
-                : category.isRequired
-                    ? l10n.onboardingStatusRequired
-                    : l10n.onboardingStatusOptional;
+                : isManualGrant
+                    ? l10n.onboardingStatusManual
+                    : category.isRequired
+                        ? l10n.onboardingStatusRequired
+                        : l10n.onboardingStatusOptional;
 
     return OpenVitalsCard(
       color: fullyGranted
@@ -349,7 +408,13 @@ class _PermissionCategoryRow extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: FilledButton.tonal(
                     onPressed: onGrant,
-                    child: Text(partial ? l10n.actionReview : l10n.actionGrant),
+                    child: Text(
+                      isManualGrant
+                          ? l10n.actionOpen
+                          : partial
+                              ? l10n.actionReview
+                              : l10n.actionGrant,
+                    ),
                   ),
                 ),
               ),
@@ -379,16 +444,36 @@ class _UnavailableCard extends StatelessWidget {
         l10n.onboardingHealthConnectNotSupported,
       HealthConnectAvailability.available => '',
     };
-    return OpenVitalsCard(
-      color: scheme.errorContainer,
+    // Only the "needs provider update" case is actionable, so — as in the Kotlin
+    // `NeedsUpdateMessage` — it is toned tertiary (not error) and carries an
+    // install action; the other two states are dead ends with no button.
+    final needsUpdate =
+        availability == HealthConnectAvailability.needsProviderUpdate;
+    final card = OpenVitalsCard(
+      color: needsUpdate ? scheme.tertiaryContainer : scheme.errorContainer,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
           message,
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: scheme.onErrorContainer),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: needsUpdate
+                ? scheme.onTertiaryContainer
+                : scheme.onErrorContainer,
+          ),
         ),
       ),
+    );
+    if (!needsUpdate) return card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: () => openExternalUrl(context, _playStoreUrl),
+          child: Text(l10n.onboardingInstallHealthConnect),
+        ),
+      ],
     );
   }
 }
