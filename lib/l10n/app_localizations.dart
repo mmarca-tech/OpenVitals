@@ -596,12 +596,6 @@ abstract class AppLocalizations {
   /// **'Unable to update'**
   String get homeMetricWidgetUpdateFailed;
 
-  /// No description provided for @linkCouldNotOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'The link could not be opened.'**
-  String get linkCouldNotOpen;
-
   /// No description provided for @homeMetricWidgetOpenForDetails.
   ///
   /// In en, this message translates to:
@@ -989,7 +983,7 @@ abstract class AppLocalizations {
   /// No description provided for @activityEntrySourceBody.
   ///
   /// In en, this message translates to:
-  /// **'Create an empty activity, record a GPS route, or import GPX/KML/KMZ routes first and review the detected data before saving.'**
+  /// **'Create an activity manually, use an existing plan, or record a GPS route.'**
   String get activityEntrySourceBody;
 
   /// No description provided for @activityEntryCreateManual.
@@ -1267,12 +1261,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rough'**
   String get activityEntryFeelingRough;
-
-  /// No description provided for @activityEntryImportRouteFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Import GPX/KML/KMZ'**
-  String get activityEntryImportRouteFile;
 
   /// No description provided for @activityEntryImportedRoute.
   ///
@@ -2631,6 +2619,24 @@ abstract class AppLocalizations {
   /// **'This year'**
   String get periodThisYear;
 
+  /// No description provided for @periodLast7Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get periodLast7Days;
+
+  /// No description provided for @periodLast30Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get periodLast30Days;
+
+  /// No description provided for @periodLast365Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 365 days'**
+  String get periodLast365Days;
+
   /// No description provided for @periodSelected.
   ///
   /// In en, this message translates to:
@@ -3291,11 +3297,35 @@ abstract class AppLocalizations {
   /// **'Activities'**
   String get sectionActivities;
 
+  /// No description provided for @sectionActivityTypeStats.
+  ///
+  /// In en, this message translates to:
+  /// **'By activity type'**
+  String get sectionActivityTypeStats;
+
+  /// No description provided for @activityTypeStatsActivityCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{# activity} other{# activities}}'**
+  String activityTypeStatsActivityCount(int count);
+
   /// No description provided for @sectionPlannedWorkouts.
   ///
   /// In en, this message translates to:
   /// **'Planned workouts'**
   String get sectionPlannedWorkouts;
+
+  /// No description provided for @activitiesFilterActivityTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity type'**
+  String get activitiesFilterActivityTypeLabel;
+
+  /// No description provided for @activitiesFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All activities'**
+  String get activitiesFilterAll;
 
   /// No description provided for @activitiesKeyMetrics.
   ///
@@ -4161,6 +4191,12 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get statTotal;
 
+  /// No description provided for @statTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get statTime;
+
   /// No description provided for @statActiveDays.
   ///
   /// In en, this message translates to:
@@ -4244,6 +4280,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Longest workout'**
   String get statLongestWorkout;
+
+  /// No description provided for @statAverageMovingPace.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg moving pace'**
+  String get statAverageMovingPace;
+
+  /// No description provided for @statFastestPace.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest pace'**
+  String get statFastestPace;
+
+  /// No description provided for @statBestSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Best speed'**
+  String get statBestSpeed;
 
   /// No description provided for @statLongestSession.
   ///
@@ -6306,7 +6360,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsActivitiesGroupBody.
   ///
   /// In en, this message translates to:
-  /// **'Activity week, favorite activity, recording, and offline maps'**
+  /// **'Rolling dates, favorite activity, recording, and offline maps'**
   String get settingsActivitiesGroupBody;
 
   /// No description provided for @settingsSensorsGroupTitle.
@@ -6642,7 +6696,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDataImportGroupBody.
   ///
   /// In en, this message translates to:
-  /// **'Import Apple Health exports and FIT files'**
+  /// **'Import Apple Health exports, route files, and FIT files'**
   String get settingsDataImportGroupBody;
 
   /// No description provided for @settingsPermissionsGroupTitle.
@@ -7170,25 +7224,25 @@ abstract class AppLocalizations {
   /// No description provided for @settingsActivityWeekTitle.
   ///
   /// In en, this message translates to:
-  /// **'Activity week'**
+  /// **'Rolling dates'**
   String get settingsActivityWeekTitle;
 
   /// No description provided for @settingsActivityWeekBody.
   ///
   /// In en, this message translates to:
-  /// **'Choose whether Activities uses a fixed Mon-Sun week or the latest rolling 7 days.'**
+  /// **'Use rolling 7, 30, and 365-day windows instead of calendar week, month, and year.'**
   String get settingsActivityWeekBody;
 
   /// No description provided for @settingsActivityWeekMondayToSunday.
   ///
   /// In en, this message translates to:
-  /// **'Mon-Sun'**
+  /// **'Calendar'**
   String get settingsActivityWeekMondayToSunday;
 
   /// No description provided for @settingsActivityWeekLast7Days.
   ///
   /// In en, this message translates to:
-  /// **'Last 7 days'**
+  /// **'Rolling'**
   String get settingsActivityWeekLast7Days;
 
   /// No description provided for @settingsFavoriteActivityTitle.
@@ -7587,6 +7641,20 @@ abstract class AppLocalizations {
     int arg4,
   );
 
+  /// No description provided for @settingsAppleHealthImportProgressWithScanPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{arg0}%. {arg1}. Scanned {arg2}/{arg3} items. Selected {arg4}/{arg5} records, imported {arg6}.'**
+  String settingsAppleHealthImportProgressWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+    int arg5,
+    int arg6,
+  );
+
   /// No description provided for @settingsAppleHealthImportBackground.
   ///
   /// In en, this message translates to:
@@ -7627,6 +7695,18 @@ abstract class AppLocalizations {
     int arg4,
   );
 
+  /// No description provided for @settingsAppleHealthImportNotificationTextWithScanPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{arg0}%. {arg1}. Scanned {arg2}/{arg3}, imported {arg4}.'**
+  String settingsAppleHealthImportNotificationTextWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+  );
+
   /// No description provided for @settingsAppleHealthImportResult.
   ///
   /// In en, this message translates to:
@@ -7639,6 +7719,12 @@ abstract class AppLocalizations {
     int arg4,
     int arg5,
   );
+
+  /// No description provided for @settingsAppleHealthImportRoutesIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.'**
+  String get settingsAppleHealthImportRoutesIncomplete;
 
   /// No description provided for @settingsAppleHealthImportAnalysisResult.
   ///
@@ -7843,24 +7929,6 @@ abstract class AppLocalizations {
   /// **'Access to the selected file was lost, so the import couldn\'t continue. Select the same Apple Health export again to pick up right where it left off.'**
   String get settingsAppleHealthImportPermissionDenied;
 
-  /// No description provided for @settingsFitImportTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'FIT Importer'**
-  String get settingsFitImportTitle;
-
-  /// No description provided for @settingsFitImportBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.'**
-  String get settingsFitImportBody;
-
-  /// No description provided for @settingsFitImportAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Import FIT file'**
-  String get settingsFitImportAction;
-
   /// No description provided for @settingsRouteImportTitle.
   ///
   /// In en, this message translates to:
@@ -7876,8 +7944,8 @@ abstract class AppLocalizations {
   /// No description provided for @settingsRouteImportPermissions.
   ///
   /// In en, this message translates to:
-  /// **'{granted}/{total} route import permissions granted.'**
-  String settingsRouteImportPermissions(int granted, int total);
+  /// **'{arg0}/{arg1} route import permissions granted.'**
+  String settingsRouteImportPermissions(int arg0, int arg1);
 
   /// No description provided for @settingsRouteImportGrant.
   ///
@@ -7906,25 +7974,38 @@ abstract class AppLocalizations {
   /// No description provided for @settingsRouteImportProgress.
   ///
   /// In en, this message translates to:
-  /// **'File {current}/{total}. Imported {imported}, failed {failed}.'**
-  String settingsRouteImportProgress(
-    int current,
-    int total,
-    int imported,
-    int failed,
-  );
+  /// **'File {arg0}/{arg1}. Imported {arg2}, failed {arg3}.'**
+  String settingsRouteImportProgress(int arg0, int arg1, int arg2, int arg3);
 
   /// No description provided for @settingsRouteImportResult.
   ///
   /// In en, this message translates to:
-  /// **'Imported {imported}. Failed {failed}. Selected {selected}.'**
-  String settingsRouteImportResult(int imported, int failed, int selected);
+  /// **'Imported {arg0}. Failed {arg1}. Selected {arg2}.'**
+  String settingsRouteImportResult(int arg0, int arg1, int arg2);
 
   /// No description provided for @settingsRouteImportError.
   ///
   /// In en, this message translates to:
-  /// **'Route import warning: {message}'**
-  String settingsRouteImportError(String message);
+  /// **'Route import warning: {arg0}'**
+  String settingsRouteImportError(String arg0);
+
+  /// No description provided for @settingsFitImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FIT Importer'**
+  String get settingsFitImportTitle;
+
+  /// No description provided for @settingsFitImportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.'**
+  String get settingsFitImportBody;
+
+  /// No description provided for @settingsFitImportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import FIT file'**
+  String get settingsFitImportAction;
 
   /// No description provided for @settingsOfflineMapsTitle.
   ///
@@ -10176,53 +10257,11 @@ abstract class AppLocalizations {
   /// **'OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.'**
   String get privacyPolicyBody3;
 
-  /// No description provided for @activitiesFilterAll.
+  /// No description provided for @linkCouldNotOpen.
   ///
   /// In en, this message translates to:
-  /// **'All activities'**
-  String get activitiesFilterAll;
-
-  /// No description provided for @activitiesFilterActivityTypeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Activity type'**
-  String get activitiesFilterActivityTypeLabel;
-
-  /// No description provided for @sectionActivityTypeStats.
-  ///
-  /// In en, this message translates to:
-  /// **'By activity type'**
-  String get sectionActivityTypeStats;
-
-  /// No description provided for @statTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Time'**
-  String get statTime;
-
-  /// No description provided for @statAverageMovingPace.
-  ///
-  /// In en, this message translates to:
-  /// **'Avg moving pace'**
-  String get statAverageMovingPace;
-
-  /// No description provided for @statFastestPace.
-  ///
-  /// In en, this message translates to:
-  /// **'Fastest pace'**
-  String get statFastestPace;
-
-  /// No description provided for @statBestSpeed.
-  ///
-  /// In en, this message translates to:
-  /// **'Best speed'**
-  String get statBestSpeed;
-
-  /// No description provided for @activityTypeStatsActivityCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{arg0} activities'**
-  String activityTypeStatsActivityCount(int arg0);
+  /// **'The link could not be opened.'**
+  String get linkCouldNotOpen;
 }
 
 class _AppLocalizationsDelegate

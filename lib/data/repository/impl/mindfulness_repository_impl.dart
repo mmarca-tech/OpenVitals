@@ -5,7 +5,6 @@ import '../../../domain/model/mindfulness_models.dart';
 import '../../../domain/model/refresh_mode.dart';
 import '../../../domain/query/mindfulness_period_data.dart';
 import '../../../health/health_data_source.dart';
-import '../../../health/health_permissions.dart';
 import '../contract/mindfulness_repository.dart';
 import 'repository_exceptions.dart';
 import 'repository_time.dart';
@@ -21,8 +20,17 @@ class MindfulnessRepositoryImpl implements MindfulnessRepository {
           ? _dataSource.grantedPermissions()
           : <String>{};
 
+  /// Delegates to the permission service rather than hardcoding the string, so
+  /// it is **empty** when the provider does not expose mindfulness sessions
+  /// (Kotlin 1.9.0, 1f2b435). Hardcoding it meant the UI could offer to request a
+  /// permission the provider does not define, which can never be granted.
   @override
-  Set<String> get mindfulnessWritePermissions => {HcPermissions.writeMindfulness};
+  Set<String> get mindfulnessWritePermissions =>
+      _dataSource.permissionService.mindfulnessWritePermissions;
+
+  /// The read permissions, likewise empty when mindfulness is unavailable.
+  Set<String> get _mindfulnessReadPermissions =>
+      _dataSource.permissionService.mindfulnessPermissions;
 
   @override
   Future<MindfulnessPeriodData> loadMindfulnessPeriod(
@@ -44,8 +52,12 @@ class MindfulnessRepositoryImpl implements MindfulnessRepository {
     LocalDate start,
     LocalDate end,
   ) async {
+    // An empty permission set means the provider does not expose mindfulness at
+    // all — distinct from "supported but not granted" (Kotlin 1f2b435).
+    final required = _mindfulnessReadPermissions;
+    if (required.isEmpty) return const [];
     final granted = await _grantedIfAvailable();
-    if (!granted.contains(HcPermissions.readMindfulness)) return const [];
+    if (!granted.containsAll(required)) return const [];
     return _dataSource.readMindfulnessSessions(
         localDayStart(start), localDayEnd(end));
   }
@@ -55,6 +67,11 @@ class MindfulnessRepositoryImpl implements MindfulnessRepository {
 
   @override
   Future<bool> hasMindfulnessWritePermission() async {
+    // The availability guard is NOT redundant: now that the permission set is
+    // empty on an unsupported provider, `containsAll({})` is vacuously true and
+    // this would claim we hold a write permission that does not exist. Kotlin
+    // guards it the same way (`isMindfulnessAvailable() && ...`).
+    if (!isMindfulnessAvailable()) return false;
     final granted = await _grantedIfAvailable();
     return granted.containsAll(mindfulnessWritePermissions);
   }
@@ -68,8 +85,15 @@ class MindfulnessRepositoryImpl implements MindfulnessRepository {
   }
 
   @override
-  Future<MindfulnessSession?> loadMindfulnessSession(String id) =>
-      _dataSource.readMindfulnessSession(id);
+  Future<MindfulnessSession?> loadMindfulnessSession(String id) async {
+    // Kotlin 1f2b435 gates the single-session read the same way as the list read;
+    // this had no permission check at all.
+    final required = _mindfulnessReadPermissions;
+    if (required.isEmpty) return null;
+    final granted = await _grantedIfAvailable();
+    if (!granted.containsAll(required)) return null;
+    return _dataSource.readMindfulnessSession(id);
+  }
 
   @override
   Future<void> updateMindfulnessSessionEntry(

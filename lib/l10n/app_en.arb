@@ -96,7 +96,6 @@
   "homeMetricWidgetNoMetrics": "No metrics available.",
   "homeMetricWidgetPermissionNeeded": "Grant permission in OpenVitals",
   "homeMetricWidgetUpdateFailed": "Unable to update",
-  "linkCouldNotOpen": "The link could not be opened.",
   "homeMetricWidgetOpenForDetails": "Open for details",
   "homeMetricWidgetNotConfigured": "Select a metric",
   "homeQuickBeverageWidgetDescription": "Quick beverage",
@@ -175,7 +174,7 @@
   "mindfulnessEntryPermissionNeeded": "For the summary, OpenVitals only asks for view permissions. To add mindfulness entries, we need write permission. OpenVitals will not store these sessions; entries are saved in Health Connect.",
   "activityEntrySubtitle": "Create a Health Connect activity session. Imported route or activity details are written only when you save.",
   "activityEntryPermissionNeeded": "For the summary, OpenVitals only asks for view permissions. To add activities, we need Health Connect write permissions for sessions, routes, distance, elevation, calories, and recorded sensor metrics such as heart rate; treadmill entries ask for steps when needed. OpenVitals will not store these entries; they are saved in Health Connect.",
-  "activityEntrySourceBody": "Create an empty activity, record a GPS route, or import GPX/KML/KMZ routes first and review the detected data before saving.",
+  "activityEntrySourceBody": "Create an activity manually, use an existing plan, or record a GPS route.",
   "activityEntryCreateManual": "Create manually",
   "activityEntryCreateFromExistingPlan": "Create from existing plan",
   "activityEntryRecordGps": "Record activity",
@@ -281,7 +280,6 @@
   "activityEntryFeelingGood": "Good",
   "activityEntryFeelingHard": "Hard",
   "activityEntryFeelingRough": "Rough",
-  "activityEntryImportRouteFile": "Import GPX/KML/KMZ",
   "activityEntryImportedRoute": "Imported route",
   "activityEntryRecordingTitle": "Recording activity",
   "activityEntryRecordingReadyBody": "Choose the activity type, then start when you are ready. After finishing, you can review and add details before saving.",
@@ -845,6 +843,9 @@
   },
   "periodThisMonth": "This month",
   "periodThisYear": "This year",
+  "periodLast7Days": "Last 7 days",
+  "periodLast30Days": "Last 30 days",
+  "periodLast365Days": "Last 365 days",
   "periodSelected": "Selected period",
   "metricSteps": "Steps",
   "metricDistance": "Distance",
@@ -955,7 +956,18 @@
   "unitTotal": "total",
   "unitGrams": "g",
   "sectionActivities": "Activities",
+  "sectionActivityTypeStats": "By activity type",
+  "activityTypeStatsActivityCount": "{count, plural, one{# activity} other{# activities}}",
+  "@activityTypeStatsActivityCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sectionPlannedWorkouts": "Planned workouts",
+  "activitiesFilterActivityTypeLabel": "Activity type",
+  "activitiesFilterAll": "All activities",
   "activitiesKeyMetrics": "Key metrics",
   "recoverySleepScore": "Sleep score",
   "recoverySleepDuration": "Sleep duration",
@@ -1271,6 +1283,7 @@
     }
   },
   "statTotal": "Total",
+  "statTime": "Time",
   "statActiveDays": "Active days",
   "statAverage": "Average",
   "statLowest": "Lowest",
@@ -1285,6 +1298,9 @@
   "statNightsLogged": "Nights logged",
   "statLongestSleep": "Longest sleep",
   "statLongestWorkout": "Longest workout",
+  "statAverageMovingPace": "Avg moving pace",
+  "statFastestPace": "Fastest pace",
+  "statBestSpeed": "Best speed",
   "statLongestSession": "Longest session",
   "statBbtReadings": "BBT readings",
   "statGoalStreak": "Goal streak",
@@ -1941,7 +1957,7 @@
   "settingsDisplayGroupTitle": "Display",
   "settingsDisplayGroupBody": "Language, units, and theme",
   "settingsActivitiesGroupTitle": "Activities",
-  "settingsActivitiesGroupBody": "Activity week, favorite activity, recording, and offline maps",
+  "settingsActivitiesGroupBody": "Rolling dates, favorite activity, recording, and offline maps",
   "settingsSensorsGroupTitle": "Sensors & devices",
   "settingsSensorsGroupBody": "Heart rate, cadence, and power sensors",
   "settingsSensorsEmptyTitle": "No sensors yet",
@@ -2021,7 +2037,7 @@
   "settingsCycleGroupTitle": "Menstrual cycle",
   "settingsCycleGroupBody": "Cycle data and Health Connect permissions",
   "settingsDataImportGroupTitle": "Data Importers",
-  "settingsDataImportGroupBody": "Import Apple Health exports and FIT files",
+  "settingsDataImportGroupBody": "Import Apple Health exports, route files, and FIT files",
   "settingsPermissionsGroupTitle": "Permissions",
   "settingsPermissionsGroupBody": "Health data access and manual permission steps",
   "settingsHealthConnectGroupTitle": "Health Connect",
@@ -2109,10 +2125,10 @@
   "settingsThemeAmoled": "AMOLED",
   "settingsDynamicColorTitle": "Dynamic color (Material You)",
   "settingsDynamicColorBody": "Tint OpenVitals from your Android wallpaper. Off uses the OpenVitals blue and teal brand palette.",
-  "settingsActivityWeekTitle": "Activity week",
-  "settingsActivityWeekBody": "Choose whether Activities uses a fixed Mon-Sun week or the latest rolling 7 days.",
-  "settingsActivityWeekMondayToSunday": "Mon-Sun",
-  "settingsActivityWeekLast7Days": "Last 7 days",
+  "settingsActivityWeekTitle": "Rolling dates",
+  "settingsActivityWeekBody": "Use rolling 7, 30, and 365-day windows instead of calendar week, month, and year.",
+  "settingsActivityWeekMondayToSunday": "Calendar",
+  "settingsActivityWeekLast7Days": "Rolling",
   "settingsFavoriteActivityTitle": "Favorite activity",
   "settingsFavoriteActivityBody": "Use the latest recorded activity by default, or choose one activity type to always preselect.",
   "settingsFavoriteActivityLatest": "Use latest",
@@ -2244,6 +2260,32 @@
       }
     }
   },
+  "settingsAppleHealthImportProgressWithScanPercent": "{arg0}%. {arg1}. Scanned {arg2}/{arg3} items. Selected {arg4}/{arg5} records, imported {arg6}.",
+  "@settingsAppleHealthImportProgressWithScanPercent": {
+    "placeholders": {
+      "arg0": {
+        "type": "int"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "int"
+      },
+      "arg3": {
+        "type": "int"
+      },
+      "arg4": {
+        "type": "int"
+      },
+      "arg5": {
+        "type": "int"
+      },
+      "arg6": {
+        "type": "int"
+      }
+    }
+  },
   "settingsAppleHealthImportBackground": "Import continues in the background while you leave the app.",
   "settingsAppleHealthImportNotificationChannel": "Apple Health imports",
   "settingsAppleHealthImportNotificationTitle": "Importing Apple Health export",
@@ -2263,6 +2305,26 @@
   },
   "settingsAppleHealthImportNotificationTextWithPercent": "{arg0}%. {arg1}. Selected {arg2}/{arg3}, imported {arg4}.",
   "@settingsAppleHealthImportNotificationTextWithPercent": {
+    "placeholders": {
+      "arg0": {
+        "type": "int"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "int"
+      },
+      "arg3": {
+        "type": "int"
+      },
+      "arg4": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAppleHealthImportNotificationTextWithScanPercent": "{arg0}%. {arg1}. Scanned {arg2}/{arg3}, imported {arg4}.",
+  "@settingsAppleHealthImportNotificationTextWithScanPercent": {
     "placeholders": {
       "arg0": {
         "type": "int"
@@ -2304,6 +2366,7 @@
       }
     }
   },
+  "settingsAppleHealthImportRoutesIncomplete": "Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.",
   "settingsAppleHealthImportAnalysisResult": "Scanned {arg0} items. Found {arg1} compatible records. Unsupported {arg2}. Failed {arg3}.",
   "@settingsAppleHealthImportAnalysisResult": {
     "placeholders": {
@@ -2377,18 +2440,15 @@
     }
   },
   "settingsAppleHealthImportPermissionDenied": "Access to the selected file was lost, so the import couldn't continue. Select the same Apple Health export again to pick up right where it left off.",
-  "settingsFitImportTitle": "FIT Importer",
-  "settingsFitImportBody": "Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.",
-  "settingsFitImportAction": "Import FIT file",
   "settingsRouteImportTitle": "GPX/KML/KMZ Importer",
   "settingsRouteImportBody": "Import GPX, KML, or KMZ route files. Review one file before saving, or bulk import multiple files directly into Health Connect.",
-  "settingsRouteImportPermissions": "{granted}/{total} route import permissions granted.",
+  "settingsRouteImportPermissions": "{arg0}/{arg1} route import permissions granted.",
   "@settingsRouteImportPermissions": {
     "placeholders": {
-      "granted": {
+      "arg0": {
         "type": "int"
       },
-      "total": {
+      "arg1": {
         "type": "int"
       }
     }
@@ -2397,45 +2457,48 @@
   "settingsRouteImportAction": "Import GPX/KML/KMZ file",
   "settingsRouteImportBulkAction": "Bulk import GPX/KML/KMZ files",
   "settingsRouteImporting": "Importing routes...",
-  "settingsRouteImportProgress": "File {current}/{total}. Imported {imported}, failed {failed}.",
+  "settingsRouteImportProgress": "File {arg0}/{arg1}. Imported {arg2}, failed {arg3}.",
   "@settingsRouteImportProgress": {
     "placeholders": {
-      "current": {
+      "arg0": {
         "type": "int"
       },
-      "total": {
+      "arg1": {
         "type": "int"
       },
-      "imported": {
+      "arg2": {
         "type": "int"
       },
-      "failed": {
+      "arg3": {
         "type": "int"
       }
     }
   },
-  "settingsRouteImportResult": "Imported {imported}. Failed {failed}. Selected {selected}.",
+  "settingsRouteImportResult": "Imported {arg0}. Failed {arg1}. Selected {arg2}.",
   "@settingsRouteImportResult": {
     "placeholders": {
-      "imported": {
+      "arg0": {
         "type": "int"
       },
-      "failed": {
+      "arg1": {
         "type": "int"
       },
-      "selected": {
+      "arg2": {
         "type": "int"
       }
     }
   },
-  "settingsRouteImportError": "Route import warning: {message}",
+  "settingsRouteImportError": "Route import warning: {arg0}",
   "@settingsRouteImportError": {
     "placeholders": {
-      "message": {
+      "arg0": {
         "type": "String"
       }
     }
   },
+  "settingsFitImportTitle": "FIT Importer",
+  "settingsFitImportBody": "Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.",
+  "settingsFitImportAction": "Import FIT file",
   "settingsOfflineMapsTitle": "Offline maps",
   "settingsOfflineMapsBody": "Import PMTiles or Mapsforge .map/.maps packs for fully offline activity maps. Protomaps-compatible PMTiles basemaps and Mapsforge maps are supported.",
   "settingsOfflineMapsEmpty": "No offline maps imported yet.",
@@ -3265,19 +3328,5 @@
   "privacyPolicyBody1": "OpenVitals reads data from Health Connect to show steps, workouts, sleep, heart rate, weight, calories, hydration, nutrition, mindfulness, and vitals on your device. Entries you explicitly log, including imported GPX/KML/KMZ routes and imported FIT files, are written to Health Connect.",
   "privacyPolicyBody2": "This app does not upload your health data to a cloud service, does not include ads, and does not share data with third parties.",
   "privacyPolicyBody3": "OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.",
-  "activitiesFilterAll": "All activities",
-  "activitiesFilterActivityTypeLabel": "Activity type",
-  "sectionActivityTypeStats": "By activity type",
-  "statTime": "Time",
-  "statAverageMovingPace": "Avg moving pace",
-  "statFastestPace": "Fastest pace",
-  "statBestSpeed": "Best speed",
-  "activityTypeStatsActivityCount": "{arg0} activities",
-  "@activityTypeStatsActivityCount": {
-    "placeholders": {
-      "arg0": {
-        "type": "int"
-      }
-    }
-  }
+  "linkCouldNotOpen": "The link could not be opened."
 }

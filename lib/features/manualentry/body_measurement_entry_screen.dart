@@ -174,14 +174,16 @@ class _BodyEntryForm extends ConsumerWidget {
                       labelText: l10n.bodyEntryValueLabel(title, unitLabel),
                     ),
                   ),
-                  if (state.isEditMode) ...[
-                    const SizedBox(height: 12),
-                    ManualEntryTimestampFields(
-                      timestamp: state.editTime,
-                      enabled: !state.isSavingEntry,
-                      onChanged: notifier.updateEntryTime,
-                    ),
-                  ],
+                  // Kotlin 1.9.0 (3420d23) dropped the edit-mode gate: you can
+                  // now date a *new* weight/height/body-fat entry, not only an
+                  // edited one. The notifier already supported it (`addEntry`
+                  // uses `editTime ?? now`, clamped to now).
+                  const SizedBox(height: 12),
+                  ManualEntryTimestampFields(
+                    timestamp: state.editTime,
+                    enabled: !state.isSavingEntry,
+                    onChanged: notifier.updateEntryTime,
+                  ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: enabled

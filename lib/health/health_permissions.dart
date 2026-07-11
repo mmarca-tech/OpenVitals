@@ -225,10 +225,21 @@ class HealthPermissionService {
         _write('BODY_FAT'),
       });
 
-  Set<String> get mindfulnessPermissions => _supported({_read('MINDFULNESS')});
+  /// Empty when the installed provider does not expose mindfulness sessions.
+  ///
+  /// Kotlin 1.9.0 (1f2b435) moved the availability check *into* these getters.
+  /// Before, the guard was repeated at some call sites and simply forgotten at
+  /// others — so [allPermissions] and [managedPermissions] still spread the
+  /// mindfulness permissions on devices whose provider does not define them, and
+  /// the app would ask for a permission that cannot be granted. Gating here makes
+  /// every consumer correct by construction.
+  Set<String> get mindfulnessPermissions => flags.mindfulnessAvailable
+      ? _supported({_read('MINDFULNESS')})
+      : const <String>{};
 
-  Set<String> get mindfulnessWritePermissions =>
-      _supported({_write('MINDFULNESS')});
+  Set<String> get mindfulnessWritePermissions => flags.mindfulnessAvailable
+      ? _supported({_write('MINDFULNESS')})
+      : const <String>{};
 
   Set<String> get additionalDataAccessPermissions => _supported({
         if (flags.healthDataHistoryAvailable) readHealthDataHistoryPermission,
@@ -283,7 +294,8 @@ class HealthPermissionService {
         _write('BODY_TEMPERATURE'),
         _write('BLOOD_GLUCOSE'),
         _write('VO2_MAX'),
-        if (flags.mindfulnessAvailable) _write('MINDFULNESS'),
+        // Gated by the getter itself (Kotlin 1f2b435), not by a guard here.
+        ...mindfulnessWritePermissions,
         _write('MENSTRUATION'),
         _write('OVULATION_TEST'),
         _write('CERVICAL_MUCUS'),
@@ -318,7 +330,7 @@ class HealthPermissionService {
         ...bodyPermissions,
         ...activityExtrasPermissions,
         ...nutritionHydrationPermissions,
-        if (flags.mindfulnessAvailable) ...mindfulnessPermissions,
+        ...mindfulnessPermissions,
       };
 
   Set<String> get phase3Permissions => vitalsPermissions;
@@ -339,7 +351,7 @@ class HealthPermissionService {
         ...nutritionWritePermissions,
         ...bodyWritePermissions,
         ...vitalsWritePermissions,
-        if (flags.mindfulnessAvailable) ...mindfulnessWritePermissions,
+        ...mindfulnessWritePermissions,
       };
 
   Set<String> get onboardingPermissions => {

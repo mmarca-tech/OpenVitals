@@ -264,9 +264,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeMetricWidgetUpdateFailed => 'Unable to update';
 
   @override
-  String get linkCouldNotOpen => 'The link could not be opened.';
-
-  @override
   String get homeMetricWidgetOpenForDetails => 'Open for details';
 
   @override
@@ -473,7 +470,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activityEntrySourceBody =>
-      'Create an empty activity, record a GPS route, or import GPX/KML/KMZ routes first and review the detected data before saving.';
+      'Create an activity manually, use an existing plan, or record a GPS route.';
 
   @override
   String get activityEntryCreateManual => 'Create manually';
@@ -631,9 +628,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activityEntryFeelingRough => 'Rough';
-
-  @override
-  String get activityEntryImportRouteFile => 'Import GPX/KML/KMZ';
 
   @override
   String get activityEntryImportedRoute => 'Imported route';
@@ -1456,6 +1450,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get periodThisYear => 'This year';
 
   @override
+  String get periodLast7Days => 'Last 7 days';
+
+  @override
+  String get periodLast30Days => 'Last 30 days';
+
+  @override
+  String get periodLast365Days => 'Last 365 days';
+
+  @override
   String get periodSelected => 'Selected period';
 
   @override
@@ -1786,7 +1789,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionActivities => 'Activities';
 
   @override
+  String get sectionActivityTypeStats => 'By activity type';
+
+  @override
+  String activityTypeStatsActivityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# activities',
+      one: '# activity',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sectionPlannedWorkouts => 'Planned workouts';
+
+  @override
+  String get activitiesFilterActivityTypeLabel => 'Activity type';
+
+  @override
+  String get activitiesFilterAll => 'All activities';
 
   @override
   String get activitiesKeyMetrics => 'Key metrics';
@@ -2289,6 +2312,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statTotal => 'Total';
 
   @override
+  String get statTime => 'Time';
+
+  @override
   String get statActiveDays => 'Active days';
 
   @override
@@ -2329,6 +2355,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statLongestWorkout => 'Longest workout';
+
+  @override
+  String get statAverageMovingPace => 'Avg moving pace';
+
+  @override
+  String get statFastestPace => 'Fastest pace';
+
+  @override
+  String get statBestSpeed => 'Best speed';
 
   @override
   String get statLongestSession => 'Longest session';
@@ -3533,7 +3568,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsActivitiesGroupBody =>
-      'Activity week, favorite activity, recording, and offline maps';
+      'Rolling dates, favorite activity, recording, and offline maps';
 
   @override
   String get settingsSensorsGroupTitle => 'Sensors & devices';
@@ -3718,7 +3753,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDataImportGroupBody =>
-      'Import Apple Health exports and FIT files';
+      'Import Apple Health exports, route files, and FIT files';
 
   @override
   String get settingsPermissionsGroupTitle => 'Permissions';
@@ -4015,17 +4050,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tint OpenVitals from your Android wallpaper. Off uses the OpenVitals blue and teal brand palette.';
 
   @override
-  String get settingsActivityWeekTitle => 'Activity week';
+  String get settingsActivityWeekTitle => 'Rolling dates';
 
   @override
   String get settingsActivityWeekBody =>
-      'Choose whether Activities uses a fixed Mon-Sun week or the latest rolling 7 days.';
+      'Use rolling 7, 30, and 365-day windows instead of calendar week, month, and year.';
 
   @override
-  String get settingsActivityWeekMondayToSunday => 'Mon-Sun';
+  String get settingsActivityWeekMondayToSunday => 'Calendar';
 
   @override
-  String get settingsActivityWeekLast7Days => 'Last 7 days';
+  String get settingsActivityWeekLast7Days => 'Rolling';
 
   @override
   String get settingsFavoriteActivityTitle => 'Favorite activity';
@@ -4265,6 +4300,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportProgressWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+    int arg5,
+    int arg6,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3 items. Selected $arg4/$arg5 records, imported $arg6.';
+  }
+
+  @override
   String get settingsAppleHealthImportBackground =>
       'Import continues in the background while you leave the app.';
 
@@ -4297,6 +4345,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportNotificationTextWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3, imported $arg4.';
+  }
+
+  @override
   String settingsAppleHealthImportResult(
     int arg0,
     int arg1,
@@ -4307,6 +4366,10 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return 'Imported $arg0. Duplicates $arg1. Not selected $arg2. Unsupported $arg3. Skipped $arg4. Failed $arg5.';
   }
+
+  @override
+  String get settingsAppleHealthImportRoutesIncomplete =>
+      'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.';
 
   @override
   String settingsAppleHealthImportAnalysisResult(
@@ -4434,16 +4497,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Access to the selected file was lost, so the import couldn\'t continue. Select the same Apple Health export again to pick up right where it left off.';
 
   @override
-  String get settingsFitImportTitle => 'FIT Importer';
-
-  @override
-  String get settingsFitImportBody =>
-      'Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.';
-
-  @override
-  String get settingsFitImportAction => 'Import FIT file';
-
-  @override
   String get settingsRouteImportTitle => 'GPX/KML/KMZ Importer';
 
   @override
@@ -4451,8 +4504,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Import GPX, KML, or KMZ route files. Review one file before saving, or bulk import multiple files directly into Health Connect.';
 
   @override
-  String settingsRouteImportPermissions(int granted, int total) {
-    return '$granted/$total route import permissions granted.';
+  String settingsRouteImportPermissions(int arg0, int arg1) {
+    return '$arg0/$arg1 route import permissions granted.';
   }
 
   @override
@@ -4468,24 +4521,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsRouteImporting => 'Importing routes...';
 
   @override
-  String settingsRouteImportProgress(
-    int current,
-    int total,
-    int imported,
-    int failed,
-  ) {
-    return 'File $current/$total. Imported $imported, failed $failed.';
+  String settingsRouteImportProgress(int arg0, int arg1, int arg2, int arg3) {
+    return 'File $arg0/$arg1. Imported $arg2, failed $arg3.';
   }
 
   @override
-  String settingsRouteImportResult(int imported, int failed, int selected) {
-    return 'Imported $imported. Failed $failed. Selected $selected.';
+  String settingsRouteImportResult(int arg0, int arg1, int arg2) {
+    return 'Imported $arg0. Failed $arg1. Selected $arg2.';
   }
 
   @override
-  String settingsRouteImportError(String message) {
-    return 'Route import warning: $message';
+  String settingsRouteImportError(String arg0) {
+    return 'Route import warning: $arg0';
   }
+
+  @override
+  String get settingsFitImportTitle => 'FIT Importer';
+
+  @override
+  String get settingsFitImportBody =>
+      'Import FIT activity, course, or workout files, review detected details, and choose whether to save them to Health Connect.';
+
+  @override
+  String get settingsFitImportAction => 'Import FIT file';
 
   @override
   String get settingsOfflineMapsTitle => 'Offline maps';
@@ -5780,28 +5838,5 @@ class AppLocalizationsEn extends AppLocalizations {
       'OpenVitals is not a medical device and does not diagnose, treat, cure, or prevent any disease or medical condition. It is not a substitute for medical advice, diagnosis, or treatment from a qualified healthcare professional.';
 
   @override
-  String get activitiesFilterAll => 'All activities';
-
-  @override
-  String get activitiesFilterActivityTypeLabel => 'Activity type';
-
-  @override
-  String get sectionActivityTypeStats => 'By activity type';
-
-  @override
-  String get statTime => 'Time';
-
-  @override
-  String get statAverageMovingPace => 'Avg moving pace';
-
-  @override
-  String get statFastestPace => 'Fastest pace';
-
-  @override
-  String get statBestSpeed => 'Best speed';
-
-  @override
-  String activityTypeStatsActivityCount(int arg0) {
-    return '$arg0 activities';
-  }
+  String get linkCouldNotOpen => 'The link could not be opened.';
 }

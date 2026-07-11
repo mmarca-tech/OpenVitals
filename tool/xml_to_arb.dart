@@ -48,8 +48,12 @@ const String _templateLocale = 'en';
 void main(List<String> args) {
   final String resRoot = args.isNotEmpty
       ? args[0]
-      : '/home/manu/Documents/repos/OpenVitals/app/src/main/res';
+      : '../android-app/app/src/main/res';
   final String outDir = args.length > 1 ? args[1] : 'lib/l10n';
+
+  // Flutter-only strings (no Kotlin counterpart). Merged into every locale so a
+  // regeneration cannot destroy them — which it silently did before this existed.
+  final Map<String, Map<String, String>> flutterOnly = _loadFlutterOnly();
 
   final Map<String, List<_Entry>> byLocale = <String, List<_Entry>>{};
   for (final MapEntry<String, String> e in _localeDirs.entries) {
@@ -74,6 +78,20 @@ void main(List<String> args) {
   final Map<String, _Entry> templateByKey = <String, _Entry>{
     for (final _Entry entry in template) entry.key: entry,
   };
+  for (final MapEntry<String, Map<String, String>> e in flutterOnly.entries) {
+    if (templateByKey.containsKey(e.key)) {
+      stderr.writeln('WARN: flutter-only key "${e.key}" also exists in '
+          'strings.xml; the Kotlin value wins');
+      continue;
+    }
+    orderedKeys.add(e.key);
+    templateByKey[e.key] = _Entry(
+      key: e.key,
+      message: e.value['en'] ?? '',
+      argIndexes: <int>{},
+      argTypes: <int, String>{},
+    );
+  }
 
   Directory(outDir).createSync(recursive: true);
 
@@ -92,6 +110,11 @@ void main(List<String> args) {
 
     for (final String key in orderedKeys) {
       final _Entry tmpl = templateByKey[key]!;
+      final Map<String, String>? overlay = flutterOnly[key];
+      if (overlay != null) {
+        arb[key] = overlay[locale] ?? overlay['en'] ?? '';
+        continue;
+      }
       _Entry chosen;
       if (isTemplate) {
         chosen = tmpl;
@@ -114,8 +137,17 @@ void main(List<String> args) {
 
       // Placeholder metadata lives only in the template file. Types come from
       // the template's own inference so the generated method signature is stable.
-      if (isTemplate && tmpl.argIndexes.isNotEmpty) {
+      if (isTemplate && (tmpl.argIndexes.isNotEmpty || tmpl.isPlural)) {
         final Map<String, Object?> placeholders = <String, Object?>{};
+        // A plural's ICU body selects on `{count, plural, ...}`, so the
+        // placeholder must literally be named `count`. Declaring it as `arg0`
+        // (as this did) left `count` undeclared and gen-l10n emitted a phantom
+        // leading `arg0` parameter — `f(int arg0, num count)` — which no call
+        // site can satisfy. Android's `<plurals>` were unused until Kotlin 1.9.0
+        // added the first one, so this never fired before.
+        if (tmpl.isPlural) {
+          placeholders['count'] = <String, Object?>{'type': 'int'};
+        }
         final List<int> sorted = tmpl.argIndexes.toList()..sort();
         for (final int idx in sorted) {
           placeholders['arg$idx'] = <String, Object?>{
@@ -140,6 +172,26 @@ void main(List<String> args) {
   );
 }
 
+/// Reads `tool/l10n_flutter_only.json`: Flutter-only keys -> locale -> value.
+/// Keys beginning with `_` (e.g. `_comment`) are ignored.
+Map<String, Map<String, String>> _loadFlutterOnly() {
+  final File file = File('tool/l10n_flutter_only.json');
+  if (!file.existsSync()) return <String, Map<String, String>>{};
+  final Map<String, Object?> raw =
+      jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
+  final Map<String, Map<String, String>> out = <String, Map<String, String>>{};
+  for (final MapEntry<String, Object?> e in raw.entries) {
+    if (e.key.startsWith('_')) continue;
+    final Object? value = e.value;
+    if (value is! Map) continue;
+    out[e.key] = <String, String>{
+      for (final MapEntry<Object?, Object?> t in value.entries)
+        '${t.key}': '${t.value}',
+    };
+  }
+  return out;
+}
+
 /// A single converted catalog entry.
 class _Entry {
   _Entry({
@@ -147,6 +199,7 @@ class _Entry {
     required this.message,
     required this.argIndexes,
     required this.argTypes,
+    this.isPlural = false,
   });
 
   final String key;
@@ -159,6 +212,10 @@ class _Entry {
 
   /// 0-based placeholder index -> Dart type (`String`/`int`/`double`).
   final Map<int, String> argTypes;
+
+  /// True for an ICU `{count, plural, ...}` message, whose count placeholder is
+  /// named `count` rather than `arg0`.
+  final bool isPlural;
 }
 
 List<_Entry> _parseStrings(String xmlSource) {
@@ -192,12 +249,14 @@ List<_Entry> _parseStrings(String xmlSource) {
 }
 
 /// Converts a `<plurals>` element into an ICU `{count, plural, ...}` message.
-/// The `count` argument is declared as `arg0` (int) so it fits the shared
-/// `{argN}` placeholder convention used everywhere else.
+/// The count is emitted as the ICU `count` placeholder (see the metadata writer),
+/// not as an `argN`.
 _Entry _convertPlural(String key, XmlElement node) {
   final StringBuffer buf = StringBuffer('{count, plural,');
-  final Set<int> argIndexes = <int>{0};
-  final Map<int, String> argTypes = <int, String>{0: 'int'};
+  // The count is NOT an `argN`: it is the ICU `count` placeholder (rendered as
+  // `#` inside each branch). Only genuine extra args get `{argN}` slots.
+  final Set<int> argIndexes = <int>{};
+  final Map<int, String> argTypes = <int, String>{};
 
   for (final XmlElement item in node.childElements) {
     if (item.name.local != 'item') continue;
@@ -221,6 +280,7 @@ _Entry _convertPlural(String key, XmlElement node) {
     message: buf.toString(),
     argIndexes: argIndexes,
     argTypes: argTypes,
+    isPlural: true,
   );
 }
 

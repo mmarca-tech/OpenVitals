@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Strings the Flutter app needs that have NO counterpart in the Kotlin",
+    "strings.xml, so `xml_to_arb.dart` cannot generate them.",
+    "",
+    "This file exists because the generated ARBs say 'do not hand-edit' and a",
+    "regeneration DOES destroy anything added by hand — which is exactly what",
+    "happened to `linkCouldNotOpen` (it had been hand-added and translated into",
+    "all five locales, and a regen silently wiped every one of them).",
+    "",
+    "Put Flutter-only strings HERE instead, and xml_to_arb.dart will merge them",
+    "into every locale on each run. `en` is required; a locale you omit falls",
+    "back to the `en` value, exactly like a missing Kotlin translation does."
+  ],
+  "linkCouldNotOpen": {
+    "en": "The link could not be opened.",
+    "de": "Der Link konnte nicht geöffnet werden.",
+    "es": "No se pudo abrir el enlace.",
+    "it": "Impossibile aprire il link.",
+    "et": "Linki ei saanud avada."
+  }
+}

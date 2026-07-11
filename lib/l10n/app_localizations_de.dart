@@ -272,9 +272,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get homeMetricWidgetUpdateFailed => 'Aktualisierung nicht möglich';
 
   @override
-  String get linkCouldNotOpen => 'Der Link konnte nicht geöffnet werden.';
-
-  @override
   String get homeMetricWidgetOpenForDetails => 'Für Details öffnen';
 
   @override
@@ -485,7 +482,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get activityEntrySourceBody =>
-      'Erstelle eine leere Aktivität, zeichne eine GPS-Route auf oder importiere zuerst eine GPX/KML/KMZ-Route und prüfe die erkannte Route, Zeit, den Titel, die Notizen und den Typ vor dem Speichern.';
+      'Erstelle eine Aktivität manuell, nutze einen vorhandenen Plan oder zeichne eine GPS-Route auf.';
 
   @override
   String get activityEntryCreateManual => 'Manuell erstellen';
@@ -645,9 +642,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get activityEntryFeelingRough => 'Sehr hart';
-
-  @override
-  String get activityEntryImportRouteFile => 'GPX/KML/KMZ importieren';
 
   @override
   String get activityEntryImportedRoute => 'Importierte Route';
@@ -1479,6 +1473,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get periodThisYear => 'Dieses Jahr';
 
   @override
+  String get periodLast7Days => 'Letzte 7 Tage';
+
+  @override
+  String get periodLast30Days => 'Letzte 30 Tage';
+
+  @override
+  String get periodLast365Days => 'Letzte 365 Tage';
+
+  @override
   String get periodSelected => 'Ausgewählter Zeitraum';
 
   @override
@@ -1809,7 +1812,27 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sectionActivities => 'Aktivitäten';
 
   @override
+  String get sectionActivityTypeStats => 'Nach Aktivitätstyp';
+
+  @override
+  String activityTypeStatsActivityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# Aktivitäten',
+      one: '# Aktivität',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sectionPlannedWorkouts => 'Geplante Trainings';
+
+  @override
+  String get activitiesFilterActivityTypeLabel => 'Aktivitätstyp';
+
+  @override
+  String get activitiesFilterAll => 'Alle Aktivitäten';
 
   @override
   String get activitiesKeyMetrics => 'Wichtige Messwerte';
@@ -2314,6 +2337,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get statTotal => 'Gesamt';
 
   @override
+  String get statTime => 'Zeit';
+
+  @override
   String get statActiveDays => 'Aktive Tage';
 
   @override
@@ -2354,6 +2380,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get statLongestWorkout => 'Längstes Training';
+
+  @override
+  String get statAverageMovingPace => 'Durchschn. Tempo in Bewegung';
+
+  @override
+  String get statFastestPace => 'Schnellstes Tempo';
+
+  @override
+  String get statBestSpeed => 'Beste Geschwindigkeit';
 
   @override
   String get statLongestSession => 'Längste Sitzung';
@@ -3581,7 +3616,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsActivitiesGroupBody =>
-      'Aktivitätswoche, Lieblingsaktivität, Aufzeichnung und Offline-Karten';
+      'Gleitende Daten, Lieblingsaktivität, Aufzeichnung und Offline-Karten';
 
   @override
   String get settingsSensorsGroupTitle => 'Sensoren & Geräte';
@@ -3767,7 +3802,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsDataImportGroupBody =>
-      'Apple-Health-Exporte und FIT-Dateien importieren';
+      'Apple-Health-Exporte, Routendateien und FIT-Dateien importieren';
 
   @override
   String get settingsPermissionsGroupTitle => 'Berechtigungen';
@@ -4074,17 +4109,17 @@ class AppLocalizationsDe extends AppLocalizations {
       'Färbe OpenVitals anhand deines Android-Hintergrundbilds ein. Deaktiviert verwendet die OpenVitals-Markenpalette in Blau und Türkis.';
 
   @override
-  String get settingsActivityWeekTitle => 'Aktivitätswoche';
+  String get settingsActivityWeekTitle => 'Gleitende Daten';
 
   @override
   String get settingsActivityWeekBody =>
-      'Wähle, ob Aktivitäten eine feste Mo-So-Woche oder die letzten gleitenden 7 Tage verwendet.';
+      'Verwende gleitende Fenster über 7, 30 und 365 Tage statt Kalenderwoche, Kalendermonat und Kalenderjahr.';
 
   @override
-  String get settingsActivityWeekMondayToSunday => 'Mo-So';
+  String get settingsActivityWeekMondayToSunday => 'Kalender';
 
   @override
-  String get settingsActivityWeekLast7Days => 'Letzte 7 Tage';
+  String get settingsActivityWeekLast7Days => 'Gleitend';
 
   @override
   String get settingsFavoriteActivityTitle => 'Lieblingsaktivität';
@@ -4329,6 +4364,19 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportProgressWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+    int arg5,
+    int arg6,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3 items. Selected $arg4/$arg5 records, imported $arg6.';
+  }
+
+  @override
   String get settingsAppleHealthImportBackground =>
       'Der Import läuft im Hintergrund weiter, wenn du die App verlässt.';
 
@@ -4361,6 +4409,17 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportNotificationTextWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3, imported $arg4.';
+  }
+
+  @override
   String settingsAppleHealthImportResult(
     int arg0,
     int arg1,
@@ -4371,6 +4430,10 @@ class AppLocalizationsDe extends AppLocalizations {
   ) {
     return 'Importiert $arg0. Duplikate $arg1. Nicht ausgewählt $arg2. Nicht unterstützt $arg3. Übersprungen $arg4. Fehlgeschlagen $arg5.';
   }
+
+  @override
+  String get settingsAppleHealthImportRoutesIncomplete =>
+      'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.';
 
   @override
   String settingsAppleHealthImportAnalysisResult(
@@ -4499,16 +4562,6 @@ class AppLocalizationsDe extends AppLocalizations {
       'Der Zugriff auf die ausgewählte Datei ist verloren gegangen, sodass der Import nicht fortgesetzt werden konnte. Wähle den gleichen Apple-Health-Export erneut aus, um genau dort weiterzumachen, wo du aufgehört hast.';
 
   @override
-  String get settingsFitImportTitle => 'FIT-Importer';
-
-  @override
-  String get settingsFitImportBody =>
-      'Importiere FIT-Dateien für Aktivitäten, Kurse oder Workouts, prüfe die erkannten Details und wähle, ob sie in Health Connect gespeichert werden.';
-
-  @override
-  String get settingsFitImportAction => 'FIT-Datei importieren';
-
-  @override
   String get settingsRouteImportTitle => 'GPX/KML/KMZ-Importer';
 
   @override
@@ -4516,8 +4569,8 @@ class AppLocalizationsDe extends AppLocalizations {
       'Importiere GPX-, KML- oder KMZ-Routendateien. Prüfe eine Datei vor dem Speichern oder importiere mehrere Dateien direkt in Health Connect.';
 
   @override
-  String settingsRouteImportPermissions(int granted, int total) {
-    return '$granted/$total Routenimport-Berechtigungen erteilt.';
+  String settingsRouteImportPermissions(int arg0, int arg1) {
+    return '$arg0/$arg1 Routenimport-Berechtigungen erteilt.';
   }
 
   @override
@@ -4534,24 +4587,29 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsRouteImporting => 'Routen werden importiert...';
 
   @override
-  String settingsRouteImportProgress(
-    int current,
-    int total,
-    int imported,
-    int failed,
-  ) {
-    return 'Datei $current/$total. Importiert $imported, fehlgeschlagen $failed.';
+  String settingsRouteImportProgress(int arg0, int arg1, int arg2, int arg3) {
+    return 'Datei $arg0/$arg1. Importiert $arg2, fehlgeschlagen $arg3.';
   }
 
   @override
-  String settingsRouteImportResult(int imported, int failed, int selected) {
-    return 'Importiert $imported. Fehlgeschlagen $failed. Ausgewählt $selected.';
+  String settingsRouteImportResult(int arg0, int arg1, int arg2) {
+    return 'Importiert $arg0. Fehlgeschlagen $arg1. Ausgewählt $arg2.';
   }
 
   @override
-  String settingsRouteImportError(String message) {
-    return 'Routenimport-Warnung: $message';
+  String settingsRouteImportError(String arg0) {
+    return 'Routenimport-Warnung: $arg0';
   }
+
+  @override
+  String get settingsFitImportTitle => 'FIT-Importer';
+
+  @override
+  String get settingsFitImportBody =>
+      'Importiere FIT-Dateien für Aktivitäten, Kurse oder Workouts, prüfe die erkannten Details und wähle, ob sie in Health Connect gespeichert werden.';
+
+  @override
+  String get settingsFitImportAction => 'FIT-Datei importieren';
 
   @override
   String get settingsOfflineMapsTitle => 'Offline-Karten';
@@ -5859,28 +5917,5 @@ class AppLocalizationsDe extends AppLocalizations {
       'OpenVitals ist kein Medizinprodukt und diagnostiziert, behandelt, heilt oder verhindert keine Krankheit oder medizinische Erkrankung. Es ersetzt keine medizinische Beratung, Diagnose oder Behandlung durch qualifiziertes medizinisches Fachpersonal.';
 
   @override
-  String get activitiesFilterAll => 'Alle Aktivitäten';
-
-  @override
-  String get activitiesFilterActivityTypeLabel => 'Aktivitätstyp';
-
-  @override
-  String get sectionActivityTypeStats => 'Nach Aktivitätstyp';
-
-  @override
-  String get statTime => 'Zeit';
-
-  @override
-  String get statAverageMovingPace => 'Durchschn. Tempo in Bewegung';
-
-  @override
-  String get statFastestPace => 'Schnellstes Tempo';
-
-  @override
-  String get statBestSpeed => 'Beste Geschwindigkeit';
-
-  @override
-  String activityTypeStatsActivityCount(int arg0) {
-    return '$arg0 Aktivitäten';
-  }
+  String get linkCouldNotOpen => 'Der Link konnte nicht geöffnet werden.';
 }

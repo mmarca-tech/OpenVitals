@@ -82,6 +82,29 @@ void main() {
       );
     });
 
+    // Kotlin 1.9.0 (1f2b435) moved the availability check into the getters
+    // themselves, because the per-call-site guards had been forgotten in
+    // allPermissions and managedPermissions — so an unsupported device still
+    // asked for a mindfulness permission its provider does not define, and the
+    // request could never be granted.
+    test('mindfulness permissions are empty when the provider lacks it', () {
+      expect(service.mindfulnessPermissions, isEmpty);
+      expect(service.mindfulnessWritePermissions, isEmpty);
+    });
+
+    test('an unavailable mindfulness leaks into NO permission set', () {
+      for (final set in <Set<String>>{
+        service.allPermissions,
+        service.managedPermissions,
+        service.dataImportWritePermissions,
+        service.phase2Permissions,
+        service.requestableWritePermissions,
+      }) {
+        expect(set.contains(HcPermissions.readMindfulness), isFalse);
+        expect(set.contains(HcPermissions.writeMindfulness), isFalse);
+      }
+    });
+
     test('skin temperature gated on the feature flag', () {
       expect(service.vitalsPermissions.contains(HcPermissions.readSkinTemperature),
           isFalse);

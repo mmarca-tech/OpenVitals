@@ -268,9 +268,6 @@ class AppLocalizationsEt extends AppLocalizations {
   String get homeMetricWidgetUpdateFailed => 'Värskendamine ebaõnnestus';
 
   @override
-  String get linkCouldNotOpen => 'Linki ei saanud avada.';
-
-  @override
   String get homeMetricWidgetOpenForDetails => 'Ava üksikasjade nägemiseks';
 
   @override
@@ -478,7 +475,7 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get activityEntrySourceBody =>
-      'Loo tühi treening, salvesta GPS-marsruut või impordi enne GPX/KML/KMZ marsruudid ja vaata tuvastatud andmed üle enne salvestamist.';
+      'Loo treening käsitsi, kasuta olemasolevat plaani või salvesta GPS-marsruut.';
 
   @override
   String get activityEntryCreateManual => 'Loo käsitsi';
@@ -638,9 +635,6 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get activityEntryFeelingRough => 'Kohutav';
-
-  @override
-  String get activityEntryImportRouteFile => 'Impordi GPX/KML/KMZ';
 
   @override
   String get activityEntryImportedRoute => 'Imporditud marsruut';
@@ -1470,6 +1464,15 @@ class AppLocalizationsEt extends AppLocalizations {
   String get periodThisYear => 'Sel aastal';
 
   @override
+  String get periodLast7Days => 'Viimased 7 päeva';
+
+  @override
+  String get periodLast30Days => 'Viimased 30 päeva';
+
+  @override
+  String get periodLast365Days => 'Viimased 365 päeva';
+
+  @override
   String get periodSelected => 'Valitud periood';
 
   @override
@@ -1800,7 +1803,27 @@ class AppLocalizationsEt extends AppLocalizations {
   String get sectionActivities => 'Treeningud';
 
   @override
+  String get sectionActivityTypeStats => 'Treeningu tüübi järgi';
+
+  @override
+  String activityTypeStatsActivityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# treeningut',
+      one: '# treening',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sectionPlannedWorkouts => 'Planeeritud treeningud';
+
+  @override
+  String get activitiesFilterActivityTypeLabel => 'Treeningu tüüp';
+
+  @override
+  String get activitiesFilterAll => 'Kõik treeningud';
 
   @override
   String get activitiesKeyMetrics => 'Põhinäitajad';
@@ -2303,6 +2326,9 @@ class AppLocalizationsEt extends AppLocalizations {
   String get statTotal => 'Kokku';
 
   @override
+  String get statTime => 'Aeg';
+
+  @override
   String get statActiveDays => 'Aktiivseid päevi';
 
   @override
@@ -2343,6 +2369,15 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get statLongestWorkout => 'Pikim treening';
+
+  @override
+  String get statAverageMovingPace => 'Keskm liikumistempo';
+
+  @override
+  String get statFastestPace => 'Kiireim tempo';
+
+  @override
+  String get statBestSpeed => 'Parim kiirus';
 
   @override
   String get statLongestSession => 'Pikim sessioon';
@@ -3559,7 +3594,7 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get settingsActivitiesGroupBody =>
-      'Treeningnädal, lemmiktreening, salvestamine ja võrguühenduseta kaardid';
+      'Veerevad kuupäevad, lemmiktreening, salvestamine ja võrguühenduseta kaardid';
 
   @override
   String get settingsSensorsGroupTitle => 'Andurid ja seadmed';
@@ -3742,7 +3777,7 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get settingsDataImportGroupBody =>
-      'Impordi Apple Healthi eksporte ja FIT-faile';
+      'Impordi Apple Healthi eksporte, marsruudifaile ja FIT-faile';
 
   @override
   String get settingsPermissionsGroupTitle => 'Load';
@@ -4042,17 +4077,17 @@ class AppLocalizationsEt extends AppLocalizations {
       'Tooni OpenVitals Androidi taustapildi järgi. Väljas kasutatakse OpenVitalsi sinist ja türkiissinist brändipaletti.';
 
   @override
-  String get settingsActivityWeekTitle => 'Treeningnädal';
+  String get settingsActivityWeekTitle => 'Veerevad kuupäevad';
 
   @override
   String get settingsActivityWeekBody =>
-      'Vali, kas Treeningud kasutab fikseeritud E-P nädalat või viimast 7 päeva.';
+      'Kasuta kalendrinädala, -kuu ja -aasta asemel veerevaid 7, 30 ja 365 päeva aknaid.';
 
   @override
-  String get settingsActivityWeekMondayToSunday => 'E-P';
+  String get settingsActivityWeekMondayToSunday => 'Kalender';
 
   @override
-  String get settingsActivityWeekLast7Days => 'Viimased 7 päeva';
+  String get settingsActivityWeekLast7Days => 'Veerev';
 
   @override
   String get settingsFavoriteActivityTitle => 'Lemmiktreening';
@@ -4294,6 +4329,19 @@ class AppLocalizationsEt extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportProgressWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+    int arg5,
+    int arg6,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3 items. Selected $arg4/$arg5 records, imported $arg6.';
+  }
+
+  @override
   String get settingsAppleHealthImportBackground =>
       'Import jätkub taustal, kui lahkud rakendusest.';
 
@@ -4326,6 +4374,17 @@ class AppLocalizationsEt extends AppLocalizations {
   }
 
   @override
+  String settingsAppleHealthImportNotificationTextWithScanPercent(
+    int arg0,
+    String arg1,
+    int arg2,
+    int arg3,
+    int arg4,
+  ) {
+    return '$arg0%. $arg1. Scanned $arg2/$arg3, imported $arg4.';
+  }
+
+  @override
   String settingsAppleHealthImportResult(
     int arg0,
     int arg1,
@@ -4336,6 +4395,10 @@ class AppLocalizationsEt extends AppLocalizations {
   ) {
     return 'Imporditud $arg0. Duplikaate $arg1. Valimata $arg2. Toetamata $arg3. Vahele jäetud $arg4. Ebaõnnestus $arg5.';
   }
+
+  @override
+  String get settingsAppleHealthImportRoutesIncomplete =>
+      'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.';
 
   @override
   String settingsAppleHealthImportAnalysisResult(
@@ -4466,16 +4529,6 @@ class AppLocalizationsEt extends AppLocalizations {
       'Ligipääs valitud failile kadus, mistõttu importimist ei saanud jätkata. Vali sama Apple Health\'i eksport uuesti, et jätkata täpselt sealt, kus pooleli jäi.';
 
   @override
-  String get settingsFitImportTitle => 'FIT-importija';
-
-  @override
-  String get settingsFitImportBody =>
-      'Impordi FIT treeningu-, marsruudi- või harjutusfaile, vaata tuvastatud üksikasjad üle ja vali, kas salvestada need Health Connectisse.';
-
-  @override
-  String get settingsFitImportAction => 'Impordi FIT-fail';
-
-  @override
   String get settingsRouteImportTitle => 'GPX/KML/KMZ-importija';
 
   @override
@@ -4483,8 +4536,8 @@ class AppLocalizationsEt extends AppLocalizations {
       'Impordi GPX-, KML- või KMZ-marsruudifaile. Vaata üks fail enne salvestamist üle või impordi mitu faili otse Health Connectisse.';
 
   @override
-  String settingsRouteImportPermissions(int granted, int total) {
-    return '$granted/$total marsruudiimpordi õigust antud.';
+  String settingsRouteImportPermissions(int arg0, int arg1) {
+    return '$arg0/$arg1 marsruudiimpordi õigust antud.';
   }
 
   @override
@@ -4501,24 +4554,29 @@ class AppLocalizationsEt extends AppLocalizations {
   String get settingsRouteImporting => 'Marsruute imporditakse...';
 
   @override
-  String settingsRouteImportProgress(
-    int current,
-    int total,
-    int imported,
-    int failed,
-  ) {
-    return 'Fail $current/$total. Imporditud $imported, ebaõnnestunud $failed.';
+  String settingsRouteImportProgress(int arg0, int arg1, int arg2, int arg3) {
+    return 'Fail $arg0/$arg1. Imporditud $arg2, ebaõnnestunud $arg3.';
   }
 
   @override
-  String settingsRouteImportResult(int imported, int failed, int selected) {
-    return 'Imporditud $imported. Ebaõnnestunud $failed. Valitud $selected.';
+  String settingsRouteImportResult(int arg0, int arg1, int arg2) {
+    return 'Imporditud $arg0. Ebaõnnestunud $arg1. Valitud $arg2.';
   }
 
   @override
-  String settingsRouteImportError(String message) {
-    return 'Marsruudiimpordi hoiatus: $message';
+  String settingsRouteImportError(String arg0) {
+    return 'Marsruudiimpordi hoiatus: $arg0';
   }
+
+  @override
+  String get settingsFitImportTitle => 'FIT-importija';
+
+  @override
+  String get settingsFitImportBody =>
+      'Impordi FIT treeningu-, marsruudi- või harjutusfaile, vaata tuvastatud üksikasjad üle ja vali, kas salvestada need Health Connectisse.';
+
+  @override
+  String get settingsFitImportAction => 'Impordi FIT-fail';
 
   @override
   String get settingsOfflineMapsTitle => 'Võrguühenduseta kaardid';
@@ -5821,28 +5879,5 @@ class AppLocalizationsEt extends AppLocalizations {
       'OpenVitals ei ole meditsiiniseade ega diagnoosi, ravi ega ennetab ühtegi haigust ega terviseseisundit. See ei asenda kvalifitseeritud tervishoiutöötaja meditsiinilist nõuannet, diagnoosi ega ravi.';
 
   @override
-  String get activitiesFilterAll => 'Kõik treeningud';
-
-  @override
-  String get activitiesFilterActivityTypeLabel => 'Treeningu tüüp';
-
-  @override
-  String get sectionActivityTypeStats => 'Treeningu tüübi järgi';
-
-  @override
-  String get statTime => 'Aeg';
-
-  @override
-  String get statAverageMovingPace => 'Keskm liikumistempo';
-
-  @override
-  String get statFastestPace => 'Kiireim tempo';
-
-  @override
-  String get statBestSpeed => 'Parim kiirus';
-
-  @override
-  String activityTypeStatsActivityCount(int arg0) {
-    return '$arg0 treeningut';
-  }
+  String get linkCouldNotOpen => 'Linki ei saanud avada.';
 }

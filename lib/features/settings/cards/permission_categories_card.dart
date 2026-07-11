@@ -72,7 +72,13 @@ final permissionCategoriesProvider = Provider<List<PermissionCategory>>((ref) {
       id: 'cycle_tracking',
       permissions: repo.cyclePermissions,
     ),
-  ].where((c) => c.permissions.isNotEmpty).toList();
+    // Drop a category with nothing to show — but KEEP one that is explicitly
+    // unavailable, so Settings can still say "Not supported" with a reason
+    // (Kotlin's SettingsViewModel does not filter these out; only *onboarding*
+    // does). Since Kotlin 1.9.0 (1f2b435) `mindfulnessPermissions` is correctly
+    // empty on a provider that lacks mindfulness, so filtering on emptiness
+    // alone would silently delete that row.
+  ].where((c) => c.permissions.isNotEmpty || !c.available).toList();
 });
 
 /// The per-category Health Connect permission breakdown. Self-contained port of

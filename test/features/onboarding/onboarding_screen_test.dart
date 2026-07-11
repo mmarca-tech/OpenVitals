@@ -259,6 +259,13 @@ void main() {
     final categories = notifier.permissionCategories;
 
     // One-to-one with the Kotlin OnboardingViewModel.permissionCategories order.
+    //
+    // `mindfulness` is absent because this harness's data source reports the
+    // feature unavailable, which since Kotlin 1.9.0 (1f2b435) makes its
+    // permission set empty — and onboarding drops empty categories
+    // (`.filter { it.permissions.isNotEmpty() }`, OnboardingViewModel.kt:148).
+    // That is the point of the fix: never ask for a permission the provider does
+    // not define. Settings still lists it, as "Not supported".
     expect(
       categories.map((c) => c.id).toList(),
       const <String>[
@@ -270,7 +277,6 @@ void main() {
         'nutrition_hydration',
         'manual_entry_write',
         'data_import_write',
-        'mindfulness',
         'additional_data_access',
         'cycle_tracking',
       ],

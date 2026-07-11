@@ -177,7 +177,14 @@ class AppleHealthImportService {
       bytes,
       importLogs,
       onProgress,
-      const AppleHealthParseOptions(),
+      // Kotlin 1.9.0 (a852d4e): don't read the workout-routes/*.gpx entries at
+      // all when Workouts is deselected. A sleep/body/vitals-only import is much
+      // faster, and a damaged route entry can no longer fail an import that never
+      // wanted routes.
+      AppleHealthParseOptions(
+        parseRouteFiles:
+            selectedCategories.contains(AppleHealthImportCategory.workouts),
+      ),
     );
 
     onProgress?.call(_progress(AppleHealthImportPhase.converting, parsed: parsed));
