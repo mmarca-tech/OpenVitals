@@ -231,6 +231,7 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
       progress: AppleHealthImportProgress(
         phase: AppleHealthImportPhase.queued,
         expectedSelectedRecords: expectedSelectedRecords,
+        expectedParsedElements: analysis.parsedElements,
       ),
     );
 
@@ -281,6 +282,7 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
         sourceKey: source.sourceKey,
         selectedCategories: selected,
         expectedSelectedRecords: expectedSelectedRecords,
+        expectedParsedElements: analysis.parsedElements,
       ),
       onProgress: (progress) {
         if (ref.mounted && state.isImporting) {

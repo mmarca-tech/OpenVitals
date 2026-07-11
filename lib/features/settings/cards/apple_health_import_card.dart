@@ -274,19 +274,35 @@ class AppleHealthImportCard extends ConsumerWidget {
       children.add(Padding(
         padding: const EdgeInsets.only(top: 8),
         child: Text(
-          percent != null
-              ? l10n.settingsAppleHealthImportProgressWithPercent(
-                  percent,
-                  appleHealthImportPhaseLabel(l10n, importProgress.phase),
-                  importProgress.selectedPreparedRecords,
-                  importProgress.expectedSelectedRecords,
-                  importProgress.importedRecords,
-                )
-              : l10n.settingsAppleHealthImportProgress(
-                  appleHealthImportPhaseLabel(l10n, importProgress.phase),
-                  importProgress.parsedElements,
-                  importProgress.importedRecords,
-                ),
+          // Kotlin's three variants. The discriminator is the *scan* total, not
+          // the phase: while the export's element count is known the percent is
+          // the scan percent, so the line has to name the same denominator.
+          switch ((percent, importProgress.expectedParsedElements)) {
+            (null, _) => l10n.settingsAppleHealthImportProgress(
+                appleHealthImportPhaseLabel(l10n, importProgress.phase),
+                importProgress.parsedElements,
+                importProgress.importedRecords,
+              ),
+            (final int pct, final int expectedParsedElements)
+                when expectedParsedElements > 0 =>
+              l10n.settingsAppleHealthImportProgressWithScanPercent(
+                pct,
+                appleHealthImportPhaseLabel(l10n, importProgress.phase),
+                importProgress.parsedElements,
+                expectedParsedElements,
+                importProgress.selectedPreparedRecords,
+                importProgress.expectedSelectedRecords,
+                importProgress.importedRecords,
+              ),
+            (final int pct, _) =>
+              l10n.settingsAppleHealthImportProgressWithPercent(
+                pct,
+                appleHealthImportPhaseLabel(l10n, importProgress.phase),
+                importProgress.selectedPreparedRecords,
+                importProgress.expectedSelectedRecords,
+                importProgress.importedRecords,
+              ),
+          },
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.primary),
         ),

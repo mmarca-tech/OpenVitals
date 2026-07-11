@@ -31,14 +31,51 @@ import 'apple_health_import_route_parser.dart';
 import 'apple_health_import_types.dart';
 import 'apple_health_import_xml_support.dart';
 
+/// How many parsed elements go by between two [AppleHealthParseOptions.onElementsParsed]
+/// ticks.
+///
+/// Deliberately a **count**, not a time interval: the parse is one tight
+/// synchronous loop over every XML event in a file that can be several
+/// gigabytes, and a `DateTime.now()` per element would itself show up in the
+/// profile. 5 000 elements is fine enough for a smooth bar (a big export ticks
+/// hundreds of times) and coarse enough that the modulo is free.
+const int kAppleHealthParseProgressInterval = 5000;
+
 class AppleHealthParseOptions {
   const AppleHealthParseOptions({
     this.parseRouteFiles = true,
     this.parseRecordDetails = true,
+    this.shouldMaterializeRecord,
+    this.onRecordSkipped,
+    this.onElementsParsed,
   });
 
   final bool parseRouteFiles;
   final bool parseRecordDetails;
+
+  /// Early-skip predicate, asked once per `<Record>` with only its Apple type
+  /// (Kotlin hangs this off its streaming consumer; this port has none, so it
+  /// rides on the parse options instead).
+  ///
+  /// Returning `false` means the record's dates, value and metadata are never
+  /// parsed, no [AppleRecord] is allocated, and nothing is buffered — the single
+  /// biggest win in this port, where the whole export is otherwise materialized
+  /// in RAM. `null` (the default) materializes everything, so the analysis pass
+  /// keeps seeing every record.
+  final bool Function(String type)? shouldMaterializeRecord;
+
+  /// Called for each record [shouldMaterializeRecord] rejected, so the caller can
+  /// still book its totals (Kotlin `onRecordSkipped`).
+  final void Function(String type)? onRecordSkipped;
+
+  /// The running element total (records + workouts + correlations + activity
+  /// summaries), reported every [kAppleHealthParseProgressInterval] elements.
+  ///
+  /// Without this the scan denominator is useless: the whole export is parsed in
+  /// one blocking call, so the numerator would be 0 for the entire scan and the
+  /// bar would sit at 0% for minutes before jumping. Kotlin gets the same ticks
+  /// for free from its streaming consumer.
+  final void Function(int parsedElements)? onElementsParsed;
 }
 
 /// Streaming consumer callbacks (Kotlin `AppleHealthXmlEventConsumer`).
@@ -66,12 +103,7 @@ class AppleHealthImportParser {
       return _parseZipFile(file, consumer, routeFiles, options);
     }
     final xml = utf8.decode(file.readAsBytesSync(), allowMalformed: true);
-    return _parseXmlExport(
-      xml,
-      consumer,
-      routeFiles,
-      options.parseRecordDetails,
-    );
+    return _parseXmlExport(xml, consumer, routeFiles, options);
   }
 
   /// Byte-oriented entry point kept for XML fixtures and callers that already
@@ -98,7 +130,7 @@ class AppleHealthImportParser {
       }
     }
     final xml = utf8.decode(bytes, allowMalformed: true);
-    return _parseXmlExport(xml, consumer, routeFiles, options.parseRecordDetails);
+    return _parseXmlExport(xml, consumer, routeFiles, options);
   }
 
   /// Walks the ZIP's local file headers front-to-back (Kotlin `ZipInputStream`),
@@ -169,12 +201,7 @@ class AppleHealthImportParser {
       }
 
       final xml = utf8.decode(exportXml.readAsBytesSync(), allowMalformed: true);
-      final parsed = _parseXmlExport(
-        xml,
-        consumer,
-        resolvedRouteFiles,
-        options.parseRecordDetails,
-      );
+      final parsed = _parseXmlExport(xml, consumer, resolvedRouteFiles, options);
       return parsed.copyWithRouteArchiveFailure(routeArchiveFailure);
     } finally {
       input.closeSync();
@@ -190,10 +217,10 @@ class AppleHealthImportParser {
     String rawXml,
     AppleHealthXmlEventConsumer? consumer,
     Map<String, AppleWorkoutRouteFile> routeFiles,
-    bool parseRecordDetails,
+    AppleHealthParseOptions options,
   ) {
     final sanitized = sanitizeAppleHealthXml(rawXml);
-    final handler = _AppleHealthXmlHandler(consumer, routeFiles, parseRecordDetails);
+    final handler = _AppleHealthXmlHandler(consumer, routeFiles, options);
     try {
       for (final event in parseEvents(
         sanitized.text,
@@ -279,6 +306,19 @@ AppleDateTime? parseAppleDateTime(String value) {
 abstract class _MutableElement {
   final Map<String, String> metadata = {};
 }
+
+/// The stack marker for a `<Record>` the caller asked us not to materialize
+/// (Kotlin's `object SkippedAppleRecord`).
+///
+/// Kotlin can make its sentinel's `metadata` *throw*, so a missed guard is a
+/// crash. Dart cannot: `_MutableElement.metadata` is a final field with an
+/// initializer, so this sentinel owns a perfectly usable (and, being a
+/// singleton, **shared**) map. Every handler that writes through `_top` must
+/// therefore check for it explicitly — see the `MetadataEntry` case — or a
+/// skipped record's metadata would leak into the next one.
+class _SkippedRecord extends _MutableElement {}
+
+final _SkippedRecord _skippedRecord = _SkippedRecord();
 
 class _MutableWorkoutRoute extends _MutableElement {
   final List<String> paths = [];
@@ -461,11 +501,13 @@ AppleDateTime? _appleDate(String? value, bool parseDetails) {
 }
 
 class _AppleHealthXmlHandler {
-  _AppleHealthXmlHandler(this._consumer, this._routeFiles, this._parseRecordDetails);
+  _AppleHealthXmlHandler(this._consumer, this._routeFiles, this._options);
 
   final AppleHealthXmlEventConsumer? _consumer;
   final Map<String, AppleWorkoutRouteFile> _routeFiles;
-  final bool _parseRecordDetails;
+  final AppleHealthParseOptions _options;
+
+  bool get _parseRecordDetails => _options.parseRecordDetails;
 
   final List<_MutableElement> _stack = [];
   final List<AppleRecord> _records = [];
@@ -476,21 +518,45 @@ class _AppleHealthXmlHandler {
   int _parsedWorkouts = 0;
   int _parsedCorrelations = 0;
   int _parsedActivitySummaries = 0;
+  int _parsedElements = 0;
 
   _MutableElement? get _top => _stack.isEmpty ? null : _stack.last;
+
+  /// One tick of the scan's numerator. Called once per top-level element in the
+  /// parse's hot loop, so it stays a counter bump plus a modulo.
+  void _countElement() {
+    _parsedElements++;
+    final onElementsParsed = _options.onElementsParsed;
+    if (onElementsParsed != null &&
+        _parsedElements % kAppleHealthParseProgressInterval == 0) {
+      onElementsParsed(_parsedElements);
+    }
+  }
 
   void startElement(String name, List<XmlEventAttribute> rawAttributes) {
     switch (name) {
       case 'Record':
         _parsedRecords++;
+        _countElement();
         final attrs = _attributes(rawAttributes);
         final type = attrs['type'] ?? 'Record';
         _countType(type);
         _consumer?.onParsedType(type);
         final parent = _top is _MutableCorrelation ? _top as _MutableCorrelation : null;
+        // A correlation's children are ALWAYS materialized: the parent decides
+        // whether the group converts (a blood-pressure correlation is systolic +
+        // diastolic), so dropping a child would silently break it.
+        final materialize = parent != null ||
+            (_options.shouldMaterializeRecord?.call(type) ?? true);
+        if (!materialize) {
+          _options.onRecordSkipped?.call(type);
+          _stack.add(_skippedRecord);
+          return;
+        }
         _stack.add(_MutableRecord(attrs, parent, _parseRecordDetails));
       case 'Workout':
         _parsedWorkouts++;
+        _countElement();
         final attrs = _attributes(rawAttributes);
         final type = attrs['workoutActivityType'] ?? 'Workout';
         _countType(type);
@@ -498,6 +564,7 @@ class _AppleHealthXmlHandler {
         _stack.add(_MutableWorkout(attrs, _parseRecordDetails));
       case 'Correlation':
         _parsedCorrelations++;
+        _countElement();
         final attrs = _attributes(rawAttributes);
         final type = attrs['type'] ?? 'Correlation';
         _countType(type);
@@ -505,6 +572,9 @@ class _AppleHealthXmlHandler {
         _stack.add(_MutableCorrelation(attrs, _parseRecordDetails));
       case 'MetadataEntry':
         if (!_parseRecordDetails) return;
+        // The sentinel's metadata map is real and shared; writing to it would
+        // corrupt the *next* skipped record (see [_SkippedRecord]).
+        if (identical(_top, _skippedRecord)) return;
         final attrs = _attributes(rawAttributes);
         final key = attrs['key'];
         final value = attrs['value'];
@@ -536,6 +606,7 @@ class _AppleHealthXmlHandler {
         if (path != null) route.paths.add(path);
       case 'ActivitySummary':
         _parsedActivitySummaries++;
+        _countElement();
         _countType('ActivitySummary');
         _consumer?.onParsedType('ActivitySummary');
         _consumer?.onActivitySummary();
@@ -545,8 +616,14 @@ class _AppleHealthXmlHandler {
   void endElement(String name) {
     switch (name) {
       case 'Record':
-        final element = _removeTop<_MutableRecord>();
-        if (element == null) return;
+        // Pop UNCONDITIONALLY: `_removeTop` leaves a non-matching top in place,
+        // which would strand the sentinel on the stack and corrupt every later
+        // lookup (correlation parenting, workout events, route files).
+        if (_stack.isEmpty) return;
+        final popped = _stack.removeLast();
+        if (identical(popped, _skippedRecord)) return;
+        if (popped is! _MutableRecord) return;
+        final element = popped;
         final record = element.toRecord();
         final parent = _top is _MutableCorrelation ? _top as _MutableCorrelation : null;
         if (parent != null) {

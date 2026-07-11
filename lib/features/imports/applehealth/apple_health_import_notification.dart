@@ -52,9 +52,8 @@ String appleHealthImportPhaseLabel(
 /// * percent unknown — phase + raw scanned/imported counters.
 String appleHealthImportNotificationText(
   AppLocalizations l10n,
-  AppleHealthImportProgress progress, {
-  int expectedParsedElements = 0,
-}) {
+  AppleHealthImportProgress progress,
+) {
   final phaseText = appleHealthImportPhaseLabel(l10n, progress.phase);
   final percent = progress.percent;
   if (percent == null) {
@@ -64,12 +63,12 @@ String appleHealthImportNotificationText(
       progress.importedRecords,
     );
   }
-  if (expectedParsedElements > 0) {
+  if (progress.expectedParsedElements > 0) {
     return l10n.settingsAppleHealthImportNotificationTextWithScanPercent(
       percent,
       phaseText,
       progress.parsedElements,
-      expectedParsedElements,
+      progress.expectedParsedElements,
       progress.importedRecords,
     );
   }

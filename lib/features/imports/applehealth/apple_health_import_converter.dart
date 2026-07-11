@@ -119,6 +119,19 @@ class AppleHealthImportConverter {
 
   void markConverted(String appleType) => _stats(appleType).converted += 1;
 
+  /// A compatible record the importer skipped *before* materializing it, because
+  /// its category was not selected (Kotlin `markCompatibleNotSelected`).
+  ///
+  /// It never reaches the converter, so its per-type row would otherwise show
+  /// `converted=0, notSelected=0` and the totals would silently shrink. Booking
+  /// both here keeps every report row and every count identical to the
+  /// materialize-everything path.
+  void markCompatibleNotSelected(String appleType) {
+    final stats = _stats(appleType);
+    stats.converted += 1;
+    stats.notSelected += 1;
+  }
+
   List<AppleHealthImportDiagnostic> diagnosticsSnapshot() =>
       List.of(_diagnostics);
 

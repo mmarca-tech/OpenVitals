@@ -531,11 +531,15 @@ void main() {
         convertedRecords: 12,
         importedRecords: 5,
         expectedSelectedRecords: 12,
+        expectedParsedElements: 20,
       ),
       event: kAppleHealthImportEventProgress,
     ));
     await tester.pumpAndSettle();
     expect(find.textContaining('imported 5'), findsOneWidget);
+    // The scan variant: the export's element total came over the port, so the
+    // line names the same denominator the percent is computed from.
+    expect(find.textContaining('Scanned 12/20 items'), findsOneWidget);
 
     // The report is written by the *other* isolate, so it comes back from the
     // store, not over the port.

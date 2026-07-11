@@ -177,8 +177,8 @@ class ForegroundAppleHealthImportServiceController
           l10n,
           AppleHealthImportProgress(
             expectedSelectedRecords: request.expectedSelectedRecords,
+            expectedParsedElements: request.expectedParsedElements,
           ),
-          expectedParsedElements: request.expectedParsedElements,
         ),
         callback: appleHealthImportTaskCallback,
       );

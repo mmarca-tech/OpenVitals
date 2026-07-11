@@ -122,6 +122,7 @@ class AppleHealthImportTaskHandler extends TaskHandler {
           sourceKey: sourceKey,
           selectedCategories: selectedCategories,
           expectedSelectedRecords: expectedSelectedRecords,
+          expectedParsedElements: _expectedParsedElements,
         ),
         onProgress: _publishProgress,
       );
@@ -133,9 +134,9 @@ class AppleHealthImportTaskHandler extends TaskHandler {
             result,
             phase: AppleHealthImportPhase.complete,
             expectedSelectedRecords: expectedSelectedRecords,
+            expectedParsedElements: _expectedParsedElements,
           ),
           event: kAppleHealthImportEventResult,
-          expectedParsedElements: _expectedParsedElements,
           workoutRoutesIncomplete: result.workoutRoutesIncomplete,
         ));
       } else {
@@ -172,18 +173,15 @@ class AppleHealthImportTaskHandler extends TaskHandler {
     _lastUpdate = now;
     _lastPhase = progress.phase;
 
+    // `runAppleHealthImportJob` re-seeds both expected totals onto every
+    // progress it emits, so the snapshot is already self-describing.
     _sendToMain(encodeAppleHealthImportProgress(
       progress,
       event: kAppleHealthImportEventProgress,
-      expectedParsedElements: _expectedParsedElements,
     ));
     unawaited(FlutterForegroundTask.updateService(
       notificationTitle: _l10n.settingsAppleHealthImportNotificationTitle,
-      notificationText: appleHealthImportNotificationText(
-        _l10n,
-        progress,
-        expectedParsedElements: _expectedParsedElements,
-      ),
+      notificationText: appleHealthImportNotificationText(_l10n, progress),
     ));
   }
 

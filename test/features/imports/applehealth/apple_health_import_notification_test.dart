@@ -19,13 +19,10 @@ void main() {
       convertedRecords: 20,
       importedRecords: 8,
       expectedSelectedRecords: 50,
-    );
-
-    final text = appleHealthImportNotificationText(
-      l10n,
-      progress,
       expectedParsedElements: 100,
     );
+
+    final text = appleHealthImportNotificationText(l10n, progress);
 
     expect(
       text,
@@ -38,6 +35,24 @@ void main() {
       ),
     );
     expect(text, contains('40/100'));
+  });
+
+  test('the printed percent is the scan percent, not the selected one', () {
+    // The bug this commit fixes: the text said "Scanned 40/100" while the number
+    // in front of it was computed from the 20/50 SELECTED records (35 vs 35 by
+    // coincidence there, so pick counters where they cannot agree).
+    const progress = AppleHealthImportProgress(
+      phase: AppleHealthImportPhase.parsing,
+      parsedRecords: 10,
+      convertedRecords: 40,
+      importedRecords: 0,
+      expectedSelectedRecords: 40,
+      expectedParsedElements: 100,
+    );
+
+    // Scan: round(10/100 * 88) = 9. Selected-only would have been 40/40 -> 88.
+    expect(progress.percent, 9);
+    expect(appleHealthImportNotificationText(l10n, progress), startsWith('9%.'));
   });
 
   test('percent without a known export size shows selected-record progress', () {
@@ -66,7 +81,8 @@ void main() {
   });
 
   test('no percent falls back to phase + scanned/imported counters', () {
-    // No expected total ⇒ `percent` is null (Kotlin's `?: getString(...)` arm).
+    // Neither expected total ⇒ `percent` is null (Kotlin's `?: getString(...)`
+    // arm).
     const progress = AppleHealthImportProgress(
       phase: AppleHealthImportPhase.converting,
       parsedRecords: 40,
@@ -76,11 +92,7 @@ void main() {
 
     expect(progress.percent, isNull);
     expect(
-      appleHealthImportNotificationText(
-        l10n,
-        progress,
-        expectedParsedElements: 100,
-      ),
+      appleHealthImportNotificationText(l10n, progress),
       l10n.settingsAppleHealthImportNotificationText(
         l10n.settingsAppleHealthImportProgressConverting,
         42,

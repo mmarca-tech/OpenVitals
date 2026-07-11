@@ -150,6 +150,8 @@ Future<AppleHealthImportJobOutcome> run(
   Set<AppleHealthImportCategory> selected = const {
     AppleHealthImportCategory.activity,
   },
+  int expectedSelectedRecords = 12,
+  int expectedParsedElements = 0,
   void Function(AppleHealthImportProgress)? onProgress,
 }) =>
     runAppleHealthImportJob(
@@ -162,7 +164,8 @@ Future<AppleHealthImportJobOutcome> run(
         stagedFile: File('staged-export.bin'),
         sourceKey: 'export.zip|export.zip|1024',
         selectedCategories: selected,
-        expectedSelectedRecords: 12,
+        expectedSelectedRecords: expectedSelectedRecords,
+        expectedParsedElements: expectedParsedElements,
       ),
       onProgress: onProgress,
     );
@@ -336,21 +339,45 @@ void main() {
         importedRecords: 40,
         notSelectedRecords: 5,
         expectedSelectedRecords: 75,
+        expectedParsedElements: 200,
       );
 
       final decoded = decodeAppleHealthImportProgress(
         encodeAppleHealthImportProgress(
           progress,
           event: kAppleHealthImportEventProgress,
-          expectedParsedElements: 200,
         ),
       );
 
       expect(decoded?.phase, AppleHealthImportPhase.writing);
       expect(decoded?.importedRecords, 40);
       expect(decoded?.expectedSelectedRecords, 75);
+      // The scan denominator was written to the port but never read back, so the
+      // main isolate could not see it and the card could never show the scan
+      // variant. It has to survive the trip like every other counter.
+      expect(decoded?.expectedParsedElements, 200);
       expect(decoded?.percent, progress.percent);
       expect(decodeAppleHealthImportProgress('not a payload'), isNull);
+    });
+
+    test('the job re-seeds both expected totals onto every progress it emits',
+        () async {
+      final progresses = <AppleHealthImportProgress>[];
+      await run(
+        FakeService(),
+        staging,
+        checkpoints,
+        reports,
+        expectedSelectedRecords: 75,
+        expectedParsedElements: 200,
+        onProgress: progresses.add,
+      );
+
+      expect(progresses, isNotEmpty);
+      for (final progress in progresses) {
+        expect(progress.expectedSelectedRecords, 75);
+        expect(progress.expectedParsedElements, 200);
+      }
     });
 
     test('the result payload carries the counters, the store carries the report',

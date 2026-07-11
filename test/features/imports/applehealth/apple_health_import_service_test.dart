@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/data/repository/contract/apple_health_import_repository.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_checkpoint_store.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_models.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_parser.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_service.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_xml_support.dart';
@@ -297,6 +298,263 @@ void main() {
       expect(repository.insertedBatches.single.single,
           isA<WeightImportRecord>());
       expect(result.shareableReportText, contains('Not selected: 1'));
+      // The step record's category is unselected, so it is never materialized —
+      // but every count it would have produced still has to be booked.
+      expect(
+        result.shareableReportText,
+        contains('earlySkippedUnselectedRecords=1'),
+      );
+    });
+
+    test('skips large unselected sections before record materialization',
+        () async {
+      const unselectedHeartRecords = 10000;
+      final buffer = StringBuffer('<HealthData>');
+      for (var index = 0; index < unselectedHeartRecords; index++) {
+        buffer.write(
+          '<Record type="HKQuantityTypeIdentifierHeartRate" '
+          'sourceName="Watch $index" '
+          'startDate="2026-01-01 08:00:00 +0000" '
+          'endDate="2026-01-01 08:00:01 +0000" unit="count/min" value="70">'
+          '<MetadataEntry key="sample" value="$index" /></Record>',
+        );
+      }
+      buffer.write(
+        '<Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Scale" '
+        'startDate="2026-01-01 08:00:00 +0000" '
+        'endDate="2026-01-01 08:00:00 +0000" unit="kg" value="70" />'
+        '</HealthData>',
+      );
+      final repository = FakeAppleHealthImportRepository();
+
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(utf8.encode(buffer.toString())),
+        selectedCategories: {AppleHealthImportCategory.body},
+      );
+
+      // Every total is identical to what materializing all 10 001 records would
+      // have produced — that is the whole contract of the early skip.
+      expect(result.parsedRecords, unselectedHeartRecords + 1);
+      expect(result.convertedRecords, unselectedHeartRecords + 1);
+      expect(result.notSelectedRecords, unselectedHeartRecords);
+      expect(result.importedRecords, 1);
+      expect(repository.insertedBatches.single.single,
+          isA<WeightImportRecord>());
+      expect(
+        result.shareableReportText,
+        contains('earlySkippedUnselectedRecords=$unselectedHeartRecords'),
+      );
+      expect(repository.insertedBatches, hasLength(1));
+      // The heart-rate rows still exist in the report, they are just not-selected.
+      final heartSummary = result.typeSummaries.singleWhere(
+        (summary) => summary.appleType == 'HKQuantityTypeIdentifierHeartRate',
+      );
+      expect(heartSummary.parsed, unselectedHeartRecords);
+      expect(heartSummary.converted, unselectedHeartRecords);
+      expect(heartSummary.notSelected, unselectedHeartRecords);
+    });
+
+    test('the scan percent climbs while the parser streams the export', () async {
+      // The user-visible bug: the whole export is parsed in ONE blocking call, so
+      // without parse-time ticks `parsedElements` stays 0 for the entire scan and
+      // the bar sits at 0% for minutes before jumping straight to 88.
+      const elements = kAppleHealthParseProgressInterval * 2 + 1000;
+      final buffer = StringBuffer('<HealthData>');
+      for (var index = 0; index < elements; index++) {
+        buffer.write(
+          '<Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch" '
+          'startDate="2026-01-01 08:00:00 +0000" '
+          'endDate="2026-01-01 08:00:01 +0000" unit="count/min" value="70" />',
+        );
+      }
+      buffer.write('</HealthData>');
+      final file = exportFile(utf8.encode(buffer.toString()));
+
+      final progresses = <AppleHealthImportProgress>[];
+      await AppleHealthImportService(FakeAppleHealthImportRepository())
+          .importAppleHealthExport(
+        file,
+        selectedCategories: {AppleHealthImportCategory.body},
+        // Exactly what `runAppleHealthImportJob` does to every progress the
+        // service emits: re-seed the denominator the analysis pass measured.
+        onProgress: (progress) => progresses.add(
+          progress.copyWith(expectedParsedElements: elements),
+        ),
+      );
+
+      final scan = progresses
+          .takeWhile((progress) => progress.phase == AppleHealthImportPhase.parsing)
+          .toList();
+      // The opening 0-tick plus one per [kAppleHealthParseProgressInterval].
+      expect(scan.map((progress) => progress.parsedElements), [
+        0,
+        kAppleHealthParseProgressInterval,
+        kAppleHealthParseProgressInterval * 2,
+      ]);
+
+      final percents = scan.map((progress) => progress.percent!).toList();
+      for (var index = 1; index < percents.length; index++) {
+        expect(percents[index], greaterThan(percents[index - 1]));
+        expect(percents[index], greaterThan(0));
+      }
+      // Well past zero *before* conversion starts — the point of the whole fix.
+      expect(percents.last, greaterThan(50));
+      final converting = progresses.firstWhere(
+        (progress) => progress.phase == AppleHealthImportPhase.converting,
+      );
+      expect(converting.percent, greaterThanOrEqualTo(percents.last));
+    });
+
+    test('the analysis scan reports its running element count', () async {
+      // Analysis is the pass that *measures* the total, so it has no denominator
+      // and its bar stays indeterminate — but it is just as long, and its
+      // "Scanned N items" line must not read 0 for the whole scan.
+      const elements = kAppleHealthParseProgressInterval * 2;
+      final buffer = StringBuffer('<HealthData>');
+      for (var index = 0; index < elements; index++) {
+        buffer.write(
+          '<Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch" '
+          'startDate="2026-01-01 08:00:00 +0000" '
+          'endDate="2026-01-01 08:00:01 +0000" unit="count/min" value="70" />',
+        );
+      }
+      buffer.write('</HealthData>');
+
+      final progresses = <AppleHealthImportProgress>[];
+      final analysis =
+          await AppleHealthImportService(FakeAppleHealthImportRepository())
+              .analyzeAppleHealthExport(
+        exportFile(utf8.encode(buffer.toString())),
+        onProgress: progresses.add,
+      );
+
+      final scan = progresses
+          .where((progress) => progress.phase == AppleHealthImportPhase.parsing)
+          .map((progress) => progress.parsedElements)
+          .toList();
+      expect(scan, [
+        0,
+        kAppleHealthParseProgressInterval,
+        kAppleHealthParseProgressInterval * 2,
+      ]);
+      // No denominator exists yet, so the bar is honestly indeterminate.
+      expect(progresses.every((progress) => progress.percent == null), isTrue);
+      expect(analysis.parsedElements, elements);
+    });
+
+    test('early-skipped records leave the element stack and correlations intact',
+        () async {
+      // The three ways an early skip can silently corrupt data:
+      //   1. a skip marker left on the stack (it is popped unconditionally),
+      //   2. a <MetadataEntry> written into the shared marker's map, which would
+      //      then leak into the next record,
+      //   3. a correlation CHILD skipped, which would break the whole group.
+      // Only vitals is selected, so every heart-rate record here is skipped —
+      // including the ones sitting between the correlation's children.
+      const xml = '''
+        <HealthData>
+          <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch"
+            startDate="2026-01-01 07:59:00 +0000" endDate="2026-01-01 07:59:00 +0000"
+            unit="count/min" value="70">
+            <MetadataEntry key="HKMetadataKeyHeartRateMotionContext" value="1" />
+          </Record>
+          <Correlation type="HKCorrelationTypeIdentifierBloodPressure" sourceName="Cuff"
+            startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:00:00 +0000">
+            <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" sourceName="Cuff"
+              startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:00:00 +0000"
+              unit="mmHg" value="120" />
+            <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" sourceName="Cuff"
+              startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:00:00 +0000"
+              unit="mmHg" value="80" />
+            <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Cuff"
+              startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:00:00 +0000"
+              unit="count/min" value="68" />
+          </Correlation>
+          <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch"
+            startDate="2026-01-01 08:01:00 +0000" endDate="2026-01-01 08:01:00 +0000"
+            unit="count/min" value="72">
+            <MetadataEntry key="HKMetadataKeyHeartRateMotionContext" value="2" />
+          </Record>
+          <Record type="HKQuantityTypeIdentifierOxygenSaturation" sourceName="Watch"
+            startDate="2026-01-01 08:02:00 +0000" endDate="2026-01-01 08:02:00 +0000"
+            unit="%" value="0.97" />
+        </HealthData>
+      ''';
+      final repository = FakeAppleHealthImportRepository();
+
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(utf8.encode(xml)),
+        selectedCategories: {AppleHealthImportCategory.vitals},
+      );
+
+      // The correlation's children were never skipped, so the group still
+      // converts; the oxygen record parsed after a skipped one is unharmed.
+      expect(
+        repository.insertedRecords.whereType<BloodPressureImportRecord>(),
+        hasLength(1),
+      );
+      expect(
+        repository.insertedRecords.whereType<OxygenSaturationImportRecord>(),
+        hasLength(1),
+      );
+      expect(result.importedRecords, 2);
+      // Only the two TOP-LEVEL heart-rate records are early-skipped. The
+      // correlation's own heart-rate child is a group member, so it is
+      // materialized with the group and never booked as an unselected skip —
+      // skipping it would both break the group and inflate these totals.
+      expect(result.notSelectedRecords, 2);
+      expect(result.convertedRecords, 4);
+      expect(
+        result.shareableReportText,
+        contains('earlySkippedUnselectedRecords=2'),
+      );
+    });
+
+    test('workout selection retains unselected samples needed for overlap checks',
+        () async {
+      // The narrow exception: distance / active-energy samples belong to the
+      // (unselected) activity category, but `noteWorkoutOverlap` needs them to
+      // protect the selected workouts, so they must still be materialized.
+      const xml = '''
+        <HealthData>
+          <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Apple Watch"
+            startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:30:00 +0000"
+            unit="m" value="5000" />
+          <Workout workoutActivityType="HKWorkoutActivityTypeRunning" sourceName="Apple Watch"
+            startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:30:00 +0000"
+            duration="30" durationUnit="min" totalDistance="5" totalDistanceUnit="km" />
+        </HealthData>
+      ''';
+      final repository = FakeAppleHealthImportRepository();
+
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(utf8.encode(xml)),
+        selectedCategories: {AppleHealthImportCategory.workouts},
+      );
+
+      expect(result.importedRecords, 1);
+      expect(repository.insertedBatches.single.single,
+          isA<ExerciseSessionImportRecord>());
+      expect(
+        result.typeSummaries
+            .singleWhere((summary) =>
+                summary.appleType ==
+                'HKQuantityTypeIdentifierDistanceWalkingRunning')
+            .converted,
+        1,
+      );
+      final workoutSummary = result.typeSummaries.singleWhere(
+        (summary) => summary.appleType == 'HKWorkoutActivityTypeRunning',
+      );
+      expect(workoutSummary.converted, 1);
+      expect(workoutSummary.notSelected, 0);
+      expect(
+        result.shareableReportText,
+        contains('earlySkippedUnselectedRecords=0'),
+      );
     });
 
     test('report aggregates repeated diagnostics and keeps later distinct '

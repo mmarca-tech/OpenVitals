@@ -68,8 +68,16 @@ bool convertedHasExerciseRoute(ConvertedAppleRecord converted) {
 AppleHealthImportCategory? analysisCategory(
   AppleRecord record,
   bool mindfulnessAvailable,
+) =>
+    analysisCategoryForType(record.type, mindfulnessAvailable);
+
+/// The same classification from a bare Apple type string, so the importer can
+/// decide a record's category at the SAX boundary — before any [AppleRecord] is
+/// built (Kotlin `String.analysisCategory`).
+AppleHealthImportCategory? analysisCategoryForType(
+  String type,
+  bool mindfulnessAvailable,
 ) {
-  final type = record.type;
   switch (type) {
     case appleStepCount:
     case appleDistanceWalkingRunning:

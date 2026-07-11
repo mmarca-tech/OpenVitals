@@ -65,9 +65,16 @@ class AppleHealthImportService {
       file,
       importLogs,
       onProgress,
-      const AppleHealthParseOptions(
+      AppleHealthParseOptions(
         parseRouteFiles: false,
         parseRecordDetails: false,
+        // The analysis pass is the one that *measures* the element total, so it
+        // has no denominator and its bar stays indeterminate — but it is just as
+        // long as the import pass, and without these ticks its "Scanned N items"
+        // line would read 0 for the whole scan.
+        onElementsParsed: onProgress == null
+            ? null
+            : (parsedElements) => onProgress(_scanProgress(parsedElements)),
       ),
     );
 
@@ -202,6 +209,11 @@ class AppleHealthImportService {
     );
     final typeStats = converter.typeStats;
 
+    // Category stats include not-selected records (Kotlin), early-skipped ones
+    // included — so this has to exist before the parse that skips them.
+    final categoryStats = <AppleHealthImportCategory, _MutableCategorySummary>{};
+    var earlySkippedUnselectedRecords = 0;
+
     final parsed = _parseExport(
       file,
       importLogs,
@@ -210,20 +222,55 @@ class AppleHealthImportService {
       // all when Workouts is deselected. A sleep/body/vitals-only import is much
       // faster, and a damaged route entry can no longer fail an import that never
       // wanted routes.
-      AppleHealthParseOptions(parseRouteFiles: workoutsSelected),
+      AppleHealthParseOptions(
+        parseRouteFiles: workoutsSelected,
+        // Kotlin 1.9.0 (415f2fe): a known record type whose category is not
+        // selected never gets materialized. Kotlin only saves the allocations;
+        // here the whole export is buffered in RAM before conversion, so this is
+        // the difference between OOM and not on a multi-gigabyte HeartRate export
+        // with only Body selected. Only the *import* pass may filter — analysis
+        // has to see everything, and its options deliberately carry no hooks.
+        shouldMaterializeRecord: (type) => _shouldMaterializeRecord(
+          type,
+          converter.mindfulnessAvailable,
+          selectedCategories,
+        ),
+        // The scan's numerator. `expectedParsedElements` is re-seeded onto every
+        // progress by `runAppleHealthImportJob`, so these ticks are what make the
+        // scan percent climb 0 → 88 instead of standing still until the parse
+        // returns. Kotlin gets them for free from its streaming consumer.
+        onElementsParsed: onProgress == null
+            ? null
+            : (parsedElements) => onProgress(_scanProgress(parsedElements)),
+        onRecordSkipped: (type) {
+          // Every total the materialize-everything path would have produced has
+          // to be booked here instead: the record never reaches the converter,
+          // nor the selection loop below.
+          final category =
+              analysisCategoryForType(type, converter.mindfulnessAvailable);
+          if (category == null) return;
+          converter.markCompatibleNotSelected(type);
+          earlySkippedUnselectedRecords += 1;
+          _addCategory(categoryStats, category, 1);
+        },
+      ),
     );
 
     onProgress?.call(_progress(AppleHealthImportPhase.converting, parsed: parsed));
     log('Stage started: Converting records');
     final conversion = converter.convert(parsed);
-    final convertedCount = conversion.converted.length;
+    // Kotlin's `convertedRecords` counter books the early-skipped records too,
+    // and the progress snapshots below derive `selectedPreparedRecords` from
+    // `converted - notSelected` — where `notSelected` already includes them.
+    final convertedCount =
+        conversion.converted.length + earlySkippedUnselectedRecords;
     final conversionTotals = _totals(_toTypeSummaries(typeStats));
     log('Stage finished: Converting records converted=${conversionTotals.converted} '
         'unsupported=${conversionTotals.unsupported} skipped=${conversionTotals.skipped} '
-        'failed=${conversionTotals.failed}');
+        'failed=${conversionTotals.failed} '
+        'earlySkippedUnselectedRecords=$earlySkippedUnselectedRecords');
 
-    // Classify + select. Category stats include not-selected records (Kotlin).
-    final categoryStats = <AppleHealthImportCategory, _MutableCategorySummary>{};
+    // Classify + select.
     final selected = <ConvertedAppleRecord>[];
     for (final converted in conversion.converted) {
       final category = importCategory(converted);
@@ -604,6 +651,26 @@ class AppleHealthImportService {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+/// Kotlin `AppleHealthImportService.shouldMaterializeRecord`.
+///
+/// A record is materialized when its type has no known category (it still has to
+/// be converted so it can be reported as unsupported), when its category is
+/// selected, or — the narrow, load-bearing exception — when it is a distance or
+/// active-energy sample and workouts *are* selected: `noteWorkoutOverlap` needs
+/// those samples to protect selected workouts from double-counted overlaps, even
+/// though the samples themselves belong to the (unselected) activity category.
+bool _shouldMaterializeRecord(
+  String type,
+  bool mindfulnessAvailable,
+  Set<AppleHealthImportCategory> selectedCategories,
+) {
+  final category = analysisCategoryForType(type, mindfulnessAvailable);
+  if (category == null) return true;
+  if (selectedCategories.contains(category)) return true;
+  return selectedCategories.contains(AppleHealthImportCategory.workouts) &&
+      (appleDistanceTypes.contains(type) || type == appleActiveEnergyBurned);
+}
+
 MutableAppleImportTypeStats _stat(
   Map<String, MutableAppleImportTypeStats> typeStats,
   String type,
@@ -830,6 +897,22 @@ bool _isDuplicateClientRecordFailure(Object error) {
               text.contains('already exists')) &&
           text.contains('record'));
 }
+
+/// A progress snapshot from *inside* the scan, where no [AppleParsedExport]
+/// exists yet — so [_progress] cannot build it.
+///
+/// Only the element total is known mid-parse, and it is carried in
+/// `parsedRecords` because [AppleHealthImportProgress.parsedElements] (the sole
+/// number any consumer reads while the phase is `parsing`: the percent, the
+/// notification text and the card's line all go through it) is the sum of the
+/// four parsed counters. Splitting the total back into records/workouts/
+/// correlations/summaries would cost four callbacks' worth of hot-loop work to
+/// feed a distinction nobody makes during the scan.
+AppleHealthImportProgress _scanProgress(int parsedElements) =>
+    AppleHealthImportProgress(
+      phase: AppleHealthImportPhase.parsing,
+      parsedRecords: parsedElements,
+    );
 
 AppleHealthImportProgress _progress(
   AppleHealthImportPhase phase, {

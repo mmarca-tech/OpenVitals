@@ -93,7 +93,6 @@ Set<AppleHealthImportCategory> decodeAppleHealthImportCategories(String? value) 
 Map<String, Object> encodeAppleHealthImportProgress(
   AppleHealthImportProgress progress, {
   required String event,
-  int expectedParsedElements = 0,
   bool workoutRoutesIncomplete = false,
 }) =>
     <String, Object>{
@@ -111,7 +110,7 @@ Map<String, Object> encodeAppleHealthImportProgress(
       'skippedRecords': progress.skippedRecords,
       'failedRecords': progress.failedRecords,
       'expectedSelectedRecords': progress.expectedSelectedRecords,
-      'expectedParsedElements': expectedParsedElements,
+      'expectedParsedElements': progress.expectedParsedElements,
       'workoutRoutesIncomplete': workoutRoutesIncomplete,
     };
 
@@ -145,6 +144,7 @@ AppleHealthImportProgress? decodeAppleHealthImportProgress(Object? payload) {
     skippedRecords: at('skippedRecords'),
     failedRecords: at('failedRecords'),
     expectedSelectedRecords: at('expectedSelectedRecords'),
+    expectedParsedElements: at('expectedParsedElements'),
   );
 }
 
@@ -193,6 +193,7 @@ AppleHealthImportProgress appleHealthImportProgressOf(
   AppleHealthImportResult result, {
   required AppleHealthImportPhase phase,
   required int expectedSelectedRecords,
+  int expectedParsedElements = 0,
 }) =>
     AppleHealthImportProgress(
       phase: phase,
@@ -208,6 +209,7 @@ AppleHealthImportProgress appleHealthImportProgressOf(
       skippedRecords: result.skippedRecords,
       failedRecords: result.failedRecords,
       expectedSelectedRecords: expectedSelectedRecords,
+      expectedParsedElements: expectedParsedElements,
     );
 
 // ── The job ──────────────────────────────────────────────────────────────────
@@ -238,6 +240,7 @@ class AppleHealthImportJobInputs {
     required this.sourceKey,
     required this.selectedCategories,
     this.expectedSelectedRecords = 0,
+    this.expectedParsedElements = 0,
   });
 
   final AppleHealthImportService service;
@@ -253,6 +256,9 @@ class AppleHealthImportJobInputs {
   final String sourceKey;
   final Set<AppleHealthImportCategory> selectedCategories;
   final int expectedSelectedRecords;
+
+  /// The analysis pass's element total — the scan percent's denominator.
+  final int expectedParsedElements;
 }
 
 /// Runs one Apple Health import end to end: resolve Health Connect access, load
@@ -301,11 +307,12 @@ Future<AppleHealthImportJobOutcome> runAppleHealthImportJob(
         });
       },
       onProgress: (progress) {
-        // The service emits progress without the expected total, so re-seed it
-        // here to keep the percent getter meaningful (Kotlin re-seeds it in the
-        // worker's progress callback for the same reason).
+        // The service emits progress without the expected totals, so re-seed
+        // them here to keep the percent getter meaningful (Kotlin re-seeds them
+        // in the worker's progress callback for the same reason).
         onProgress?.call(progress.copyWith(
           expectedSelectedRecords: inputs.expectedSelectedRecords,
+          expectedParsedElements: inputs.expectedParsedElements,
         ));
       },
     );
@@ -315,6 +322,7 @@ Future<AppleHealthImportJobOutcome> runAppleHealthImportJob(
       result,
       phase: AppleHealthImportPhase.buildingReport,
       expectedSelectedRecords: inputs.expectedSelectedRecords,
+      expectedParsedElements: inputs.expectedParsedElements,
     ));
     await inputs.reportStore.writeReport(result.shareableReportText);
 
@@ -327,6 +335,7 @@ Future<AppleHealthImportJobOutcome> runAppleHealthImportJob(
       result,
       phase: AppleHealthImportPhase.complete,
       expectedSelectedRecords: inputs.expectedSelectedRecords,
+      expectedParsedElements: inputs.expectedParsedElements,
     ));
     return AppleHealthImportJobOutcome.success(result);
   } catch (error, stack) {

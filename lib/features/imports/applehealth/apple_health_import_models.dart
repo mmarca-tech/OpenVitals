@@ -2,6 +2,8 @@
 /// the Kotlin `AppleHealthImportModels.kt` (plus the progress/percent logic).
 library;
 
+import 'dart:math' as math;
+
 import 'apple_health_import_records.dart';
 
 /// An instant plus its wall-clock offset, mirroring the Kotlin `AppleDateTime`.
@@ -340,6 +342,7 @@ class AppleHealthImportProgress {
     this.skippedRecords = 0,
     this.failedRecords = 0,
     this.expectedSelectedRecords = 0,
+    this.expectedParsedElements = 0,
   });
 
   final AppleHealthImportPhase phase;
@@ -356,25 +359,37 @@ class AppleHealthImportProgress {
   final int failedRecords;
   final int expectedSelectedRecords;
 
+  /// The element total measured by the analysis pass (Kotlin
+  /// `expectedParsedElements`): the denominator of the *scan* percent, which is
+  /// the only one that advances while the importer streams past long stretches
+  /// of unselected records.
+  final int expectedParsedElements;
+
   AppleHealthImportProgress copyWith({
     AppleHealthImportPhase? phase,
+    int? parsedRecords,
+    int? convertedRecords,
+    int? notSelectedRecords,
     int? expectedSelectedRecords,
+    int? expectedParsedElements,
   }) =>
       AppleHealthImportProgress(
         phase: phase ?? this.phase,
-        parsedRecords: parsedRecords,
+        parsedRecords: parsedRecords ?? this.parsedRecords,
         parsedWorkouts: parsedWorkouts,
         parsedCorrelations: parsedCorrelations,
         parsedActivitySummaries: parsedActivitySummaries,
-        convertedRecords: convertedRecords,
+        convertedRecords: convertedRecords ?? this.convertedRecords,
         importedRecords: importedRecords,
         duplicateSkippedRecords: duplicateSkippedRecords,
-        notSelectedRecords: notSelectedRecords,
+        notSelectedRecords: notSelectedRecords ?? this.notSelectedRecords,
         unsupportedElements: unsupportedElements,
         skippedRecords: skippedRecords,
         failedRecords: failedRecords,
         expectedSelectedRecords:
             expectedSelectedRecords ?? this.expectedSelectedRecords,
+        expectedParsedElements:
+            expectedParsedElements ?? this.expectedParsedElements,
       );
 
   int get parsedElements =>
@@ -385,28 +400,46 @@ class AppleHealthImportProgress {
     return v < 0 ? 0 : v;
   }
 
+  /// The determinate percent, or `null` while no denominator is known.
+  ///
+  /// The scan percent (raw elements scanned against the total measured during
+  /// analysis) *wins* over the selected-record percent whenever the export's
+  /// element total is known: it is the only one that keeps moving while the
+  /// importer streams past a long section of unselected records, where
+  /// [selectedPreparedRecords] does not change at all.
   int? get percent {
-    final total = expectedSelectedRecords > 0 ? expectedSelectedRecords : null;
-    if (total == null) return null;
     if (phase == AppleHealthImportPhase.complete) return 100;
-    final selectedProgress =
-        selectedPreparedRecords > total ? total : selectedPreparedRecords;
-    final selectedPercent =
-        (selectedProgress / total * _selectedRecordsPercentCeiling).round();
+    final scanPercent = expectedParsedElements > 0
+        ? (math.min(parsedElements, expectedParsedElements) /
+                expectedParsedElements *
+                _selectedRecordsPercentCeiling)
+            .round()
+        : null;
+    final selectedPercent = expectedSelectedRecords > 0
+        ? (math.min(selectedPreparedRecords, expectedSelectedRecords) /
+                expectedSelectedRecords *
+                _selectedRecordsPercentCeiling)
+            .round()
+        : null;
+    final workPercent = scanPercent ?? selectedPercent;
+    if (workPercent == null) return null;
+    final selectedProgressComplete = expectedSelectedRecords > 0 &&
+        selectedPreparedRecords >= expectedSelectedRecords;
+    final scanProgressComplete = expectedParsedElements > 0 &&
+        parsedElements >= expectedParsedElements;
+    final workComplete = scanProgressComplete || selectedProgressComplete;
     final phaseFloor = switch (phase) {
       AppleHealthImportPhase.queued ||
       AppleHealthImportPhase.parsing ||
       AppleHealthImportPhase.converting =>
         0,
-      AppleHealthImportPhase.checkingDuplicates =>
-        selectedProgress >= total ? 88 : 0,
-      AppleHealthImportPhase.writing => selectedProgress >= total ? 92 : 0,
+      AppleHealthImportPhase.checkingDuplicates => workComplete ? 88 : 0,
+      AppleHealthImportPhase.writing => workComplete ? 92 : 0,
       AppleHealthImportPhase.finishing => 95,
       AppleHealthImportPhase.buildingReport => 98,
       AppleHealthImportPhase.complete => 100,
     };
-    final value = selectedPercent > phaseFloor ? selectedPercent : phaseFloor;
-    return value.clamp(0, 99);
+    return math.max(workPercent, phaseFloor).clamp(0, 99);
   }
 }
 
