@@ -107,9 +107,11 @@ void main() {
     FakeHomeWidgetClient client, {
     HydrationRepository? hydration,
     NutritionRepository? nutrition,
+    FakeHealthRepository? health,
   }) =>
       QuickBeverageWidgetLogger(
         service: HomeWidgetService(client: client),
+        health: health ?? FakeHealthRepository(),
         hydrationRepository: hydration ?? _FakeHydrationRepository(),
         nutritionRepository: nutrition ?? _FakeNutritionRepository(),
         unitFormatter:
@@ -156,6 +158,24 @@ void main() {
   });
 
   group('QuickBeverageWidgetLogger', () {
+    // Regression: shipped to a device where tapping the widget did nothing at
+    // all. This isolate builds its own HealthDataSource, whose cachedAvailability
+    // starts at `notSupported` — and the repositories report NO granted
+    // permissions while it does. So hasHydrationWritePermission() was false, the
+    // write was discarded as "missing permission", and on the 2x1 (which renders
+    // no subtitle) the failure was completely invisible.
+    test('resolves Health Connect access before writing', () async {
+      final client = configuredClient(drink: _espresso);
+      final health = FakeHealthRepository();
+      final hydration = _FakeHydrationRepository();
+
+      await logger(client, health: health, hydration: hydration)
+          .log(_appWidgetId);
+
+      expect(health.refreshCalls, 1);
+      expect(hydration.writes, hasLength(1));
+    });
+
     test('logs the hydration AND the nutrition entry for a drink with caffeine',
         () async {
       final client = configuredClient(drink: _espresso);

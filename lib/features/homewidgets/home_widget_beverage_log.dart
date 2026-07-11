@@ -9,6 +9,8 @@ import '../../core/presentation/unit_formatter.dart';
 import '../../data/prefs/preferences_repository.dart';
 import '../../data/repository/contract/hydration_repository.dart';
 import '../../data/repository/contract/nutrition_repository.dart';
+import '../../data/repository/contract/health_repository.dart';
+import '../../data/repository/impl/health_repository_impl.dart';
 import '../../data/repository/impl/hydration_repository_impl.dart';
 import '../../data/repository/impl/nutrition_repository_impl.dart';
 import '../../di/providers.dart' show openVitalsPackageName;
@@ -121,6 +123,12 @@ Future<QuickBeverageWidgetLogger> buildBackgroundQuickBeverageLogger() async {
 
   return QuickBeverageWidgetLogger(
     service: const HomeWidgetService(),
+    // Resolves Health Connect access before the write. Without it this isolate's
+    // freshly-built data source stays at `notSupported`, `grantedPermissions()`
+    // comes back empty, `hasHydrationWritePermission()` is false, and the tap is
+    // silently discarded as "missing permission" — invisibly on the 2x1, which
+    // does not render a subtitle at all.
+    health: HealthRepositoryImpl(dataSource),
     hydrationRepository: HydrationRepositoryImpl(
       dataSource,
       preferencesRepository: preferences,
@@ -137,6 +145,7 @@ Future<QuickBeverageWidgetLogger> buildBackgroundQuickBeverageLogger() async {
 class QuickBeverageWidgetLogger {
   const QuickBeverageWidgetLogger({
     required this.service,
+    required this.health,
     required this.hydrationRepository,
     required this.nutritionRepository,
     required this.unitFormatter,
@@ -145,6 +154,10 @@ class QuickBeverageWidgetLogger {
   });
 
   final HomeWidgetService service;
+
+  /// Resolves Health Connect access before the permission check — without it the
+  /// write is always refused. See [buildBackgroundQuickBeverageLogger].
+  final HealthRepository health;
   final HydrationRepository hydrationRepository;
   final NutritionRepository nutritionRepository;
   final UnitFormatter unitFormatter;
@@ -182,6 +195,11 @@ class QuickBeverageWidgetLogger {
     }
 
     try {
+      // MUST come before the write. This isolate builds its own HealthDataSource,
+      // whose cachedAvailability starts at `notSupported` — and the repositories
+      // report no granted permissions while it does, so the write below would be
+      // refused as "missing permission" and the tap would do nothing.
+      await health.refreshAvailability();
       // Kotlin remembers the tapped volume as the last custom amount, so the
       // entry screen opens on it next time.
       hydrationRepository
