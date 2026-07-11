@@ -18,6 +18,13 @@ class AppleHealthImportReportStore {
   static const String _reportKey = 'apple_health_import_report';
   static const String _errorReportKey = 'apple_health_import_error_report';
 
+  /// Re-reads the backing store. The background import writes its report from
+  /// the foreground-service **isolate**, whose [SharedPreferences] is a separate
+  /// in-memory snapshot — without this the UI would keep reading the stale
+  /// report it loaded at startup (Kotlin reads the report back from a file path
+  /// the worker returns, so it never had this problem).
+  Future<void> refresh() => _prefs.reload();
+
   Future<void> writeReport(String reportText) =>
       _prefs.setString(_reportKey, reportText);
 

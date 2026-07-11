@@ -21,7 +21,6 @@ import '../../domain/insights/personal_baseline.dart';
 import '../../domain/model/activity_models.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../domain/preferences/metric_detail_section_id.dart';
-import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
@@ -68,7 +67,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final formatter = ref.watch(unitFormatterProvider);
     final notifier = ref.read(activitiesNotifierProvider.notifier);
-    final weekPeriodMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekPeriodMode = ref.watch(weekPeriodModeProvider);
 
     final workouts = state.workouts;
     final sortedDays = [...state.overviewDays]
@@ -122,7 +121,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
         MetricDetailSection(
           MetricDetailSectionId.periodChart,
           visible: workouts.isNotEmpty,
-          _padded(_periodChart(formatter)),
+          _padded(_periodChart(formatter, weekPeriodMode)),
         ),
         MetricDetailSection(
           MetricDetailSectionId.selectedDayEntries,
@@ -325,7 +324,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
 
   // ── PERIOD_CHART ────────────────────────────────────────────────────
 
-  Widget _periodChart(UnitFormatter formatter) {
+  Widget _periodChart(UnitFormatter formatter, WeekPeriodMode weekPeriodMode) {
     final byDate = <LocalDate, double>{};
     for (final w in state.workouts) {
       final date = instantToLocalDate(w.startTime);
@@ -344,6 +343,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
       period: period,
       accentColor: AppColors.workout,
       summaryValue: formatter.duration(totalMs),
+      weekPeriodMode: weekPeriodMode,
       selectedDate: daySelection.selectedDate,
       onDateSelected: daySelection.onDateSelected,
       valueFormatter: (value) => formatter.minutes(value.round()).text,

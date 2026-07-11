@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/period/period_range_preference_key.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/unit_formatter.dart';
-import '../../di/providers.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/charts/period_chart.dart';
@@ -32,7 +31,7 @@ class HydrationScreen extends ConsumerWidget {
     final state = ref.watch(hydrationNotifierProvider);
     final notifier = ref.read(hydrationNotifierProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
 
     return Scaffold(
@@ -59,7 +58,8 @@ class HydrationScreen extends ConsumerWidget {
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
           onSelectionChanged: (selection) => notifier.load(selection),
-          content: (period) => _content(context, state, formatter, period),
+          content: (period) =>
+              _content(context, state, formatter, period, weekMode),
         ),
       ),
     );
@@ -71,6 +71,7 @@ List<Widget> _content(
   HydrationState state,
   UnitFormatter formatter,
   DatePeriod period,
+  WeekPeriodMode weekPeriodMode,
 ) {
   if (!state.hasData) {
     if (state.isLoading) {
@@ -142,6 +143,7 @@ List<Widget> _content(
         period: period,
         accentColor: AppColors.hydration,
         summaryValue: total.text,
+        weekPeriodMode: weekPeriodMode,
         valueFormatter: (value) => formatter.hydration(value).text,
       ),
     ),

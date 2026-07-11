@@ -5,8 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/core/period/period_load_query.dart';
+import 'package:openvitals/core/period/period_range_preference_key.dart';
+import 'package:openvitals/core/period/time_range.dart';
+import 'package:openvitals/data/prefs/preferences_repository.dart';
 import 'package:openvitals/data/repository/contract/mindfulness_repository.dart';
 import 'package:openvitals/di/providers.dart';
+import 'package:openvitals/domain/preferences/activity_week_mode.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/domain/model/mindfulness_models.dart';
 import 'package:openvitals/domain/model/refresh_mode.dart';
@@ -45,9 +49,16 @@ MindfulnessSession _session(DateTime start, int minutes, {String? title}) =>
 Future<Widget> _bootstrap({
   required _FakeMindfulnessRepository repository,
   required Set<String> granted,
+  ActivityWeekMode weekMode = ActivityWeekMode.mondayToSunday,
+  TimeRange range = TimeRange.week,
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
+  // Seed the preferences the screen reads before the scope builds its own
+  // repository over the same SharedPreferences instance.
+  PreferencesRepository(prefs)
+    ..activityWeekMode = weekMode
+    ..setTimeRangeFor(PeriodRangePreferenceKey.mindfulness, range);
   return ProviderScope(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
@@ -111,5 +122,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(MetricCardPlaceholder), findsOneWidget);
+  });
+
+  // Every period title on the screen — navigator, card subtitles, chart summary
+  // — must name the window the same way. With the rolling week mode on a month
+  // that ends today, that name is "Last 30 days"; "This month" anywhere means a
+  // title defaulted to the calendar mode instead of reading the preference.
+  testWidgets('rolling week mode names every period title "Last 30 days"',
+      (tester) async {
+    final repo = _FakeMindfulnessRepository(
+      sessions: [_session(DateTime.now(), 10)],
+    );
+    await tester.pumpWidget(
+      await _bootstrap(
+        repository: repo,
+        granted: {HcPermissions.readMindfulness},
+        weekMode: ActivityWeekMode.last7Days,
+        range: TimeRange.month,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The navigator title, the "Total mindfulness" card subtitle and the bar
+    // chart's summary line.
+    expect(find.textContaining('Last 30 days'), findsNWidgets(3));
+    expect(find.textContaining('This month'), findsNothing);
+  });
+
+  testWidgets('calendar week mode keeps the "This month" titles',
+      (tester) async {
+    final repo = _FakeMindfulnessRepository(
+      sessions: [_session(DateTime.now(), 10)],
+    );
+    await tester.pumpWidget(
+      await _bootstrap(
+        repository: repo,
+        granted: {HcPermissions.readMindfulness},
+        range: TimeRange.month,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('This month'), findsNWidgets(3));
+    expect(find.textContaining('Last 30 days'), findsNothing);
   });
 }

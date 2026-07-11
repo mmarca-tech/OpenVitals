@@ -6,7 +6,6 @@ import '../../core/period/time_range.dart';
 import '../../core/presentation/display_value.dart';
 import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
-import '../../di/providers.dart';
 import '../../domain/insights/data_confidence.dart';
 import '../../domain/insights/personal_baseline.dart';
 import '../../domain/preferences/metric_detail_section_id.dart';
@@ -44,7 +43,7 @@ class ActivityMetricScreen extends ConsumerWidget {
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
@@ -83,6 +82,7 @@ class ActivityMetricScreen extends ConsumerWidget {
               state: state,
               period: period,
               formatter: formatter,
+              weekPeriodMode: weekMode,
               onDecreaseGoal: notifier.decreaseDailyGoal,
               onIncreaseGoal: notifier.increaseDailyGoal,
             ),
@@ -99,6 +99,7 @@ class _ActivityMetricContent extends StatelessWidget {
     required this.state,
     required this.period,
     required this.formatter,
+    required this.weekPeriodMode,
     required this.onDecreaseGoal,
     required this.onIncreaseGoal,
   });
@@ -107,6 +108,7 @@ class _ActivityMetricContent extends StatelessWidget {
   final ActivityMetricState state;
   final DatePeriod period;
   final UnitFormatter formatter;
+  final WeekPeriodMode weekPeriodMode;
   final VoidCallback onDecreaseGoal;
   final VoidCallback onIncreaseGoal;
 
@@ -198,6 +200,7 @@ class _ActivityMetricContent extends StatelessWidget {
             period: period,
             accentColor: metric.accentColor,
             summaryValue: goalFormatter(display.total).text,
+            weekPeriodMode: weekPeriodMode,
             selectedDate: selectedDay,
             onDateSelected: daySelection.onDateSelected,
             valueFormatter: (value) => metric.formatChartValue(formatter, value),

@@ -90,6 +90,7 @@ class MetricBarChart extends StatelessWidget {
     required this.period,
     required this.accentColor,
     required this.summaryValue,
+    this.weekPeriodMode = WeekPeriodMode.mondayToSunday,
     this.accentAlpha = 0.85,
     this.yearAggregation = PeriodBarAggregation.sum,
     this.selectedDate,
@@ -103,6 +104,11 @@ class MetricBarChart extends StatelessWidget {
   final DatePeriod period;
   final Color accentColor;
   final String summaryValue;
+
+  /// The week/period mode, so the summary's period title agrees with the period
+  /// navigator above it ("Last 30 days", not "This month", on a rolling month).
+  /// Threaded in by every screen; the calendar default only serves tests.
+  final WeekPeriodMode weekPeriodMode;
   final double accentAlpha;
   final PeriodBarAggregation yearAggregation;
   final LocalDate? selectedDate;
@@ -117,9 +123,12 @@ class MetricBarChart extends StatelessWidget {
       selectedRange: selectedRange,
       period: period,
       accentColor: accentColor.withValues(alpha: accentAlpha),
-      summaryText:
-          '${periodTitle(AppLocalizations.of(context), selectedRange, period)}'
-          ' · $summaryValue',
+      summaryText: '${periodTitle(
+        AppLocalizations.of(context),
+        selectedRange,
+        period,
+        weekPeriodMode: weekPeriodMode,
+      )} · $summaryValue',
       yearAggregation: yearAggregation,
       selectedDate: selectedDate,
       onDateSelected: onDateSelected,

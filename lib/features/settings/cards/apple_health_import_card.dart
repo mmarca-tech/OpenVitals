@@ -12,6 +12,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../ui/components/health_connect_gate.dart';
 import '../../../ui/components/ov_card.dart';
 import '../../imports/applehealth/apple_health_import_models.dart';
+import '../../imports/applehealth/apple_health_import_notification.dart';
 import '../../imports/applehealth/apple_health_import_notifier.dart';
 import '../../imports/applehealth/apple_health_import_staging_store.dart';
 
@@ -276,13 +277,13 @@ class AppleHealthImportCard extends ConsumerWidget {
           percent != null
               ? l10n.settingsAppleHealthImportProgressWithPercent(
                   percent,
-                  _phaseLabel(l10n, importProgress.phase),
+                  appleHealthImportPhaseLabel(l10n, importProgress.phase),
                   importProgress.selectedPreparedRecords,
                   importProgress.expectedSelectedRecords,
                   importProgress.importedRecords,
                 )
               : l10n.settingsAppleHealthImportProgress(
-                  _phaseLabel(l10n, importProgress.phase),
+                  appleHealthImportPhaseLabel(l10n, importProgress.phase),
                   importProgress.parsedElements,
                   importProgress.importedRecords,
                 ),
@@ -467,25 +468,6 @@ class AppleHealthImportCard extends ConsumerWidget {
     }
   }
 
-  String _phaseLabel(AppLocalizations l10n, AppleHealthImportPhase phase) =>
-      switch (phase) {
-        AppleHealthImportPhase.queued =>
-          l10n.settingsAppleHealthImportProgressQueued,
-        AppleHealthImportPhase.parsing =>
-          l10n.settingsAppleHealthImportProgressParsing,
-        AppleHealthImportPhase.converting =>
-          l10n.settingsAppleHealthImportProgressConverting,
-        AppleHealthImportPhase.checkingDuplicates =>
-          l10n.settingsAppleHealthImportProgressCheckingDuplicates,
-        AppleHealthImportPhase.writing =>
-          l10n.settingsAppleHealthImportProgressWriting,
-        AppleHealthImportPhase.finishing =>
-          l10n.settingsAppleHealthImportProgressFinishing,
-        AppleHealthImportPhase.buildingReport =>
-          l10n.settingsAppleHealthImportProgressBuildingReport,
-        AppleHealthImportPhase.complete =>
-          l10n.settingsAppleHealthImportProgressComplete,
-      };
 }
 
 class _CategoryRow extends StatelessWidget {

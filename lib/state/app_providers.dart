@@ -1,3 +1,4 @@
+import '../core/period/time_range.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -60,4 +61,16 @@ final unitFormatterProvider = Provider<UnitFormatter>((ref) {
 /// on to the dashboard imperatively).
 final onboardingCompleteProvider = Provider<bool>((ref) {
   return ref.watch(preferencesRepositoryProvider).onboardingDone;
+});
+
+/// The period mode driving *every* period title — the navigator's and the chart
+/// summaries' alike.
+///
+/// DELIBERATE DEVIATION from the Kotlin app. Kotlin makes only the navigator
+/// title mode-aware, so on a rolling Month its navigator reads "Last 30 days"
+/// while a chart summary underneath still reads "This month" — two names for the
+/// same window, on the same screen. We thread the mode everywhere instead, so the
+/// titles agree. A parity audit will flag this; it is intended.
+final weekPeriodModeProvider = Provider<WeekPeriodMode>((ref) {
+  return ref.watch(preferencesRepositoryProvider).weekPeriodMode;
 });

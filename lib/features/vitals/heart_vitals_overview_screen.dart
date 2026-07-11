@@ -48,6 +48,7 @@ class HeartVitalsOverviewState {
   const HeartVitalsOverviewState({
     required this.selectedDate,
     this.selectedRange = TimeRange.week,
+    this.weekPeriodMode = WeekPeriodMode.mondayToSunday,
     this.isLoading = true,
     this.error,
     this.result,
@@ -55,6 +56,11 @@ class HeartVitalsOverviewState {
 
   final LocalDate selectedDate;
   final TimeRange selectedRange;
+
+  /// The loaded period's week mode, carried on the state (as `SleepState` does)
+  /// so the section summaries name the window exactly as the period navigator
+  /// does — "Last 30 days" on a rolling month, not "This month".
+  final WeekPeriodMode weekPeriodMode;
   final bool isLoading;
   final ScreenError? error;
   final HeartPeriodLoadResult? result;
@@ -62,6 +68,7 @@ class HeartVitalsOverviewState {
   HeartVitalsOverviewState copyWith({
     LocalDate? selectedDate,
     TimeRange? selectedRange,
+    WeekPeriodMode? weekPeriodMode,
     bool? isLoading,
     ScreenError? error,
     bool clearError = false,
@@ -70,6 +77,7 @@ class HeartVitalsOverviewState {
       HeartVitalsOverviewState(
         selectedDate: selectedDate ?? this.selectedDate,
         selectedRange: selectedRange ?? this.selectedRange,
+        weekPeriodMode: weekPeriodMode ?? this.weekPeriodMode,
         isLoading: isLoading ?? this.isLoading,
         error: clearError ? null : (error ?? this.error),
         result: result ?? this.result,
@@ -98,6 +106,7 @@ class HeartVitalsOverviewNotifier extends Notifier<HeartVitalsOverviewState> {
     state = state.copyWith(
       selectedRange: selection.selectedRange,
       selectedDate: selection.selectedDate,
+      weekPeriodMode: prefs.weekPeriodMode,
       isLoading: true,
       clearError: true,
     );
@@ -152,7 +161,7 @@ class HeartVitalsOverviewScreen extends ConsumerWidget {
     final state = ref.watch(heartVitalsOverviewNotifierProvider);
     final notifier = ref.read(heartVitalsOverviewNotifierProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
@@ -1039,7 +1048,12 @@ String _summary(
   DatePeriod period,
   String extra,
 ) =>
-    '${periodTitle(l10n, state.selectedRange, period)} · $extra';
+    '${periodTitle(
+      l10n,
+      state.selectedRange,
+      period,
+      weekPeriodMode: state.weekPeriodMode,
+    )} · $extra';
 
 /// Kotlin `hasRenderableChartData`: within a day, needs more than one distinct
 /// timestamp; otherwise any reading renders.

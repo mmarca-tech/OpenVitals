@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/period/period_range_preference_key.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/metric_detail_sections.dart';
-import '../../di/providers.dart';
 import '../../health/health_permissions.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_card.dart';
 import '../../ui/components/metric_detail_scaffold.dart';
@@ -27,7 +27,7 @@ class ActivitiesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activitiesNotifierProvider);
     final notifier = ref.read(activitiesNotifierProvider.notifier);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
     final l10n = AppLocalizations.of(context);

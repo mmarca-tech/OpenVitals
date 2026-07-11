@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/period/period_range_preference_key.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/unit_formatter.dart';
-import '../../di/providers.dart';
 import '../../domain/query/activity_period_data.dart';
 import '../../health/health_permissions.dart';
 import '../../state/app_providers.dart';
@@ -26,7 +25,7 @@ class CaloriesScreen extends ConsumerWidget {
     final state = ref.watch(caloriesNotifierProvider);
     final notifier = ref.read(caloriesNotifierProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
 
     return Scaffold(
@@ -45,7 +44,7 @@ class CaloriesScreen extends ConsumerWidget {
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
           onSelectionChanged: (selection) => notifier.load(selection),
-          content: (period) => _content(state, formatter, period),
+          content: (period) => _content(state, formatter, period, weekMode),
         ),
       ),
     );
@@ -56,6 +55,7 @@ List<Widget> _content(
   CaloriesState state,
   UnitFormatter formatter,
   DatePeriod period,
+  WeekPeriodMode weekPeriodMode,
 ) {
   final data = state.data;
   if (data == null) {
@@ -81,13 +81,21 @@ List<Widget> _content(
   }
 
   return [
-    ..._metricSection(ActivityMetric.caloriesOut, data, state, formatter, period),
+    ..._metricSection(
+      ActivityMetric.caloriesOut,
+      data,
+      state,
+      formatter,
+      period,
+      weekPeriodMode,
+    ),
     ..._metricSection(
       ActivityMetric.activeCalories,
       data,
       state,
       formatter,
       period,
+      weekPeriodMode,
     ),
     if (state.latestBmrKcal != null)
       Padding(
@@ -110,6 +118,7 @@ List<Widget> _metricSection(
   CaloriesState state,
   UnitFormatter formatter,
   DatePeriod period,
+  WeekPeriodMode weekPeriodMode,
 ) {
   final values = metric.chartValues(data);
   final hasData = values.any((value) => value.value > 0.0);
@@ -150,6 +159,7 @@ List<Widget> _metricSection(
         period: period,
         accentColor: metric.accentColor,
         summaryValue: hero.text,
+        weekPeriodMode: weekPeriodMode,
         valueFormatter: (value) => metric.formatChartValue(formatter, value),
       ),
     ),

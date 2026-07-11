@@ -8,7 +8,6 @@ import '../../core/period/time_range.dart';
 import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../core/time/local_date.dart';
-import '../../di/providers.dart';
 import '../../domain/preferences/metric_detail_section_id.dart';
 import '../../health/health_permissions.dart';
 import '../../l10n/app_localizations.dart';
@@ -41,7 +40,7 @@ class BodyScreen extends ConsumerWidget {
     final state = ref.watch(bodyMetricNotifierProvider);
     final notifier = ref.read(bodyMetricNotifierProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
     final l10n = AppLocalizations.of(context);
@@ -80,6 +79,7 @@ class BodyScreen extends ConsumerWidget {
               state: state,
               period: period,
               formatter: formatter,
+              weekPeriodMode: weekMode,
             ),
           ],
         ),
@@ -93,11 +93,13 @@ class _BodyOverviewContent extends ConsumerWidget {
     required this.state,
     required this.period,
     required this.formatter,
+    required this.weekPeriodMode,
   });
 
   final BodyMetricState state;
   final DatePeriod period;
   final UnitFormatter formatter;
+  final WeekPeriodMode weekPeriodMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -250,6 +252,7 @@ class _BodyOverviewContent extends ConsumerWidget {
       accentColor: metric.color,
       summaryValue: metric.latest?.text ??
           l10n.summaryEntries('${metric.values.length}'),
+      weekPeriodMode: weekPeriodMode,
       selectedDate: daySelection.selectedDate,
       onDateSelected: daySelection.onDateSelected,
       valueFormatter: (value) => metric.format(value).text,

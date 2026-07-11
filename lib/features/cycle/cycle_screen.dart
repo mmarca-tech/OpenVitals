@@ -7,7 +7,6 @@ import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../core/time/local_date.dart';
-import '../../di/providers.dart';
 import '../../domain/model/cycle_models.dart';
 import '../../health/health_permissions.dart';
 import '../../l10n/app_localizations.dart';
@@ -34,7 +33,7 @@ class CycleScreen extends ConsumerWidget {
     final state = ref.watch(cycleProvider);
     final notifier = ref.read(cycleProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
 
     return Scaffold(
@@ -52,7 +51,8 @@ class CycleScreen extends ConsumerWidget {
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
           onSelectionChanged: notifier.load,
-          content: (period) => _content(context, state, formatter, period),
+          content: (period) =>
+              _content(context, state, formatter, period, weekMode),
         ),
       ),
     );
@@ -64,6 +64,7 @@ List<Widget> _content(
   CycleMetricState state,
   UnitFormatter formatter,
   DatePeriod period,
+  WeekPeriodMode weekPeriodMode,
 ) {
   final data = state.data;
   if (!data.hasData) {
@@ -102,7 +103,12 @@ List<Widget> _content(
               unit: 'days',
               icon: Icons.calendar_month,
               accentColor: AppColors.cycle,
-              subtitle: periodTitle(l10n, state.selectedRange, period),
+              subtitle: periodTitle(
+                l10n,
+                state.selectedRange,
+                period,
+                weekPeriodMode: weekPeriodMode,
+              ),
             ),
           ),
           const SizedBox(width: 12),

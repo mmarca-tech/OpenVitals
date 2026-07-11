@@ -1,31 +1,41 @@
 /// Riverpod notifier driving the Settings "Apple Health import" card, ported
 /// from the Kotlin `SettingsViewModel` Apple Health import wiring.
 ///
-/// The Kotlin side runs the import through a WorkManager worker that survives
-/// the UI; this Dart port deliberately runs the already-DI-wired
-/// [AppleHealthImportService] async in the foreground (see the service's own
-/// class comment) and mirrors the same observable state: analyze (scan +
-/// summarise by category without writing), toggle categories, then import the
-/// selected set, persisting the shareable report through the
+/// Analyze (scan + summarise by category without writing), toggle categories,
+/// then import the selected set, persisting the shareable report through the
 /// [AppleHealthImportReportStore].
 ///
-/// Because Kotlin's WorkManager worker has no Flutter counterpart, the
-/// staging/checkpoint orchestration it owns lives here instead:
+/// The import itself runs where Kotlin runs it: **outside the UI**. Kotlin
+/// enqueues a WorkManager worker; this port starts the app's foreground service
+/// with `apple_health_import_task_handler.dart` as its task, so a multi-hour
+/// import keeps running (with an ongoing progress notification) while the user
+/// leaves the app — the promise the card's "Import continues in the background"
+/// line already made. Progress, the result and any error come back over the
+/// task-data port and drive exactly the same [AppleHealthImportUiState] the
+/// in-process path used to.
 ///
-///   load checkpoint → stage the export → import → on success clear both.
+/// Where no foreground service exists (tests, desktop, a missing plugin) the
+/// import falls back to running in-process, through the very same
+/// [runAppleHealthImportJob] the service isolate runs.
 ///
 /// The picked export is never read into memory: it is staged to app-private
-/// storage (with a verified byte count) and everything downstream works against
-/// that [File]. Resume degrades gracefully — a foreground import that is killed
-/// resumes when the user relaunches and re-picks the same export, skipping the
-/// batches that were already committed.
+/// storage (with a verified byte count) in the *main* isolate — staging is
+/// idempotent and the service isolate reuses that copy — and everything
+/// downstream works against that [File]. Resume degrades gracefully: an import
+/// that is killed resumes from its last committed batch.
 library;
 
+import 'dart:async';
+
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../di/providers.dart';
+import '../../../ui/components/health_connect_gate.dart';
+import 'apple_health_import_background.dart';
 import 'apple_health_import_checkpoint_store.dart';
 import 'apple_health_import_error_formatter.dart';
+import 'apple_health_import_foreground_controller.dart';
 import 'apple_health_import_models.dart';
 import 'apple_health_import_report_store.dart';
 import 'apple_health_import_service.dart';
@@ -40,6 +50,15 @@ final appleHealthImportCheckpointStoreProvider =
     Provider<AppleHealthImportCheckpointStore>(
   (ref) => AppleHealthImportCheckpointStore(),
 );
+
+/// Shown when an activity recording already owns the app's single foreground
+/// service (see [AppleHealthImportLaunch.serviceBusy]).
+// TODO(l10n): Flutter-only string; the Kotlin app cannot hit this collision
+// because WorkManager runs the import next to the recording service.
+const String kAppleHealthImportServiceBusyError =
+    'An activity recording is using the foreground service, so the Apple Health '
+    'import cannot run in the background. Finish or discard the recording, then '
+    'import again.';
 
 /// Immutable UI state mirroring the Apple Health fields of the Kotlin
 /// `SettingsUiState` consumed by `AppleHealthImportCard`.
@@ -103,6 +122,8 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
       ref.read(appleHealthImportStagingStoreProvider);
   AppleHealthImportCheckpointStore get _checkpointStore =>
       ref.read(appleHealthImportCheckpointStoreProvider);
+  AppleHealthImportServiceController get _serviceController =>
+      ref.read(appleHealthImportServiceControllerProvider);
 
   /// The most recently analyzed export, reused by [importSelected] (the Kotlin
   /// `pendingAppleHealthImportUri`). Only the *identity* of the pick is held —
@@ -117,6 +138,13 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
     // report action has content even before a fresh import runs this session.
     _lastReportText = _reportStore.readReport();
     _lastFailureText = _reportStore.readFailure();
+    // Progress from the service isolate (and, on a relaunch, from an import that
+    // is still in flight) arrives here.
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+    ref.onDispose(
+      () => FlutterForegroundTask.removeTaskDataCallback(_onTaskData),
+    );
+    unawaited(_attachToRunningImport());
     return const AppleHealthImportUiState();
   }
 
@@ -183,9 +211,9 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
     state = state.copyWith(selectedCategories: next);
   }
 
-  /// Convert + dedup + write the selected categories, then persist the report
-  /// (Kotlin `importSelectedAppleHealthExport` + the worker's checkpoint /
-  /// staging lifecycle).
+  /// Stage the pick, then hand the import to the foreground service (Kotlin
+  /// `AppleHealthImportWorkController.enqueue`), falling back to an in-process
+  /// import where no service can run.
   Future<void> importSelected() async {
     if (state.isBusy) return;
     final source = _pendingSource;
@@ -205,71 +233,170 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
         expectedSelectedRecords: expectedSelectedRecords,
       ),
     );
+
+    // Staging stays in the main isolate: it is idempotent (an existing copy with
+    // a matching fingerprint is reused), it is where the picker's stream lives,
+    // and a copy failure must be reported before a service is ever started.
+    final AppleHealthStagedExport staged;
     try {
-      // Only a checkpoint written for this exact export *and* this exact
-      // category selection may be resumed; anything else starts clean.
-      final stored = await _checkpointStore.load(source.sourceKey, selected);
-      final resumeCheckpoint = stored ??
-          AppleHealthImportCheckpoint(
-            sourceKey: source.sourceKey,
-            selectedCategories: selected,
-          );
-      final staged = await _stagingStore.stage(source);
-      // The service hands checkpoints to a synchronous callback, so the writes
-      // are chained: an earlier save must never land *after* a later one and
-      // wind the checkpoint backwards.
-      var checkpointWrites = Future<void>.value();
-      final result = await _service.importAppleHealthExport(
-        staged.file,
+      staged = await _stagingStore.stage(source);
+    } catch (error) {
+      await _publishFailure(error);
+      return;
+    }
+
+    final launch = await _serviceController.start(AppleHealthImportRequest(
+      stagedFilePath: staged.file.path,
+      sourceKey: source.sourceKey,
+      selectedCategories: selected,
+      expectedSelectedRecords: expectedSelectedRecords,
+      expectedParsedElements: analysis.parsedElements,
+    ));
+    switch (launch) {
+      case AppleHealthImportLaunch.started:
+      case AppleHealthImportLaunch.alreadyImporting:
+        // The task isolate owns the import now; [_onTaskData] drives the UI.
+        return;
+      case AppleHealthImportLaunch.serviceBusy:
+        // Refused, not failed: the staged copy stays put, so importing again
+        // once the recording ends reuses it.
+        state = AppleHealthImportUiState(
+          analysis: analysis,
+          selectedCategories: selected,
+          error: kAppleHealthImportServiceBusyError,
+        );
+        return;
+      case AppleHealthImportLaunch.unavailable:
+        break;
+    }
+
+    final outcome = await runAppleHealthImportJob(
+      AppleHealthImportJobInputs(
+        service: _service,
+        stagingStore: _stagingStore,
+        checkpointStore: _checkpointStore,
+        reportStore: _reportStore,
+        resolveHealthAccess: _resolveHealthAccessInProcess,
+        stagedFile: staged.file,
+        sourceKey: source.sourceKey,
         selectedCategories: selected,
-        resumeCheckpoint: resumeCheckpoint,
-        onCheckpoint: (checkpoint) {
-          checkpointWrites = checkpointWrites
-              .then((_) => _checkpointStore.save(checkpoint))
-              .catchError((_) {
-            // A checkpoint we could not persist only costs a re-import of the
-            // batch; it must never fail the import itself.
-          });
-        },
-        onProgress: (progress) {
-          if (ref.mounted && state.isImporting) {
-            // The service emits progress without the expected total, so re-seed
-            // it here to keep the percent getter meaningful (Kotlin seeds it in
-            // the QUEUED progress the worker inherits).
-            state = state.copyWith(
-              progress: progress.copyWith(
-                expectedSelectedRecords: expectedSelectedRecords,
-              ),
-            );
-          }
-        },
-      );
-      await _reportStore.writeReport(result.shareableReportText);
+        expectedSelectedRecords: expectedSelectedRecords,
+      ),
+      onProgress: (progress) {
+        if (ref.mounted && state.isImporting) {
+          state = state.copyWith(progress: progress);
+        }
+      },
+    );
+    final result = outcome.result;
+    if (result != null) {
       _lastReportText = result.shareableReportText;
-      // Success: the staged copy, its metadata, any leftover `.tmp`, the
-      // checkpoint and the (now empty) import directory all go away.
-      await checkpointWrites;
-      await _checkpointStore.clear();
-      await _stagingStore.clear();
+      if (!ref.mounted) return;
       state = AppleHealthImportUiState(
         analysis: analysis,
         selectedCategories: selected,
         result: result,
       );
-    } catch (error) {
-      // The staged copy and checkpoint are deliberately kept so the user can
-      // retry and resume from the last committed batch.
-      final failureText = buildAppleHealthFailureReportText(error);
-      await _reportStore.writeFailure(failureText);
-      _lastFailureText = failureText;
-      state = AppleHealthImportUiState(
-        analysis: analysis,
-        selectedCategories: selected,
-        error: AppleHealthImportErrorFormatter.details(error),
-        permissionDenied:
-            AppleHealthImportErrorFormatter.isPermissionDenied(error),
-      );
+      return;
     }
+    // The job kept the staged copy and the checkpoint, so a retry resumes.
+    final error = outcome.error!;
+    _lastFailureText = _reportStore.readFailure();
+    if (!ref.mounted) return;
+    state = AppleHealthImportUiState(
+      analysis: analysis,
+      selectedCategories: selected,
+      error: AppleHealthImportErrorFormatter.details(error),
+      permissionDenied: AppleHealthImportErrorFormatter.isPermissionDenied(error),
+    );
+  }
+
+  /// The in-process import's `resolveHealthAccess`.
+  ///
+  /// [healthConnectAvailabilityProvider] *is* `refreshAvailability()` on the
+  /// singleton data source, and the card already awaits it (the import button
+  /// stays disabled until it reports `available`), so awaiting it here resolves
+  /// access exactly once, before the first write — the same invariant the
+  /// isolate enforces with its own `HealthRepositoryImpl.refreshAvailability()`,
+  /// which it must build by hand because it has no provider graph and no gate.
+  Future<void> _resolveHealthAccessInProcess() =>
+      ref.read(healthConnectAvailabilityProvider.future);
+
+  // ── Foreground-service import ───────────────────────────────────────────────
+
+  /// Re-attaches the card to an import that is still running after the app was
+  /// backgrounded (or killed and relaunched) — the Kotlin card re-observes the
+  /// unique work's `WorkInfo` for the same reason.
+  Future<void> _attachToRunningImport() async {
+    if (!await _serviceController.isImportRunning()) return;
+    if (!ref.mounted || state.isBusy) return;
+    state = state.copyWith(
+      isImporting: true,
+      progress: const AppleHealthImportProgress(
+        phase: AppleHealthImportPhase.queued,
+      ),
+    );
+  }
+
+  /// Progress / result / error from the service isolate.
+  void _onTaskData(Object data) {
+    if (data is! Map) return;
+    switch (data[kAppleHealthImportEventKey]) {
+      case kAppleHealthImportEventProgress:
+        final progress = decodeAppleHealthImportProgress(data);
+        if (progress == null || !ref.mounted) return;
+        state = state.copyWith(isImporting: true, progress: progress);
+      case kAppleHealthImportEventResult:
+        unawaited(_onImportResult(data));
+      case kAppleHealthImportEventError:
+        unawaited(_onImportError(data));
+    }
+  }
+
+  Future<void> _onImportResult(Map<Object?, Object?> data) async {
+    // The report was written by the *other* isolate, so this isolate's
+    // SharedPreferences snapshot is stale until it is reloaded.
+    await _reportStore.refresh();
+    _lastReportText = _reportStore.readReport();
+    final result = decodeAppleHealthImportResult(data, _lastReportText);
+    if (result == null || !ref.mounted) return;
+    state = AppleHealthImportUiState(
+      analysis: state.analysis,
+      selectedCategories: state.selectedCategories,
+      result: result,
+    );
+  }
+
+  Future<void> _onImportError(Map<Object?, Object?> data) async {
+    await _reportStore.refresh();
+    _lastFailureText = _reportStore.readFailure();
+    if (!ref.mounted) return;
+    state = AppleHealthImportUiState(
+      analysis: state.analysis,
+      selectedCategories: state.selectedCategories,
+      error: '${data['error']}',
+      permissionDenied: data['permissionDenied'] == true,
+    );
+  }
+
+  /// A staging failure: nothing has been imported, so this is reported exactly
+  /// like an import failure (the Kotlin worker stages inside `doWork`, so a copy
+  /// failure lands in the same `Result.failure` path).
+  Future<void> _publishFailure(Object error) async {
+    final failureText = buildAppleHealthFailureReportText(error);
+    try {
+      await _reportStore.writeFailure(failureText);
+    } catch (_) {
+      // A report we could not persist must not mask the failure itself.
+    }
+    _lastFailureText = failureText;
+    if (!ref.mounted) return;
+    state = AppleHealthImportUiState(
+      analysis: state.analysis,
+      selectedCategories: state.selectedCategories,
+      error: AppleHealthImportErrorFormatter.details(error),
+      permissionDenied: AppleHealthImportErrorFormatter.isPermissionDenied(error),
+    );
   }
 }
 

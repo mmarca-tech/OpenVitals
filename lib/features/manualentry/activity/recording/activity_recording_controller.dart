@@ -15,6 +15,8 @@ import '../../../../domain/model/activity_models.dart';
 import '../../../../domain/model/ble_sensor_models.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
 import '../../../../domain/preferences/activity_recording_preferences.dart';
+import '../../../../features/imports/applehealth/apple_health_import_foreground_controller.dart'
+    show appleHealthImportOwnsForegroundService;
 import '../../../../l10n/app_localizations.dart';
 import '../../../../navigation/app_routes.dart';
 import '../../../../sensors/ble/ble_sensor_coordinator.dart';
@@ -1218,6 +1220,19 @@ class ActivityRecordingControllerImpl implements ActivityRecordingController {
           unitFormatter: unitFormatter,
         );
         if (await FlutterForegroundTask.isRunningService) {
+          // The app declares exactly ONE ForegroundService, so a running one is
+          // either this recorder's (refresh it) or an Apple Health import's — in
+          // which case it must be left alone: updating it would replace the
+          // import's progress notification with the recording's, and the import
+          // would take the service down with it when it finishes. The recording
+          // keeps working in the foreground, exactly as when the service fails.
+          if (await appleHealthImportOwnsForegroundService()) {
+            debugPrint(
+              'Activity recording foreground service skipped: an Apple Health '
+              'import owns it',
+            );
+            return;
+          }
           // Process-death restart with the service still alive (START_STICKY
           // equivalent): refresh instead of double-starting.
           await FlutterForegroundTask.updateService(

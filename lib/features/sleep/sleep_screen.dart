@@ -8,7 +8,6 @@ import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
-import '../../di/providers.dart';
 import '../../domain/model/sleep_models.dart';
 import '../../domain/preferences/metric_detail_section_id.dart';
 import '../../health/health_permissions.dart';
@@ -42,7 +41,7 @@ class SleepScreen extends ConsumerWidget {
     final state = ref.watch(sleepNotifierProvider);
     final notifier = ref.read(sleepNotifierProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
     final l10n = AppLocalizations.of(context);
@@ -197,7 +196,12 @@ class _SleepContent extends StatelessWidget {
           _padded(SleepOverviewCard(
             summary: display.overviewSummary,
             formatter: formatter,
-            periodTitle: periodTitle(l10n, state.selectedRange, period),
+            periodTitle: periodTitle(
+              l10n,
+              state.selectedRange,
+              period,
+              weekPeriodMode: state.weekPeriodMode,
+            ),
           )),
         ),
         MetricDetailSection(
@@ -212,8 +216,12 @@ class _SleepContent extends StatelessWidget {
               if (useScheduleChart)
                 _padded(SleepScheduleStageChart(
                   title: l10n.metricSleep,
-                  summaryText:
-                      '${periodTitle(l10n, state.selectedRange, period)} · $summaryValue',
+                  summaryText: '${periodTitle(
+                    l10n,
+                    state.selectedRange,
+                    period,
+                    weekPeriodMode: state.weekPeriodMode,
+                  )} · $summaryValue',
                   days: scheduleDays,
                   selectedRange: state.selectedRange,
                   averageSchedule: display.overviewSummary.schedule,
@@ -232,6 +240,7 @@ class _SleepContent extends StatelessWidget {
                   accentColor: AppColors.sleep,
                   accentAlpha: 0.75,
                   summaryValue: summaryValue,
+                  weekPeriodMode: state.weekPeriodMode,
                   // A year of nights averages; summing them would be meaningless.
                   yearAggregation: PeriodBarAggregation.averageNonZero,
                   selectedDate: selectedDay,

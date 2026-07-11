@@ -10,7 +10,6 @@ import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
 import '../../core/presentation/unit_formatter.dart';
 import '../../core/time/local_date.dart';
-import '../../di/providers.dart';
 import '../../domain/model/mindfulness_models.dart';
 import '../../health/health_permissions.dart';
 import '../../l10n/app_localizations.dart';
@@ -39,7 +38,7 @@ class MindfulnessScreen extends ConsumerWidget {
     final state = ref.watch(mindfulnessProvider);
     final notifier = ref.read(mindfulnessProvider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
 
     return Scaffold(
@@ -62,7 +61,8 @@ class MindfulnessScreen extends ConsumerWidget {
           weekPeriodMode: weekMode,
           syncPaused: syncPaused,
           onSelectionChanged: notifier.load,
-          content: (period) => _content(context, state, formatter, period),
+          content: (period) =>
+              _content(context, state, formatter, period, weekMode),
         ),
       ),
     );
@@ -74,6 +74,7 @@ List<Widget> _content(
   MindfulnessMetricState state,
   UnitFormatter formatter,
   DatePeriod period,
+  WeekPeriodMode weekPeriodMode,
 ) {
   final sessions = state.sessions;
   if (sessions.isEmpty) {
@@ -118,7 +119,12 @@ List<Widget> _content(
               unit: total.unit,
               icon: Icons.self_improvement,
               accentColor: AppColors.mindfulness,
-              subtitle: periodTitle(l10n, state.selectedRange, period),
+              subtitle: periodTitle(
+                l10n,
+                state.selectedRange,
+                period,
+                weekPeriodMode: weekPeriodMode,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -143,6 +149,7 @@ List<Widget> _content(
         period: period,
         accentColor: AppColors.mindfulness,
         summaryValue: total.text,
+        weekPeriodMode: weekPeriodMode,
         valueFormatter: (value) =>
             formatter.minutes(value.round()).text,
       ),

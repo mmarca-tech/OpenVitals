@@ -6,7 +6,6 @@ import '../../core/period/time_range.dart';
 import '../../core/presentation/display_value.dart';
 import '../../core/presentation/metric_detail_sections.dart';
 import '../../core/presentation/unit_formatter.dart';
-import '../../di/providers.dart';
 import '../../domain/insights/daily_goals.dart';
 import '../../domain/insights/data_confidence.dart';
 import '../../domain/insights/metric_interpretations.dart';
@@ -47,7 +46,7 @@ class NutritionMetricScreen extends ConsumerWidget {
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
@@ -84,6 +83,7 @@ class NutritionMetricScreen extends ConsumerWidget {
               state: state,
               period: period,
               formatter: formatter,
+              weekPeriodMode: weekMode,
               onDecreaseGoal: notifier.decreaseDailyGoal,
               onIncreaseGoal: notifier.increaseDailyGoal,
             ),
@@ -100,6 +100,7 @@ class _NutritionMetricContent extends StatelessWidget {
     required this.state,
     required this.period,
     required this.formatter,
+    required this.weekPeriodMode,
     required this.onDecreaseGoal,
     required this.onIncreaseGoal,
   });
@@ -108,6 +109,7 @@ class _NutritionMetricContent extends StatelessWidget {
   final NutritionState state;
   final DatePeriod period;
   final UnitFormatter formatter;
+  final WeekPeriodMode weekPeriodMode;
   final VoidCallback onDecreaseGoal;
   final VoidCallback onIncreaseGoal;
 
@@ -220,6 +222,7 @@ class _NutritionMetricContent extends StatelessWidget {
             onDateSelected: daySelection.onDateSelected,
             day: state.selectedDate,
             entries: state.entries,
+            weekPeriodMode: weekPeriodMode,
           )),
         ),
         // Kotlin section SELECTED_DAY_ENTRIES: meals on the pinned chart day.

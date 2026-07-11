@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/period/period_range_preference_key.dart';
 import '../../core/presentation/metric_detail_sections.dart';
-import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
@@ -32,7 +31,7 @@ class HeartMetricScreen extends ConsumerWidget {
     final state = ref.watch(provider);
     final notifier = ref.read(provider.notifier);
     final formatter = ref.watch(unitFormatterProvider);
-    final weekMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
+    final weekMode = ref.watch(weekPeriodModeProvider);
     final syncPaused = !ref.watch(healthConnectSyncEnabledProvider);
     final isEditingSections = ref.watch(metricDetailSectionEditProvider);
 
@@ -71,6 +70,7 @@ class HeartMetricScreen extends ConsumerWidget {
               state: state,
               formatter: formatter,
               period: period,
+              weekPeriodMode: weekMode,
               onDecreaseHighHeartRateThreshold:
                   notifier.decreaseHighHeartRateThreshold,
               onIncreaseHighHeartRateThreshold:

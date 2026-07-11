@@ -75,6 +75,7 @@ Widget nutritionTrendChart({
   required ValueChanged<LocalDate> onDateSelected,
   required LocalDate day,
   required List<NutritionEntry> entries,
+  WeekPeriodMode weekPeriodMode = WeekPeriodMode.mondayToSunday,
   DateTime Function() now = DateTime.now,
 }) {
   if (selectedRange == TimeRange.day) {
@@ -96,6 +97,7 @@ Widget nutritionTrendChart({
     period: period,
     accentColor: color,
     summaryValue: format(series.total).text,
+    weekPeriodMode: weekPeriodMode,
     selectedDate: selectedDate,
     onDateSelected: onDateSelected,
     valueFormatter: (value) => format(value).text,

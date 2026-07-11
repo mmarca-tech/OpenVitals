@@ -41,6 +41,7 @@ class HeartMetricContentView extends StatelessWidget {
     required this.state,
     required this.formatter,
     required this.period,
+    required this.weekPeriodMode,
     required this.onDecreaseHighHeartRateThreshold,
     required this.onIncreaseHighHeartRateThreshold,
     required this.onDecreaseLowHeartRateThreshold,
@@ -53,6 +54,10 @@ class HeartMetricContentView extends StatelessWidget {
   final HeartMetricState state;
   final UnitFormatter formatter;
   final DatePeriod period;
+
+  /// Kept in step with the period navigator's own mode, so a rolling month reads
+  /// "Last 30 days" in every chart summary too, not "This month".
+  final WeekPeriodMode weekPeriodMode;
   final VoidCallback onDecreaseHighHeartRateThreshold;
   final VoidCallback onIncreaseHighHeartRateThreshold;
   final VoidCallback onDecreaseLowHeartRateThreshold;
@@ -1160,8 +1165,12 @@ class HeartMetricContentView extends StatelessWidget {
 
   // ── Building blocks ─────────────────────────────────────────────────────────
 
-  String _summary(AppLocalizations l10n, String extra) =>
-      '${periodTitle(l10n, state.selectedRange, period)} · $extra';
+  String _summary(AppLocalizations l10n, String extra) => '${periodTitle(
+        l10n,
+        state.selectedRange,
+        period,
+        weekPeriodMode: weekPeriodMode,
+      )} · $extra';
 
   Widget _placeholder() => heartPadded(MetricCardPlaceholder(
         title: metric.title,

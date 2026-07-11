@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvitals/data/repository/contract/apple_health_import_repository.dart';
 import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_background.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_error_formatter.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_foreground_controller.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_models.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_checkpoint_store.dart';
@@ -207,8 +210,42 @@ class FakeCheckpointStore implements AppleHealthImportCheckpointStore {
   Future<void> clear() async => clearCalls++;
 }
 
+/// The app has a single `ForegroundService`, so the import can only run in the
+/// background when nothing else (an activity recording) holds it. This fake is
+/// what decides that, standing in for `flutter_foreground_task`.
+class FakeImportServiceController implements AppleHealthImportServiceController {
+  FakeImportServiceController({
+    this.launch = AppleHealthImportLaunch.unavailable,
+    this.running = false,
+  });
+
+  AppleHealthImportLaunch launch;
+  bool running;
+  AppleHealthImportRequest? request;
+  int startCalls = 0;
+
+  @override
+  Future<AppleHealthImportLaunch> start(AppleHealthImportRequest request) async {
+    startCalls++;
+    this.request = request;
+    return launch;
+  }
+
+  @override
+  Future<bool> isImportRunning() async => running;
+}
+
 late FakeStagingStore stagingStore;
 late FakeCheckpointStore checkpointStore;
+late FakeImportServiceController serviceController;
+late SharedPreferences prefs;
+
+/// Delivers a payload the way the service isolate's `sendDataToMain` would.
+void emitTaskData(Object payload) {
+  for (final callback in FlutterForegroundTask.dataCallbacks.toList()) {
+    callback(payload);
+  }
+}
 
 Future<Widget> _bootstrap(
   _FakeService service, {
@@ -218,7 +255,7 @@ Future<Widget> _bootstrap(
   Future<bool> Function(String, String)? saveReportFile,
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
-  final prefs = await SharedPreferences.getInstance();
+  prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
@@ -226,6 +263,8 @@ Future<Widget> _bootstrap(
       appleHealthImportStagingStoreProvider.overrideWithValue(stagingStore),
       appleHealthImportCheckpointStoreProvider
           .overrideWithValue(checkpointStore),
+      appleHealthImportServiceControllerProvider
+          .overrideWithValue(serviceController),
       healthConnectAvailabilityProvider.overrideWith(
         (ref) async => HealthConnectAvailability.available,
       ),
@@ -256,6 +295,9 @@ void main() {
         Directory.systemTemp.createTempSync('apple_health_card_test');
     stagingStore = FakeStagingStore();
     checkpointStore = FakeCheckpointStore();
+    // Default: no foreground service (the desktop/test case), so the import runs
+    // in-process exactly as it did before it was moved to a service isolate.
+    serviceController = FakeImportServiceController();
   });
 
   tearDown(() {
@@ -424,5 +466,162 @@ void main() {
       find.textContaining('some workout routes were unavailable'),
       findsOneWidget,
     );
+  });
+
+  // ── Foreground-service import ───────────────────────────────────────────────
+
+  testWidgets('the import is handed to the foreground service, not run in the '
+      'UI isolate', (tester) async {
+    serviceController.launch = AppleHealthImportLaunch.started;
+    final service = _FakeService();
+    await tester.pumpWidget(
+      await _bootstrap(
+        service,
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    // The service isolate owns the import; nothing runs here.
+    expect(service.importCalls, 0);
+    expect(serviceController.startCalls, 1);
+    // It is handed the staged copy (never the pick) plus the checkpoint identity
+    // and the two progress denominators.
+    final request = serviceController.request!;
+    expect(request.stagedFilePath, endsWith('staged-export.bin'));
+    expect(request.sourceKey, isNotEmpty);
+    expect(request.selectedCategories, {
+      AppleHealthImportCategory.activity,
+      AppleHealthImportCategory.workouts,
+    });
+    expect(request.expectedSelectedRecords, 12);
+    expect(request.expectedParsedElements, 12);
+    // The card keeps promising the background import while the service runs.
+    expect(
+      find.text('Import continues in the background while you leave the app.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('progress and the result from the service isolate drive the card',
+      (tester) async {
+    serviceController.launch = AppleHealthImportLaunch.started;
+    await tester.pumpWidget(
+      await _bootstrap(
+        _FakeService(),
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    emitTaskData(encodeAppleHealthImportProgress(
+      const AppleHealthImportProgress(
+        phase: AppleHealthImportPhase.writing,
+        parsedRecords: 12,
+        convertedRecords: 12,
+        importedRecords: 5,
+        expectedSelectedRecords: 12,
+      ),
+      event: kAppleHealthImportEventProgress,
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('imported 5'), findsOneWidget);
+
+    // The report is written by the *other* isolate, so it comes back from the
+    // store, not over the port.
+    await prefs.setString('apple_health_import_report', 'BG_REPORT');
+    emitTaskData(encodeAppleHealthImportProgress(
+      const AppleHealthImportProgress(
+        phase: AppleHealthImportPhase.complete,
+        parsedRecords: 12,
+        convertedRecords: 12,
+        importedRecords: 9,
+        duplicateSkippedRecords: 1,
+        notSelectedRecords: 2,
+        unsupportedElements: 3,
+        expectedSelectedRecords: 12,
+      ),
+      event: kAppleHealthImportEventResult,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Imported 9'), findsOneWidget);
+    expect(find.text('Copy report'), findsOneWidget);
+  });
+
+  testWidgets('an error from the service isolate shows in the card',
+      (tester) async {
+    serviceController.launch = AppleHealthImportLaunch.started;
+    await tester.pumpWidget(
+      await _bootstrap(
+        _FakeService(),
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    emitTaskData(encodeAppleHealthImportError(AppleHealthImportException('boom')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('boom'), findsOneWidget);
+    expect(find.text('Copy error'), findsOneWidget);
+  });
+
+  testWidgets('a running activity recording refuses the import instead of '
+      'crashing on the single foreground service', (tester) async {
+    serviceController.launch = AppleHealthImportLaunch.serviceBusy;
+    final service = _FakeService();
+    await tester.pumpWidget(
+      await _bootstrap(
+        service,
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(service.importCalls, 0);
+    expect(find.textContaining('activity recording'), findsOneWidget);
+    // Refused, not failed: the staged copy stays for the retry.
+    expect(stagingStore.clearCalls, 0);
+    expect(checkpointStore.clearCalls, 0);
+    // The card is idle again, so the user can retry once the recording ends.
+    expect(find.text('Import selected categories'), findsOneWidget);
+  });
+
+  testWidgets('an import still running on relaunch re-attaches to the card',
+      (tester) async {
+    serviceController.running = true;
+    await tester.pumpWidget(await _bootstrap(_FakeService()));
+    // Not `pumpAndSettle`: the re-attached (percent-less) progress bar animates
+    // forever, which is precisely the point — the import is still in flight.
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('Import continues in the background while you leave the app.'),
+      findsOneWidget,
+    );
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 }
