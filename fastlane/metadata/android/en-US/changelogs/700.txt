@@ -1,0 +1,1 @@
+Add Activity entry for Health Connect exercise sessions. Import GPX/KML/KMZ routes, review distance and elevation, and save route-backed workouts. Record GPS activities with pause/resume, discard, and a persistent notification. Imported and recorded activities can estimate active and total calories before saving.

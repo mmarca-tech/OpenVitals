@@ -1,0 +1,1 @@
+Initial release. Dashboard with steps, distance, calories, hydration, workout, sleep, heart rate, and body metrics. Period-based detail screens and Health Connect onboarding flow.

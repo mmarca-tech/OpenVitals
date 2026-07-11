@@ -1,0 +1,278 @@
+when:
+  - event: manual
+  - event: cron
+    cron: nightly
+  - event: tag
+    ref: refs/tags/v*
+  - event: tag
+    ref: refs/tags/V*
+  - event: deployment
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "production"'
+
+variables:
+  - &alpine_image alpine:3.20
+  - &flutter_image ghcr.io/cirruslabs/flutter:3.44.6
+  - &ruby_image ruby:3.3
+  - &fastlane_environment
+    FASTLANE_DISABLE_COLORS: "1"
+    FASTLANE_OPT_OUT_USAGE: "1"
+    FASTLANE_SKIP_UPDATE_CHECK: "1"
+
+steps:
+  # Everything the pipeline needs to know is resolved ONCE here and handed to the
+  # later steps as a sourceable env file in the shared workspace.
+  - name: resolve-release-context
+    image: *alpine_image
+    commands:
+      - set -eu
+      - apk add --no-cache curl git python3
+      - chmod +x scripts/ci-release-context.sh scripts/version-code.sh
+      - scripts/ci-release-context.sh
+
+  - name: unit-tests
+    depends_on:
+      - resolve-release-context
+    image: *flutter_image
+    commands:
+      - set -eu
+      - |
+        if [ "$${CI_PIPELINE_EVENT}" = "deployment" ] && [ "$${CI_PIPELINE_DEPLOY_TARGET:-}" = "production" ]; then
+          echo "Skipping prerelease unit tests for production deployment."
+          exit 0
+        fi
+      - scripts/ci-flutter.sh test
+
+  - name: release-preflight
+    depends_on:
+      - unit-tests
+    image: *flutter_image
+    commands:
+      - set -eu
+      - |
+        if [ "$${CI_PIPELINE_EVENT}" = "deployment" ] && [ "$${CI_PIPELINE_DEPLOY_TARGET:-}" = "production" ]; then
+          echo "Skipping prerelease app preflight for production deployment."
+          git diff --check
+          exit 0
+        fi
+      - scripts/ci-flutter.sh analyze lib test
+      - dart run tool/verify_l10n.dart
+      - flutter gen-l10n
+      - git diff --exit-code lib/l10n
+      - git diff --check
+
+  - name: build
+    depends_on:
+      - release-preflight
+    image: *flutter_image
+    environment:
+      OPENVITALS_RELEASE_KEYSTORE_BASE64:
+        from_secret: OPENVITALS_RELEASE_KEYSTORE_BASE64
+      OPENVITALS_RELEASE_STORE_PASSWORD:
+        from_secret: OPENVITALS_RELEASE_STORE_PASSWORD
+      OPENVITALS_RELEASE_KEY_ALIAS:
+        from_secret: OPENVITALS_RELEASE_KEY_ALIAS
+      OPENVITALS_RELEASE_KEY_PASSWORD:
+        from_secret: OPENVITALS_RELEASE_KEY_PASSWORD
+      CODEBERG_RELEASE_API_KEY:
+        from_secret: CODEBERG_RELEASE_API_KEY
+    commands:
+      - set -eu
+      - . .woodpecker/tmp/release-context.env
+      # Assert the signing material up front. The Gradle config deliberately does NOT
+      # fall back to the debug key, so a missing secret would otherwise surface as a
+      # silently unsigned artifact.
+      - test -n "$${OPENVITALS_RELEASE_KEYSTORE_BASE64}"
+      - test -n "$${OPENVITALS_RELEASE_STORE_PASSWORD}"
+      - test -n "$${OPENVITALS_RELEASE_KEY_ALIAS}"
+      - keystore_path="$${CI_WORKSPACE}/.woodpecker/tmp/openvitals-release.p12"
+      - printf '%s' "$${OPENVITALS_RELEASE_KEYSTORE_BASE64}" | base64 -d > "$${keystore_path}"
+      - export OPENVITALS_RELEASE_STORE_FILE="$${keystore_path}"
+      # PKCS12 has a single password: the key password IS the store password.
+      - export OPENVITALS_RELEASE_KEY_PASSWORD="$${OPENVITALS_RELEASE_STORE_PASSWORD}"
+      # Fail fast and legibly on a bad secret or a wrong alias, rather than 8 minutes
+      # later inside Gradle.
+      - keytool -list -storetype PKCS12 -keystore "$${keystore_path}" -storepass "$${OPENVITALS_RELEASE_STORE_PASSWORD}" -alias "$${OPENVITALS_RELEASE_KEY_ALIAS}" >/dev/null
+      - test -n "$${OPENVITALS_TARGET_PLATFORMS}"
+      - test -n "$${OPENVITALS_VERSION_CODE}"
+      - |
+        set -- build apk --release \
+          --target-platform "$${OPENVITALS_TARGET_PLATFORMS}" \
+          --build-number "$${OPENVITALS_VERSION_CODE}"
+        if [ -n "$${OPENVITALS_VERSION_NAME:-}" ]; then
+          set -- "$${@}" --build-name "$${OPENVITALS_VERSION_NAME}"
+        fi
+        if [ -n "$${OPENVITALS_DART_DEFINES:-}" ]; then
+          set -- "$${@}" $${OPENVITALS_DART_DEFINES}
+        fi
+        scripts/ci-flutter.sh "$${@}"
+      - apk_path="build/app/outputs/flutter-apk/app-release.apk"
+      - test -f "$${apk_path}"
+      - cp "$${apk_path}" ".woodpecker/tmp/$${OPENVITALS_APK_BASENAME}"
+      - (cd .woodpecker/tmp && sha256sum "$${OPENVITALS_APK_BASENAME}" > "$${OPENVITALS_APK_BASENAME}.sha256")
+      - |
+        if [ "$${OPENVITALS_BUILD_AAB}" = "true" ]; then
+          set -- build appbundle --release \
+            --target-platform "$${OPENVITALS_TARGET_PLATFORMS}" \
+            --build-number "$${OPENVITALS_VERSION_CODE}"
+          if [ -n "$${OPENVITALS_VERSION_NAME:-}" ]; then
+            set -- "$${@}" --build-name "$${OPENVITALS_VERSION_NAME}"
+          fi
+          if [ -n "$${OPENVITALS_DART_DEFINES:-}" ]; then
+            set -- "$${@}" $${OPENVITALS_DART_DEFINES}
+          fi
+          scripts/ci-flutter.sh "$${@}"
+          aab_path="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$${aab_path}"
+          cp "$${aab_path}" ".woodpecker/tmp/$${OPENVITALS_AAB_BASENAME}"
+        fi
+      # Nightly keeps a single stable download page, so the `nightly` tag is force-moved
+      # to this commit through the Forgejo API (a git push would need write creds).
+      - |
+        if { [ "$${CI_PIPELINE_EVENT}" = "cron" ] || [ "$${CI_PIPELINE_EVENT}" = "manual" ]; } && [ "$${OPENVITALS_RELEASE_CHANNEL}" = "nightly" ]; then
+          test -n "$${CODEBERG_RELEASE_API_KEY}"
+          nightly_pipeline_number="$${CI_PIPELINE_NUMBER:-1}"
+          api_base="$${CI_FORGE_URL%/}/api/v1/repos/$${CI_REPO}"
+          scripts/update-codeberg-tag.py "$${api_base}" "$${CODEBERG_RELEASE_API_KEY}" nightly "$${CI_COMMIT_SHA}" "OpenVitals nightly $${nightly_pipeline_number}"
+        fi
+
+  - name: publish-play-open-testing
+    depends_on:
+      - build
+    image: *ruby_image
+    environment:
+      <<: *fastlane_environment
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64:
+        from_secret: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+    commands:
+      - set -eu
+      - . .woodpecker/tmp/release-context.env
+      - test "$${OPENVITALS_PLAY_TRACK}" = "beta"
+      - test -n "$${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64}"
+      - bundle install --jobs 4 --retry 3
+      - play_key_path="$${CI_WORKSPACE}/.woodpecker/tmp/google-play-service-account.json"
+      - printf '%s' "$${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64}" | base64 -d > "$${play_key_path}"
+      - test -s "$${play_key_path}"
+      - nightly_aab_path="$${CI_WORKSPACE}/.woodpecker/tmp/$${OPENVITALS_AAB_BASENAME}"
+      - test -f "$${nightly_aab_path}"
+      - |
+        bundle exec fastlane android open_testing \
+          json_key:"$${play_key_path}" \
+          aab:"$${nightly_aab_path}" \
+          version_code:"$${OPENVITALS_VERSION_CODE}"
+    when:
+      - event: manual
+      - event: cron
+        cron: nightly
+
+  - name: publish-play-production
+    depends_on:
+      - build
+    image: *ruby_image
+    environment:
+      <<: *fastlane_environment
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64:
+        from_secret: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+    commands:
+      - set -eu
+      - . .woodpecker/tmp/release-context.env
+      - test "$${OPENVITALS_PLAY_TRACK}" = "production"
+      - test -n "$${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64}"
+      - bundle install --jobs 4 --retry 3
+      - play_key_path="$${CI_WORKSPACE}/.woodpecker/tmp/google-play-service-account.json"
+      - printf '%s' "$${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64}" | base64 -d > "$${play_key_path}"
+      - test -s "$${play_key_path}"
+      - release_aab_path="$${CI_WORKSPACE}/.woodpecker/tmp/$${OPENVITALS_AAB_BASENAME}"
+      - test -f "$${release_aab_path}"
+      - |
+        bundle exec fastlane android production \
+          json_key:"$${play_key_path}" \
+          aab:"$${release_aab_path}" \
+          version_code:"$${OPENVITALS_VERSION_CODE}"
+    when:
+      - event: deployment
+        evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "production"'
+
+  - name: publish-codeberg-release
+    depends_on:
+      - build
+    image: *alpine_image
+    environment:
+      CODEBERG_RELEASE_API_KEY:
+        from_secret: CODEBERG_RELEASE_API_KEY
+    commands:
+      - set -eu
+      - apk add --no-cache bash curl jq
+      - . .woodpecker/tmp/release-context.env
+      - test -n "$${CODEBERG_RELEASE_API_KEY}"
+      - chmod +x scripts/publish-codeberg-release.sh
+      - |
+        scripts/publish-codeberg-release.sh \
+          "$${OPENVITALS_RELEASE_TAG}" \
+          .woodpecker/tmp/release-title.txt \
+          .woodpecker/tmp/release-notes.md \
+          "$${OPENVITALS_RELEASE_PRERELEASE}" \
+          "$${OPENVITALS_RELEASE_TARGET}" \
+          ".woodpecker/tmp/$${OPENVITALS_APK_BASENAME}" \
+          ".woodpecker/tmp/$${OPENVITALS_APK_BASENAME}.sha256"
+    when:
+      - event: manual
+      - event: cron
+        cron: nightly
+      - event: tag
+        ref: refs/tags/v*
+      - event: tag
+        ref: refs/tags/V*
+
+  - name: prune-codeberg-releases
+    depends_on:
+      - publish-codeberg-release
+    image: *alpine_image
+    environment:
+      CODEBERG_RELEASE_API_KEY:
+        from_secret: CODEBERG_RELEASE_API_KEY
+    commands:
+      - set -eu
+      - apk add --no-cache bash curl python3
+      - test -n "$${CODEBERG_RELEASE_API_KEY}"
+      - chmod +x scripts/prune-codeberg-releases.sh
+      - DRY_RUN=false KEEP_RELEASES=9 scripts/prune-codeberg-releases.sh
+    when:
+      - event: manual
+      - event: cron
+        cron: nightly
+
+  # Promotes the versioned Codeberg prerelease to stable, but ONLY after Play
+  # production accepted the AAB -- so the download page never advertises a release
+  # that failed to ship.
+  - name: publish-codeberg-stable
+    depends_on:
+      - publish-play-production
+    image: *alpine_image
+    environment:
+      CODEBERG_RELEASE_API_KEY:
+        from_secret: CODEBERG_RELEASE_API_KEY
+    commands:
+      - set -eu
+      - apk add --no-cache curl jq
+      - . .woodpecker/tmp/release-context.env
+      - test -n "$${CODEBERG_RELEASE_API_KEY}"
+      - api_base="$${CI_FORGE_URL%/}/api/v1/repos/$${CI_REPO}"
+      - |
+        release_json="$$(curl -fsS \
+          -H "Authorization: token $${CODEBERG_RELEASE_API_KEY}" \
+          "$${api_base}/releases/tags/$${OPENVITALS_RELEASE_TAG}")"
+      - release_id="$$(printf '%s' "$${release_json}" | jq -r '.id')"
+      - test -n "$${release_id}"
+      - test "$${release_id}" != "null"
+      - |
+        payload="$$(printf '%s' "$${release_json}" | jq \
+          '{name: (.name // ""), body: (.body // ""), draft: false, prerelease: false}')"
+      - |
+        printf '%s' "$${payload}" | curl -fsS -X PATCH \
+          -H "Authorization: token $${CODEBERG_RELEASE_API_KEY}" \
+          -H "Content-Type: application/json" \
+          --data-binary @- \
+          "$${api_base}/releases/$${release_id}" >/dev/null
+    when:
+      - event: deployment
+        evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "production"'

@@ -1,0 +1,41 @@
+OpenVitals ist ein privates Android-Dashboard für Health Connect. Es hilft dir, Aktivität, Schlaf, Herz, Körper, Flüssigkeit, Ernährung, Achtsamkeit, Vitalwerte und optionale Zyklusdaten in einer lokalen App zu prüfen.
+
+Deine Gesundheitsdaten bleiben auf deinem Gerät. OpenVitals hat kein Konto, keine Cloud-Synchronisierung, keine Werbung, keine Analyse-SDKs und keine Internet-Berechtigung auf App-Ebene. Das Dashboard liest erst aus Health Connect, nachdem du Berechtigungen erteilt hast. Manuelle Einträge werden nur dann in Health Connect geschrieben, wenn du sie ausdrücklich speicherst.
+
+Was du tun kannst
+
+* Ein tägliches Health Connect-Dashboard mit gruppierten Gesundheits- und Fitnesskarten anzeigen
+* Detailseiten nach Zeitraum mit Tages-, Wochen-, Monats- und Jahresansicht erkunden
+* Daily Readiness mit Body Energy, Training Readiness, HRV-Status, Intensitätsminuten, physiologischem Stress, adaptiven Zielen und lokalen Erklärungen prüfen
+* Schritte, Distanz, Kalorien, Etagen, Höhenmeter und Trainings prüfen
+* Schlafsitzungen, Dauer und Schlafphasen prüfen
+* Herzfrequenz, Ruhepuls, HRV, Blutdruck, SpO2, Atemfrequenz, Körpertemperatur, VO2 max, Körperwerte, Getränke, Flüssigkeit, Koffein, Ernährung und Achtsamkeit prüfen, wenn Daten verfügbar sind
+* Den Fat-Free Mass Index (FFMI) prüfen, wenn Gewicht, Größe und Körperfett verfügbar sind
+* Von OpenVitals erstellte Einträge für Getränke, Körpermessungen, Vitalwerte, Achtsamkeit und Aktivitäten direkt in Health Connect hinzufügen und bearbeiten
+* Getränke aus Presets oder eigenen Einträgen mit Flüssigkeit, Koffein und ausgewählten Nährwerten protokollieren
+* Erfolgsabzeichen für Aktivität, Distanz, Etagen, Trainings, Flüssigkeit, Schlaf und Achtsamkeit verfolgen
+* GPX-, KML-, KMZ- und FIT-Routen importieren, vorab ansehen und routenbasierte Trainings speichern
+* Unterstützte Apple-Health-Exportdaten in Health Connect importieren
+* GPS-Aktivitäten mit Pause, Fortsetzen, Abschließen, Verwerfen, Routenvorschau, Distanz, Höhenmetern, Bewegungszeit, konfigurierbarem Aufzeichnungs-Dashboard, Fokusmodus, Bildschirm-wach-Option und permanenter Benachrichtigung aufzeichnen
+* Experimentelle Bluetooth-LE-Sensoren für Herzfrequenz, Kadenz, Leistung und Footpod während der Aktivitätsaufzeichnung verbinden, inklusive Herzfrequenzmessung für unterstütztes Kraft- und Wiederholungstraining
+* Aktive und gesamte Kalorien für importierte oder aufgezeichnete Aktivitäten vor dem Speichern schätzen
+* Optionale Flüssigkeitserinnerungen mit aktiven Zeiten und Pause nach Erreichen des Tagesziels aktivieren
+* Für Aktivitäten eine feste Mo-So-Woche oder die letzten 7 Tage wählen
+* Metrische oder imperiale Einheiten wählen
+* Zyklusberechtigungen als sensible Kategorie nur erteilen, wenn du diese Daten sehen möchtest
+
+Warum OpenVitals
+
+* Privat by design: kein Konto, keine Cloud, keine Werbung und keine Analysen
+* Fokus auf das Dashboard: der Startbildschirm ist schreibgeschützt, bis du selbst einen Eintrag hinzufügst
+* Health Connect als Quelle der Wahrheit: OpenVitals führt keine separate Gesundheitsdatenbank
+* Berechtigungen mit klarer Kontrolle: Einrichtung in einem Schritt oder einzelne Kategorien, später jederzeit änderbar
+* Open Source: Code, Versionshinweise und Builds sind zur Prüfung verfügbar
+
+Voraussetzungen
+
+OpenVitals benötigt Health Connect. Ab Android 14 ist Health Connect Teil von Android. Auf Android 13 und älter installiere die Health Connect-App separat.
+
+Gesundheitshinweis
+
+OpenVitals dient nur allgemeinen Wellness- und Informationszwecken. Es ist kein Medizinprodukt und bietet keine medizinische Beratung. Es diagnostiziert, behandelt, heilt oder verhindert keine Krankheit oder medizinische Erkrankung. Wende dich bei medizinischen Fragen, Diagnosen oder Behandlungen immer an qualifiziertes medizinisches Fachpersonal.
