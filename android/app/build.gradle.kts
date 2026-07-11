@@ -1,5 +1,9 @@
 plugins {
     id("com.android.application")
+    // Home-screen widgets are Glance (Compose) composables, ported from the Kotlin
+    // app, so this module needs the Compose compiler. Kotlin itself is applied by
+    // Flutter's Built-in Kotlin (see the comment on the `kotlin` block below).
+    id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -60,6 +64,10 @@ kotlin {
 dependencies {
     // Required by flutter_local_notifications (see coreLibraryDesugaring above).
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Home-screen widgets. The `home_widget` plugin depends on Glance but only as
+    // `implementation`, so it is not on our compile classpath — declare it here.
+    // Pinned to the same 1.1.1 the plugin resolves, to avoid two Glance versions.
+    implementation("androidx.glance:glance-appwidget:1.1.1")
 }
 
 flutter {
