@@ -348,6 +348,7 @@ final homeWidgetRefresherProvider = Provider<HomeWidgetRefresher>((ref) {
   final preferences = ref.watch(preferencesRepositoryProvider);
   return HomeWidgetRefresher(
     service: ref.watch(homeWidgetServiceProvider),
+    health: ref.watch(healthRepositoryProvider),
     loadDashboardDay: ref.watch(loadDashboardDayUseCaseProvider),
     // Built here rather than watched off `unitFormatterProvider` (which lives in
     // the shell's `app_providers`, and would make this low-level DI file import

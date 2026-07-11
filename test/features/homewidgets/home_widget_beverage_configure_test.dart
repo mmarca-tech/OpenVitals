@@ -109,6 +109,7 @@ void main() {
 
   HomeWidgetRefresher refresher(HomeWidgetClient client) => HomeWidgetRefresher(
         service: HomeWidgetService(client: client),
+        health: FakeHealthRepository(),
         loadDashboardDay: LoadDashboardDayUseCase(_StubDashboardDataLoader()),
         unitFormatter:
             UnitFormatter(unitSystemProvider: () => UnitSystem.metric),

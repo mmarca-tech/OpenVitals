@@ -230,6 +230,19 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+            <!-- Flutter's automatic deep linking is ON by default: it hands the
+                 launching intent's data URI straight to the router as the initial
+                 route. Every URI-carrying intent this activity receives is NOT a
+                 go_router location — a home-widget tap
+                 (`openvitals://widget?route=...`) and an "Open with" on a
+                 .gpx/.fit (`content://...`) — so go_router failed them with
+                 "no routes for location" before our own handlers ever ran.
+                 Both are consumed explicitly instead (HomeWidgetLaunchBootstrap
+                 via the home_widget plugin; RouteImportIntentBootstrap via the
+                 route_import channel), so turn the automatic handling off. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

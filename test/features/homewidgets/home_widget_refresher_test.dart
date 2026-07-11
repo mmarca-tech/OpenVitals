@@ -53,9 +53,11 @@ void main() {
     HomeWidgetClient client, {
     DashboardDataLoader? loader,
     DashboardData? data,
+    FakeHealthRepository? health,
   }) =>
       HomeWidgetRefresher(
         service: HomeWidgetService(client: client),
+        health: health ?? FakeHealthRepository(),
         loadDashboardDay: LoadDashboardDayUseCase(
           loader ??
               _StubDashboardDataLoader(
@@ -66,6 +68,22 @@ void main() {
         localizations: l10n,
         goals: const DailyReadinessGoalInputs(),
       );
+
+  // Regression: shipped to a device rendering "Grant permission in OpenVitals"
+  // on every widget even though the permissions were granted. HealthDataSource
+  // starts at `notSupported` and the repositories report NO granted permissions
+  // while it does, so a load that skips this resolve marks every metric as
+  // permission-missing. The app gets the resolve for free from
+  // HealthConnectGate; the alarm isolate and the modal configure launch (which
+  // never mounts the gate) do not.
+  test('refresh resolves Health Connect access before loading', () async {
+    final client = FakeHomeWidgetClient();
+    final health = FakeHealthRepository();
+
+    await refresher(client, health: health).refresh();
+
+    expect(health.refreshCalls, 1);
+  });
 
   DashboardData today() => DashboardData(
         date: LocalDate.now(),

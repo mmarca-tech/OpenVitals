@@ -1,3 +1,5 @@
+import 'package:openvitals/data/repository/contract/health_repository.dart';
+import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/features/homewidgets/home_widget_service.dart';
 
 /// In-memory [HomeWidgetClient]: records what a push wrote and which receivers
@@ -40,4 +42,31 @@ class FakeHomeWidgetClient implements HomeWidgetClient {
 
   @override
   Future<List<HomeWidgetInstance>> installedWidgets() async => installed;
+}
+
+/// A [HealthRepository] that only answers the one call the refresher makes.
+///
+/// [refreshCalls] is what pins the on-device bug this guards against: the
+/// data source starts at `notSupported` and reports *no* granted permissions
+/// until availability is resolved, so a refresh that skips this renders every
+/// widget as "Grant permission in OpenVitals".
+class FakeHealthRepository implements HealthRepository {
+  FakeHealthRepository({
+    this.resolved = HealthConnectAvailability.available,
+  });
+
+  /// What [refreshAvailability] resolves to (the interface already has an
+  /// `availability()` method, so this cannot be called `availability`).
+  final HealthConnectAvailability resolved;
+  int refreshCalls = 0;
+
+  @override
+  Future<HealthConnectAvailability> refreshAvailability() async {
+    refreshCalls++;
+    return resolved;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName} not stubbed');
 }

@@ -113,6 +113,10 @@ Future<HomeWidgetRefresher> buildBackgroundHomeWidgetRefresher() async {
 
   return HomeWidgetRefresher(
     service: const HomeWidgetService(),
+    // Resolves Health Connect access before each load. Without it this isolate's
+    // freshly-built data source stays at `notSupported`, every permission reads
+    // as missing, and the widgets all render "Grant permission in OpenVitals".
+    health: HealthRepositoryImpl(dataSource),
     loadDashboardDay: LoadDashboardDayUseCase(loader),
     unitFormatter:
         UnitFormatter(unitSystemProvider: () => preferences.unitSystem),

@@ -13,6 +13,7 @@ import '../../domain/model/refresh_mode.dart';
 import '../../data/prefs/preferences_repository.dart';
 import '../../domain/preferences/activity_week_mode.dart';
 import '../../domain/preferences/sleep_range_mode.dart';
+import '../../data/repository/contract/health_repository.dart';
 import '../../domain/usecase/load_dashboard_day_use_case.dart';
 import '../../l10n/app_localizations.dart';
 import 'home_widget_beverage.dart';
@@ -35,6 +36,7 @@ import 'home_widget_snapshots.dart';
 class HomeWidgetRefresher {
   const HomeWidgetRefresher({
     required this.service,
+    required this.health,
     required this.loadDashboardDay,
     required this.unitFormatter,
     required this.localizations,
@@ -44,6 +46,9 @@ class HomeWidgetRefresher {
   });
 
   final HomeWidgetService service;
+
+  /// Used only to resolve Health Connect access before a load — see [_loadToday].
+  final HealthRepository health;
   final LoadDashboardDayUseCase loadDashboardDay;
   final UnitFormatter unitFormatter;
   final AppLocalizations localizations;
@@ -55,11 +60,25 @@ class HomeWidgetRefresher {
   final SleepRangeMode? sleepRangeMode;
   final ActivityWeekMode? activityWeekMode;
 
+  /// Loads today, having first resolved Health Connect access.
+  ///
+  /// This resolve is **not optional**. `HealthDataSource.cachedAvailability`
+  /// starts at `notSupported`, and the repositories return no granted
+  /// permissions while it says so — so a load that skips it reports *every*
+  /// metric as missing its permission, and the widgets all render
+  /// "Grant permission in OpenVitals" no matter what the user has actually
+  /// granted. The app normally gets this for free from `HealthConnectGate`, but
+  /// the two paths that reach here — the background alarm isolate, and the modal
+  /// configure launch, which never mounts the gate — do not.
+  Future<DashboardData> _loadToday() async {
+    await health.refreshAvailability();
+    return loadDashboardDay(_todayQuery());
+  }
+
   /// Loads today and pushes every widget.
   Future<void> refresh() async {
     try {
-      final data = await loadDashboardDay(_todayQuery());
-      await push(data);
+      await push(await _loadToday());
     } catch (error, stack) {
       debugPrint('Home widget refresh failed: $error\n$stack');
     }
@@ -205,7 +224,7 @@ class HomeWidgetRefresher {
       selectionId: metric.storageName,
     );
     await _guard('metric widget $appWidgetId', () async {
-      final data = await loadDashboardDay(_todayQuery());
+      final data = await _loadToday();
       await service.pushSnapshot(
         HomeWidgetId.metric,
         buildMetricSnapshot(metric, data, unitFormatter, localizations),
