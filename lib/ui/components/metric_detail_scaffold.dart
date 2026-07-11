@@ -155,6 +155,7 @@ class _MetricDetailScaffoldState extends ConsumerState<MetricDetailScaffold> {
           canGoForward: canGoForward,
           title: widget.periodTitleBuilder
               ?.call(_selection.selectedRange, period),
+          weekPeriodMode: widget.weekPeriodMode,
           onPreviousPeriod: () => _apply(_driver.previousPeriod()),
           onNextPeriod: () => _apply(_driver.nextPeriod()),
           onOpenCalendar: _openCalendar,

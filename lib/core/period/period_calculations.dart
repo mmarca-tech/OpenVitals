@@ -6,16 +6,24 @@ import 'time_range.dart';
 const int defaultBaselineDays = 90;
 
 extension TimeRangeShift on TimeRange {
-  LocalDate shift(LocalDate anchorDate, int steps) {
+  LocalDate shift(
+    LocalDate anchorDate,
+    int steps, {
+    WeekPeriodMode weekPeriodMode = WeekPeriodMode.mondayToSunday,
+  }) {
     switch (this) {
       case TimeRange.day:
         return anchorDate.plusDays(steps);
       case TimeRange.week:
         return anchorDate.plusWeeks(steps);
       case TimeRange.month:
-        return anchorDate.plusMonths(steps);
+        return weekPeriodMode.usesRollingDates
+            ? anchorDate.plusDays(TimeRange.month.days * steps)
+            : anchorDate.plusMonths(steps);
       case TimeRange.year:
-        return anchorDate.plusYears(steps);
+        return weekPeriodMode.usesRollingDates
+            ? anchorDate.plusDays(TimeRange.year.days * steps)
+            : anchorDate.plusYears(steps);
     }
   }
 }
@@ -39,12 +47,24 @@ DatePeriod periodFor(
         clipCurrentWeekToToday,
       );
     case TimeRange.month:
+      if (weekPeriodMode.usesRollingDates) {
+        return DatePeriod(
+          anchorDate.minusDays(TimeRange.month.days - 1),
+          anchorDate,
+        );
+      }
       final start = anchorDate.withDayOfMonth(1);
       final end = anchorDate
           .withDayOfMonth(anchorDate.lengthOfMonth)
           .coerceAtMost(resolvedToday);
       return DatePeriod(start, end);
     case TimeRange.year:
+      if (weekPeriodMode.usesRollingDates) {
+        return DatePeriod(
+          anchorDate.minusDays(TimeRange.year.days - 1),
+          anchorDate,
+        );
+      }
       final start = anchorDate.withDayOfYear(1);
       final end = anchorDate
           .withDayOfYear(anchorDate.lengthOfYear)
@@ -75,7 +95,7 @@ DatePeriod previousPeriodFor(
 }) {
   final resolvedToday = today ?? LocalDate.now();
   return PeriodSelection(range, anchorDate.coerceAtMost(resolvedToday))
-      .previousPeriod()
+      .previousPeriod(weekPeriodMode: weekPeriodMode)
       .period(today: resolvedToday, weekPeriodMode: weekPeriodMode);
 }
 

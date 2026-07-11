@@ -141,6 +141,38 @@ class AppleHealthXmlParseException implements Exception {
   String toString() => message;
 }
 
+/// Thrown when the export ZIP ends part-way through an entry (Kotlin
+/// `AppleHealthZipReadException`). Damage inside a `workout-routes/*.gpx` entry
+/// is recovered from by the parser once `export.xml` has been read; damage
+/// anywhere else is fatal and surfaces this message to the user.
+class AppleHealthZipReadException implements Exception {
+  AppleHealthZipReadException({this.entryName, this.decompressedBytesRead});
+
+  final String? entryName;
+  final int? decompressedBytesRead;
+
+  String get message {
+    final buffer = StringBuffer('Apple Health export.zip ended unexpectedly');
+    final entry = entryName;
+    if (entry != null && entry.trim().isNotEmpty) {
+      buffer.write(' while reading $entry');
+    }
+    if (decompressedBytesRead != null) {
+      buffer.write(' after $decompressedBytesRead decompressed byte(s)');
+    }
+    buffer.write(
+      '. The selected ZIP is likely incomplete, corrupt, not fully downloaded, '
+      'or the platform stopped providing the document stream. Re-copy or '
+      're-export the Apple Health ZIP, make sure it is stored locally on the '
+      'phone, or extract export.xml and import that file directly.',
+    );
+    return buffer.toString();
+  }
+
+  @override
+  String toString() => message;
+}
+
 String buildAppleHealthXmlParseMessage({
   required String location,
   required String causeMessage,

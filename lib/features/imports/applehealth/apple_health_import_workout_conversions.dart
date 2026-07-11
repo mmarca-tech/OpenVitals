@@ -28,6 +28,17 @@ extension AppleHealthImportWorkoutConversions on AppleHealthImportConverter {
         continue;
       }
       final iv = interval(start, end);
+      final unavailableRoutePaths = workout.unavailableRoutePaths;
+      if (reportUnavailableWorkoutRoutes && unavailableRoutePaths.isNotEmpty) {
+        skipped(
+          workout.workoutActivityType,
+          'workout_route_unavailable',
+          'Workout route file(s) unavailable: ${unavailableRoutePaths.join(', ')}. '
+              'Source: ${workout.sourceName ?? 'unknown'}. '
+              'Import or recreate this activity manually if route geometry is needed.',
+          AppleImportTimeRange(iv.start.instant, iv.end.instant).toString(),
+        );
+      }
       final fingerprint =
           buildStableClientRecordId('workout', workout.stableParts());
       final exerciseRoute = _synthesizeExerciseRoute(workout, iv);

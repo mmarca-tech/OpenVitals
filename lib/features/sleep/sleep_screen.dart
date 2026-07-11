@@ -197,7 +197,7 @@ class _SleepContent extends StatelessWidget {
           _padded(SleepOverviewCard(
             summary: display.overviewSummary,
             formatter: formatter,
-            periodTitle: periodTitle(state.selectedRange, period),
+            periodTitle: periodTitle(l10n, state.selectedRange, period),
           )),
         ),
         MetricDetailSection(
@@ -213,7 +213,7 @@ class _SleepContent extends StatelessWidget {
                 _padded(SleepScheduleStageChart(
                   title: l10n.metricSleep,
                   summaryText:
-                      '${periodTitle(state.selectedRange, period)} · $summaryValue',
+                      '${periodTitle(l10n, state.selectedRange, period)} · $summaryValue',
                   days: scheduleDays,
                   selectedRange: state.selectedRange,
                   averageSchedule: display.overviewSummary.schedule,

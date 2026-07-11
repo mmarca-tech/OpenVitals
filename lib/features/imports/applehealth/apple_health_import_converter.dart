@@ -41,10 +41,17 @@ class AppleHealthImportConverter {
   AppleHealthImportConverter({
     required this.mindfulnessAvailable,
     this.diagnosticLimit = _diagnosticLimitUnbounded,
+    this.reportUnavailableWorkoutRoutes = false,
   });
 
   final bool mindfulnessAvailable;
   final int diagnosticLimit;
+
+  /// Emit a `workout_route_unavailable` diagnostic per workout whose route GPX
+  /// never made it out of the archive. Only meaningful when the workouts
+  /// category is selected — otherwise the routes were deliberately never parsed
+  /// (Kotlin 1.9.0 `a852d4e`) and every routed workout would look "unavailable".
+  final bool reportUnavailableWorkoutRoutes;
 
   final List<AppleHealthImportDiagnostic> _diagnostics = [];
   final Map<String, AppleHealthImportDiagnosticSummary> _diagnosticSummaries = {};

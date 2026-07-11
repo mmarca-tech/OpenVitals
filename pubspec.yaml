@@ -16,10 +16,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-# Mirrors the Kotlin source's baseVersionName (1.8.0) and baseVersionCode
-# (107030340). On Android this drives versionName/versionCode; on iOS it drives
+# Mirrors the Kotlin source's baseVersionName (1.9.0) and baseVersionCode
+# (107030344). On Android this drives versionName/versionCode; on iOS it drives
 # CFBundleShortVersionString/CFBundleVersion.
-version: 1.8.0+107030340
+version: 1.9.0+107030344
 
 environment:
   sdk: ^3.12.2

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +11,10 @@ import 'package:openvitals/domain/model/health_connect_availability.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_error_formatter.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_models.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_checkpoint_store.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_notifier.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_service.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_staging_store.dart';
 import 'package:openvitals/features/settings/cards/apple_health_import_card.dart';
 import 'package:openvitals/l10n/app_localizations.dart';
 import 'package:openvitals/ui/components/health_connect_gate.dart';
@@ -75,21 +80,45 @@ const _cannedResult = AppleHealthImportResult(
   shareableReportText: 'IMPORT_REPORT',
 );
 
+const _cannedIncompleteRoutesResult = AppleHealthImportResult(
+  parsedRecords: 12,
+  parsedWorkouts: 1,
+  parsedCorrelations: 0,
+  parsedActivitySummaries: 0,
+  convertedRecords: 12,
+  importedRecords: 9,
+  duplicateSkippedRecords: 1,
+  notSelectedRecords: 2,
+  unsupportedElements: 3,
+  skippedRecords: 1,
+  failedRecords: 0,
+  workoutRoutesIncomplete: true,
+  typeSummaries: [],
+  diagnostics: [],
+  shareableReportText: 'IMPORT_REPORT',
+);
+
 class _FakeService extends AppleHealthImportService {
-  _FakeService({this.analysisError}) : super(_FakeRepository());
+  _FakeService({this.analysisError, this.result = _cannedResult})
+      : super(_FakeRepository());
 
   final Object? analysisError;
+  final AppleHealthImportResult result;
 
   Set<AppleHealthImportCategory>? importedCategories;
   int analyzeCalls = 0;
   int importCalls = 0;
 
+  File? analyzedFile;
+  File? importedFile;
+
   @override
   Future<AppleHealthImportAnalysisResult> analyzeAppleHealthExport(
-    List<int> bytes, {
+    File file, {
     AppleHealthImportProgressCallback? onProgress,
   }) async {
     analyzeCalls++;
+    analyzedFile = file;
     final error = analysisError;
     if (error != null) throw error;
     return _cannedAnalysis;
@@ -97,24 +126,95 @@ class _FakeService extends AppleHealthImportService {
 
   @override
   Future<AppleHealthImportResult> importAppleHealthExport(
-    List<int> bytes, {
+    File file, {
     Set<AppleHealthImportCategory> selectedCategories =
         allAppleHealthImportCategories,
     AppleHealthImportProgressCallback? onProgress,
+    AppleHealthImportCheckpoint? resumeCheckpoint,
+    AppleHealthImportCheckpointCallback? onCheckpoint,
   }) async {
     importCalls++;
+    importedFile = file;
     importedCategories = selectedCategories;
-    return _cannedResult;
+    return result;
   }
 }
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
+late Directory cardTempDirectory;
+
+/// A picked export backed by a real temp file.
+AppleHealthExportSource fakePickedExport() {
+  final file = File('${cardTempDirectory.path}/picked-export.xml')
+    ..writeAsStringSync('<HealthData />');
+  return AppleHealthExportSource.file(file);
+}
+
+/// The real stores do async `dart:io` work, which never completes under
+/// `testWidgets`' FakeAsync clock. The staging/checkpoint stores have their own
+/// tests against real temp directories; here they are faked so the card's
+/// orchestration (stage → import → clear) is what gets asserted.
+class FakeStagingStore implements AppleHealthImportStagingStore {
+  int stageCalls = 0;
+  int clearCalls = 0;
+  AppleHealthExportSource? stagedSource;
+
+  @override
+  Future<AppleHealthStagedExport> stage(AppleHealthExportSource source) async {
+    stageCalls++;
+    stagedSource = source;
+    final file = File('${cardTempDirectory.path}/staged-export.bin')
+      ..writeAsStringSync('<HealthData />');
+    return AppleHealthStagedExport(
+      file: file,
+      bytes: file.lengthSync(),
+      reused: false,
+    );
+  }
+
+  @override
+  Future<bool> clear() async {
+    clearCalls++;
+    return true;
+  }
+
+  @override
+  Future<Directory> importDirectory() async => Directory.systemTemp;
+
+  @override
+  Future<File> stagedExportFile() async =>
+      File('${cardTempDirectory.path}/staged-export.bin');
+}
+
+class FakeCheckpointStore implements AppleHealthImportCheckpointStore {
+  AppleHealthImportCheckpoint? stored;
+  final List<AppleHealthImportCheckpoint> saved = [];
+  int clearCalls = 0;
+
+  @override
+  Future<AppleHealthImportCheckpoint?> load(
+    String sourceKey,
+    Set<AppleHealthImportCategory> selectedCategories,
+  ) async =>
+      stored;
+
+  @override
+  Future<void> save(AppleHealthImportCheckpoint checkpoint) async =>
+      saved.add(checkpoint);
+
+  @override
+  Future<void> clear() async => clearCalls++;
+}
+
+late FakeStagingStore stagingStore;
+late FakeCheckpointStore checkpointStore;
+
 Future<Widget> _bootstrap(
   _FakeService service, {
   Set<String> granted = const {},
   bool grantAll = false,
-  Future<List<int>?> Function()? pickExportBytes,
+  Future<AppleHealthExportSource?> Function()? pickExportSource,
   Future<bool> Function(String, String)? saveReportFile,
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{});
@@ -123,6 +223,9 @@ Future<Widget> _bootstrap(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       appleHealthImportServiceProvider.overrideWithValue(service),
+      appleHealthImportStagingStoreProvider.overrideWithValue(stagingStore),
+      appleHealthImportCheckpointStoreProvider
+          .overrideWithValue(checkpointStore),
       healthConnectAvailabilityProvider.overrideWith(
         (ref) async => HealthConnectAvailability.available,
       ),
@@ -138,7 +241,7 @@ Future<Widget> _bootstrap(
       home: Scaffold(
         body: SingleChildScrollView(
           child: AppleHealthImportCard(
-            pickExportBytes: pickExportBytes,
+            pickExportSource: pickExportSource,
             saveReportFile: saveReportFile,
           ),
         ),
@@ -148,6 +251,19 @@ Future<Widget> _bootstrap(
 }
 
 void main() {
+  setUp(() {
+    cardTempDirectory =
+        Directory.systemTemp.createTempSync('apple_health_card_test');
+    stagingStore = FakeStagingStore();
+    checkpointStore = FakeCheckpointStore();
+  });
+
+  tearDown(() {
+    if (cardTempDirectory.existsSync()) {
+      cardTempDirectory.deleteSync(recursive: true);
+    }
+  });
+
   testWidgets('renders header, permission line and analyze action',
       (tester) async {
     final service = _FakeService();
@@ -164,7 +280,7 @@ void main() {
       (tester) async {
     final service = _FakeService();
     await tester.pumpWidget(
-      await _bootstrap(service, pickExportBytes: () async => const [1, 2, 3]),
+      await _bootstrap(service, pickExportSource: () async => fakePickedExport()),
     );
     await tester.pumpAndSettle();
 
@@ -191,7 +307,7 @@ void main() {
       await _bootstrap(
         service,
         grantAll: true,
-        pickExportBytes: () async => const [1, 2, 3],
+        pickExportSource: () async => fakePickedExport(),
       ),
     );
     await tester.pumpAndSettle();
@@ -223,7 +339,7 @@ void main() {
       await _bootstrap(
         service,
         grantAll: true,
-        pickExportBytes: () async => const [1, 2, 3],
+        pickExportSource: () async => fakePickedExport(),
         saveReportFile: (content, name) async {
           savedContent = content;
           return true;
@@ -248,7 +364,7 @@ void main() {
       analysisError: AppleHealthImportException('boom'),
     );
     await tester.pumpWidget(
-      await _bootstrap(service, pickExportBytes: () async => const [1, 2, 3]),
+      await _bootstrap(service, pickExportSource: () async => fakePickedExport()),
     );
     await tester.pumpAndSettle();
 
@@ -257,5 +373,56 @@ void main() {
 
     expect(find.textContaining('Import failed'), findsOneWidget);
     expect(find.text('Copy error'), findsOneWidget);
+    // A failed analysis must never leave a staged copy a retry could reuse.
+    expect(stagingStore.clearCalls, 1);
+  });
+
+  testWidgets('a successful import stages the pick, then clears the staged '
+      'export and its checkpoint', (tester) async {
+    final service = _FakeService();
+    await tester.pumpWidget(
+      await _bootstrap(
+        service,
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    // The picked export is never read into memory; the service only ever sees
+    // the staged file.
+    expect(stagingStore.stageCalls, 2); // analyze, then import (reused copy)
+    expect(service.analyzedFile?.path, endsWith('staged-export.bin'));
+    expect(service.importedFile?.path, endsWith('staged-export.bin'));
+    expect(stagingStore.clearCalls, 1);
+    expect(checkpointStore.clearCalls, 1);
+  });
+
+  testWidgets('an incomplete workout-route archive shows the warning row',
+      (tester) async {
+    final service = _FakeService(result: _cannedIncompleteRoutesResult);
+    await tester.pumpWidget(
+      await _bootstrap(
+        service,
+        grantAll: true,
+        pickExportSource: () async => fakePickedExport(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Analyze Apple Health export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import selected categories'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('some workout routes were unavailable'),
+      findsOneWidget,
+    );
   });
 }

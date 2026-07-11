@@ -41,9 +41,26 @@ class _FakeActivityRepository implements ActivityRepository {
 
   final List<String> deleted = <String>[];
 
+  /// The windows `loadWorkoutsWithMetrics` (not the plain read) was used for —
+  /// the current window pays for the per-session distance/speed aggregates,
+  /// previous/baseline must not.
+  final List<({LocalDate start, LocalDate end})> withMetricsWindows = [];
+  final List<({LocalDate start, LocalDate end})> plainWindows = [];
+
   @override
-  Future<List<ExerciseData>> loadWorkouts(LocalDate start, LocalDate end) async =>
-      workouts;
+  Future<List<ExerciseData>> loadWorkouts(LocalDate start, LocalDate end) async {
+    plainWindows.add((start: start, end: end));
+    return workouts;
+  }
+
+  @override
+  Future<List<ExerciseData>> loadWorkoutsWithMetrics(
+    LocalDate start,
+    LocalDate end,
+  ) async {
+    withMetricsWindows.add((start: start, end: end));
+    return workouts;
+  }
 
   @override
   Future<List<PlannedExerciseData>> loadPlannedWorkouts(
@@ -112,6 +129,7 @@ ExerciseData _workout({
   required int type,
   Duration duration = const Duration(minutes: 40),
   double? distanceMeters = 6000,
+  double? averageSpeedMetersPerSecond,
   List<ExerciseSegmentData> segments = const <ExerciseSegmentData>[],
   bool openVitals = false,
 }) {
@@ -125,6 +143,7 @@ ExerciseData _workout({
     durationMs: duration.inMilliseconds,
     source: 'test',
     totalDistanceMeters: distanceMeters,
+    averageSpeedMetersPerSecond: averageSpeedMetersPerSecond,
     segments: segments,
     isOpenVitalsEntry: openVitals,
   );
@@ -338,6 +357,84 @@ void main() {
       withPause.averageMovingSpeedMetersPerSecond,
       greaterThan(withoutPause.averageMovingSpeedMetersPerSecond!),
     );
+  });
+
+  test('best speed takes the max of avg speed and distance/moving duration',
+      () async {
+    // 6 km in 40 min = 2.5 m/s derived; the provider's recorded average is
+    // slower (it counts the standing-still stretches the moving duration drops).
+    final derivedIsFaster = _workout(
+      id: 'derived',
+      title: 'Derived faster',
+      type: 56,
+      averageSpeedMetersPerSecond: 1.5,
+    );
+    expect(
+      activityTypeAggregatesOf([derivedIsFaster]).single.bestSpeedMetersPerSecond,
+      closeTo(2.5, 0.001),
+    );
+
+    // The other direction: a recorded average above the whole-session derived
+    // speed (e.g. a GPS-sampled peak-heavy average) wins.
+    final recordedIsFaster = _workout(
+      id: 'recorded',
+      title: 'Recorded faster',
+      type: 56,
+      averageSpeedMetersPerSecond: 4.0,
+    );
+    expect(
+      activityTypeAggregatesOf([recordedIsFaster]).single.bestSpeedMetersPerSecond,
+      closeTo(4.0, 0.001),
+    );
+
+    // Either input alone is enough.
+    final speedOnly = _workout(
+      id: 'speed-only',
+      title: 'Speed only',
+      type: 56,
+      distanceMeters: null,
+      averageSpeedMetersPerSecond: 3.0,
+    );
+    expect(
+      activityTypeAggregatesOf([speedOnly]).single.bestSpeedMetersPerSecond,
+      closeTo(3.0, 0.001),
+    );
+
+    // Neither ⇒ no fastest pace at all (rather than a bogus zero).
+    final neither = _workout(
+      id: 'neither',
+      title: 'Neither',
+      type: 56,
+      distanceMeters: null,
+    );
+    expect(
+      activityTypeAggregatesOf([neither]).single.bestSpeedMetersPerSecond,
+      isNull,
+    );
+
+    // Across a group, the fastest workout wins.
+    final group = activityTypeAggregatesOf([derivedIsFaster, recordedIsFaster]);
+    expect(group.single.count, 2);
+    expect(group.single.bestSpeedMetersPerSecond, closeTo(4.0, 0.001));
+  });
+
+  testWidgets(
+      'only the current window is loaded with the per-session route metrics',
+      (tester) async {
+    _tallScreen(tester);
+    final repo = _FakeActivityRepository(
+      workouts: [_workout(id: 'w1', title: 'Morning run', type: 56)],
+      dailySteps: [_steps(today, 9000)],
+    );
+    await tester.pumpWidget(await _bootstrap(repository: repo));
+    await tester.pumpAndSettle();
+
+    // Kotlin's ActivitiesViewModel switched exactly one call site: the current
+    // window. Previous/baseline stay on the cheap read (no per-session
+    // aggregates), otherwise a year view would fire hundreds of them.
+    expect(repo.withMetricsWindows, hasLength(1));
+    expect(repo.plainWindows, hasLength(2));
+    expect(repo.withMetricsWindows.single.end, today);
   });
 
   testWidgets('the key-metric sparkline renders weekday label rows for a week',

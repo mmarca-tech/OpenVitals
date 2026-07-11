@@ -10,12 +10,23 @@
 /// records in sequential 300-record batches, which is simpler and matches the
 /// tests. A real WorkManager-style background worker is intentionally NOT
 /// ported; callers run this async service directly (e.g. from an import screen).
+///
+/// Both entry points take the **staged** export [File] produced by
+/// `AppleHealthImportStagingStore` — never a `List<int>`. A multi-gigabyte
+/// export must never be held in RAM, and only a real file can be read
+/// sequentially when the archive turns out to be truncated.
+///
+/// [importAppleHealthExport] is resumable (Kotlin 1.9.0 `3d6b8dd`): pass the
+/// checkpoint the previous run left behind and the batch writer skips the
+/// records it already committed, carrying the running totals forward.
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import '../../../data/repository/contract/apple_health_import_repository.dart';
 import 'apple_health_import_categories.dart';
+import 'apple_health_import_checkpoint_store.dart';
 import 'apple_health_import_converter.dart';
 import 'apple_health_import_conversion_support.dart';
 import 'apple_health_import_error_formatter.dart';
@@ -27,6 +38,11 @@ import 'apple_health_import_types.dart';
 typedef AppleHealthImportProgressCallback = void Function(
     AppleHealthImportProgress progress);
 
+/// Invoked after every successfully written batch so the caller can persist the
+/// checkpoint (Kotlin's `onCheckpoint`).
+typedef AppleHealthImportCheckpointCallback = void Function(
+    AppleHealthImportCheckpoint checkpoint);
+
 const int _convertedBatchSize = 300;
 const int _maxRawDiagnostics = 1000;
 const int _maxDuplicateCheckSpanSeconds = 6 * 60 * 60;
@@ -37,7 +53,7 @@ class AppleHealthImportService {
   final AppleHealthImportRepository _repository;
 
   Future<AppleHealthImportAnalysisResult> analyzeAppleHealthExport(
-    List<int> bytes, {
+    File file, {
     AppleHealthImportProgressCallback? onProgress,
   }) async {
     final importLogs = <String>[];
@@ -46,7 +62,7 @@ class AppleHealthImportService {
     log('Apple Health analysis requested');
 
     final parsed = _parseExport(
-      bytes,
+      file,
       importLogs,
       onProgress,
       const AppleHealthParseOptions(
@@ -157,34 +173,44 @@ class AppleHealthImportService {
   }
 
   Future<AppleHealthImportResult> importAppleHealthExport(
-    List<int> bytes, {
+    File file, {
     Set<AppleHealthImportCategory> selectedCategories =
         allAppleHealthImportCategories,
     AppleHealthImportProgressCallback? onProgress,
+    AppleHealthImportCheckpoint? resumeCheckpoint,
+    AppleHealthImportCheckpointCallback? onCheckpoint,
   }) async {
     final importLogs = <String>[];
     void log(String message) => importLogs.add(_infoLog(message));
-    log('Apple Health import requested selectedCategories='
-        '${selectedCategories.map((c) => c.name).join(', ')}');
+    log('Apple Health import requested stagedFile=${file.path} '
+        'selectedCategories=${selectedCategories.map((c) => c.name).join(', ')}');
+    if (resumeCheckpoint != null &&
+        resumeCheckpoint.committedSelectedRecords > 0) {
+      log('Resuming Apple Health import checkpoint committedSelectedRecords='
+          '${resumeCheckpoint.committedSelectedRecords} '
+          'imported=${resumeCheckpoint.importedRecords} '
+          'duplicates=${resumeCheckpoint.duplicateSkippedRecords} '
+          'failed=${resumeCheckpoint.failedRecords}');
+    }
 
+    final workoutsSelected =
+        selectedCategories.contains(AppleHealthImportCategory.workouts);
     final converter = AppleHealthImportConverter(
       mindfulnessAvailable: _repository.isMindfulnessAvailable(),
       diagnosticLimit: _maxRawDiagnostics,
+      reportUnavailableWorkoutRoutes: workoutsSelected,
     );
     final typeStats = converter.typeStats;
 
     final parsed = _parseExport(
-      bytes,
+      file,
       importLogs,
       onProgress,
       // Kotlin 1.9.0 (a852d4e): don't read the workout-routes/*.gpx entries at
       // all when Workouts is deselected. A sleep/body/vitals-only import is much
       // faster, and a damaged route entry can no longer fail an import that never
       // wanted routes.
-      AppleHealthParseOptions(
-        parseRouteFiles:
-            selectedCategories.contains(AppleHealthImportCategory.workouts),
-      ),
+      AppleHealthParseOptions(parseRouteFiles: workoutsSelected),
     );
 
     onProgress?.call(_progress(AppleHealthImportPhase.converting, parsed: parsed));
@@ -217,12 +243,68 @@ class AppleHealthImportService {
     final serviceDiagnostics = <AppleHealthImportDiagnostic>[];
     final serviceDiagnosticSummaries =
         <String, AppleHealthImportDiagnosticSummary>{};
-    var imported = 0;
-    var duplicate = 0;
-    var failed = 0;
+
+    // Resume state (Kotlin `ConvertedBatchWriter`): the previous run's write
+    // totals are carried forward, and the first `committedSelectedRecords`
+    // converted+selected records are dropped instead of being written twice.
+    resumeCheckpoint?.typeStats.forEach((appleType, stats) {
+      final stat = _stat(typeStats, appleType);
+      stat.imported = stats.imported;
+      stat.duplicateSkipped = stats.duplicateSkipped;
+      stat.failed = stats.failed;
+    });
+    var imported = resumeCheckpoint?.importedRecords ?? 0;
+    var duplicate = resumeCheckpoint?.duplicateSkippedRecords ?? 0;
+    var failed = resumeCheckpoint?.failedRecords ?? 0;
+    final recordsToSkip = resumeCheckpoint?.committedSelectedRecords ?? 0;
+    var skipRemaining = recordsToSkip;
+    var committedSelectedRecords = recordsToSkip;
     var notSelected = _totals(_toTypeSummaries(typeStats)).notSelected;
 
-    for (final batch in _chunked(selected, _convertedBatchSize)) {
+    void saveCheckpoint() {
+      final checkpoint = resumeCheckpoint;
+      if (checkpoint == null || onCheckpoint == null) return;
+      onCheckpoint(AppleHealthImportCheckpoint(
+        sourceKey: checkpoint.sourceKey,
+        selectedCategories: checkpoint.selectedCategories,
+        committedSelectedRecords: committedSelectedRecords,
+        importedRecords: imported,
+        duplicateSkippedRecords: duplicate,
+        failedRecords: failed,
+        typeStats: {
+          for (final entry in typeStats.entries)
+            if (entry.value.imported > 0 ||
+                entry.value.duplicateSkipped > 0 ||
+                entry.value.failed > 0)
+              entry.key: AppleHealthImportCheckpointTypeStats(
+                imported: entry.value.imported,
+                duplicateSkipped: entry.value.duplicateSkipped,
+                failed: entry.value.failed,
+              ),
+        },
+      ));
+    }
+
+    for (final rawBatch in _chunked(selected, _convertedBatchSize)) {
+      // Kotlin `withResumeSkip`: drop records an earlier run already committed.
+      final List<ConvertedAppleRecord> batch;
+      if (skipRemaining <= 0) {
+        batch = rawBatch;
+      } else if (skipRemaining >= rawBatch.length) {
+        skipRemaining -= rawBatch.length;
+        if (skipRemaining == 0) {
+          log('Finished skipping previously committed selected records from '
+              'checkpoint count=$recordsToSkip');
+        }
+        continue;
+      } else {
+        final partialSkip = skipRemaining;
+        skipRemaining = 0;
+        log('Finished skipping previously committed selected records from '
+            'checkpoint count=$recordsToSkip partialBatchSkip=$partialSkip');
+        batch = rawBatch.sublist(partialSkip);
+      }
+
       onProgress?.call(_progress(
         AppleHealthImportPhase.checkingDuplicates,
         parsed: parsed,
@@ -295,6 +377,8 @@ class AppleHealthImportService {
       log('Stage finished: Writing records attempted=${toInsert.length} '
           'imported=${result.imported} duplicates=${result.duplicates} '
           'failed=${result.failed}');
+      committedSelectedRecords += batch.length;
+      saveCheckpoint();
       onProgress?.call(_progress(
         AppleHealthImportPhase.writing,
         parsed: parsed,
@@ -309,11 +393,17 @@ class AppleHealthImportService {
     final summaries = _toTypeSummaries(typeStats);
     final totals = _totals(summaries);
     notSelected = totals.notSelected;
+    final routeArchiveDiagnostics = [
+      if (parsed.workoutRouteArchiveFailure != null)
+        _routeArchiveDiagnostic(parsed.workoutRouteArchiveFailure!),
+    ];
     final diagnostics = [
+      ...routeArchiveDiagnostics,
       ...converter.diagnosticsSnapshot(),
       ...serviceDiagnostics,
     ];
     final diagnosticSummaries = _mergeDiagnosticSummaries([
+      ...routeArchiveDiagnostics.map(_toSingleDiagnosticSummary),
       ...converter.diagnosticSummariesSnapshot(),
       ...serviceDiagnosticSummaries.values,
     ]);
@@ -358,6 +448,7 @@ class AppleHealthImportService {
       unsupportedElements: totals.unsupported,
       skippedRecords: totals.skipped,
       failedRecords: totals.failed,
+      workoutRoutesIncomplete: parsed.workoutRouteArchiveFailure != null,
       typeSummaries: summaries,
       diagnostics: diagnostics,
       shareableReportText: reportText,
@@ -365,7 +456,7 @@ class AppleHealthImportService {
   }
 
   AppleParsedExport _parseExport(
-    List<int> bytes,
+    File file,
     List<String> importLogs,
     AppleHealthImportProgressCallback? onProgress,
     AppleHealthParseOptions options,
@@ -374,10 +465,11 @@ class AppleHealthImportService {
       phase: AppleHealthImportPhase.parsing,
     ));
     importLogs.add(_infoLog(
-      'Stage started: Scanning export parseRouteFiles=${options.parseRouteFiles} '
+      'Stage started: Scanning export source=${file.path} '
+      'parseRouteFiles=${options.parseRouteFiles} '
       'parseRecordDetails=${options.parseRecordDetails}',
     ));
-    final parsed = AppleHealthImportParser.parse(bytes, options: options);
+    final parsed = AppleHealthImportParser.parseFile(file, options: options);
     importLogs.add(_infoLog(
       'Stage finished: Scanning export records=${parsed.parsedRecords} '
       'workouts=${parsed.parsedWorkouts} correlations=${parsed.parsedCorrelations} '
@@ -388,6 +480,12 @@ class AppleHealthImportService {
         'export.xml contained invalid XML that was auto-repaired: '
         'controlCharsRemoved=${parsed.sanitizedControlChars} '
         'ampersandsEscaped=${parsed.sanitizedAmpersands}',
+      ));
+    }
+    final routeFailure = parsed.workoutRouteArchiveFailure;
+    if (routeFailure != null) {
+      importLogs.add(_warnLog(
+        'Workout route archive recovery: ${routeFailure.detail}',
       ));
     }
     return parsed;
@@ -759,8 +857,38 @@ AppleHealthImportProgress _progress(
       failedRecords: failed,
     );
 
+AppleHealthImportDiagnostic _routeArchiveDiagnostic(
+  AppleWorkoutRouteArchiveFailure failure,
+) =>
+    AppleHealthImportDiagnostic(
+      appleType: 'WorkoutRoute',
+      targetType: 'ExerciseRoute',
+      reasonCode: 'route_archive_truncated',
+      timeRange: null,
+      unit: null,
+      value: null,
+      detail: failure.detail,
+    );
+
+AppleHealthImportDiagnosticSummary _toSingleDiagnosticSummary(
+  AppleHealthImportDiagnostic diagnostic,
+) =>
+    AppleHealthImportDiagnosticSummary(
+      appleType: diagnostic.appleType,
+      targetType: diagnostic.targetType,
+      reasonCode: diagnostic.reasonCode,
+      detail: diagnostic.detail,
+      count: 1,
+      exampleTimeRange: diagnostic.timeRange,
+      exampleUnit: diagnostic.unit,
+      exampleValue: diagnostic.value,
+    );
+
 String _infoLog(String message) =>
     '${DateTime.now().toUtc().toIso8601String()} [INFO] $message';
+
+String _warnLog(String message) =>
+    '${DateTime.now().toUtc().toIso8601String()} [WARN] $message';
 
 String _errorLog(String message, Object error) =>
     '${DateTime.now().toUtc().toIso8601String()} [ERROR] $message\n'
@@ -803,10 +931,38 @@ String _buildReportText({
     ..writeln('Not selected: ${totals.notSelected}')
     ..writeln('Unsupported: ${totals.unsupported}')
     ..writeln('Skipped: ${totals.skipped}')
-    ..writeln('Failed: ${totals.failed}');
+    ..writeln('Failed: ${totals.failed}')
+    ..writeln(
+        'Workout routes incomplete: ${parsed.workoutRouteArchiveFailure != null}');
   if (selectedCategories != null) {
     buffer.writeln(
         'Selected categories: ${selectedCategories.map((c) => c.reportName).join(', ')}');
+  }
+  final workoutsMissingRoutes = diagnosticSummaries
+      .where((summary) => summary.reasonCode == 'workout_route_unavailable')
+      .toList()
+    ..sort((a, b) {
+      final byTime =
+          (a.exampleTimeRange ?? '').compareTo(b.exampleTimeRange ?? '');
+      if (byTime != 0) return byTime;
+      return a.appleType.compareTo(b.appleType);
+    });
+  if (workoutsMissingRoutes.isNotEmpty) {
+    buffer
+      ..writeln()
+      ..writeln('Activities Requiring Manual Route Import')
+      ..writeln(
+        'These activities referenced unavailable route geometry. Depending on '
+        'the selected categories, their workout sessions may have imported '
+        'without routes:',
+      );
+    for (final diagnostic in workoutsMissingRoutes) {
+      buffer.writeln(
+        '- activity=${diagnostic.appleType}; '
+        'timeRange=${diagnostic.exampleTimeRange ?? 'unknown'}; '
+        'occurrences=${diagnostic.count}; ${diagnostic.detail}',
+      );
+    }
   }
   buffer
     ..writeln()

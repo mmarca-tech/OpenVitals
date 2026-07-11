@@ -15,7 +15,12 @@ enum TimeRange {
 
 enum WeekPeriodMode {
   mondayToSunday,
-  last7Days,
+  last7Days;
+
+  /// Whether periods are rolling day windows anchored on the selected date
+  /// (7/30/365 days) instead of calendar week/month/year. Port of the Kotlin
+  /// `WeekPeriodMode.usesRollingDates()`.
+  bool get usesRollingDates => this == WeekPeriodMode.last7Days;
 }
 
 /// An inclusive date range.

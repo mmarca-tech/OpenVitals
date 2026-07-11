@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
 import '../../core/time/local_date.dart';
+import '../../l10n/app_localizations.dart';
 import 'bar_chart.dart';
 import 'chart_axis.dart';
 import 'heatmap_chart.dart';
@@ -116,7 +117,9 @@ class MetricBarChart extends StatelessWidget {
       selectedRange: selectedRange,
       period: period,
       accentColor: accentColor.withValues(alpha: accentAlpha),
-      summaryText: '${periodTitle(selectedRange, period)} · $summaryValue',
+      summaryText:
+          '${periodTitle(AppLocalizations.of(context), selectedRange, period)}'
+          ' · $summaryValue',
       yearAggregation: yearAggregation,
       selectedDate: selectedDate,
       onDateSelected: onDateSelected,

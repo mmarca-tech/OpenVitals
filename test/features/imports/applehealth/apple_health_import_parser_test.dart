@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,41 @@ import 'package:openvitals/features/imports/applehealth/apple_health_import_mode
 import 'package:openvitals/features/imports/applehealth/apple_health_import_parser.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_xml_support.dart';
+
+
+/// A ZIP written the way a *streaming* writer does it: the local header's sizes
+/// are unknown (flag bit 3) and a data descriptor follows the payload. The
+/// sequential reader has to bound each entry itself, since there is no central
+/// directory to look the sizes up in.
+List<int> streamingZip(Map<String, String> entries) {
+  final out = BytesBuilder();
+  entries.forEach((name, contents) {
+    final nameBytes = utf8.encode(name);
+    final raw = utf8.encode(contents);
+    final deflated = Deflate(raw).getBytes();
+    final header = ByteData(30)
+      ..setUint32(0, 0x04034b50, Endian.little)
+      ..setUint16(4, 20, Endian.little)
+      ..setUint16(6, 0x08, Endian.little) // sizes unknown, descriptor follows
+      ..setUint16(8, 8, Endian.little) // deflate
+      ..setUint16(26, nameBytes.length, Endian.little);
+    out
+      ..add(header.buffer.asUint8List())
+      ..add(nameBytes)
+      ..add(deflated);
+    final descriptor = ByteData(16)
+      ..setUint32(0, 0x08074b50, Endian.little)
+      ..setUint32(4, getCrc32(raw), Endian.little)
+      ..setUint32(8, deflated.length, Endian.little)
+      ..setUint32(12, raw.length, Endian.little);
+    out.add(descriptor.buffer.asUint8List());
+  });
+  // The central-directory signature terminates the last entry.
+  out.add((ByteData(4)..setUint32(0, 0x02014b50, Endian.little))
+      .buffer
+      .asUint8List());
+  return out.toBytes();
+}
 
 AppleParsedExport parseXml(String xml) =>
     AppleHealthImportParser.parse(utf8.encode(xml));
@@ -34,6 +70,38 @@ List<int> zipExport(
 }
 
 void main() {
+  group('AppleHealthImportParser streaming zip', () {
+    test('reads entries whose local header has no sizes (data descriptors)',
+        () {
+      final zip = streamingZip({
+        'apple_health_export/export.xml': '''
+          <HealthData>
+            <Workout workoutActivityType="HKWorkoutActivityTypeRunning"
+              startDate="2026-01-01 09:00:00 +0000" endDate="2026-01-01 09:30:00 +0000">
+              <WorkoutRoute>
+                <FileReference path="/workout-routes/route1.gpx" />
+              </WorkoutRoute>
+            </Workout>
+          </HealthData>
+        ''',
+        'apple_health_export/workout-routes/route1.gpx':
+            '<gpx><trk><trkseg>'
+                '<trkpt lat="45.0" lon="9.0"><ele>100</ele></trkpt>'
+                '<trkpt lat="45.1" lon="9.1"><ele>110</ele></trkpt>'
+                '</trkseg></trk></gpx>',
+      });
+
+      final parsed = AppleHealthImportParser.parse(zip);
+
+      expect(parsed.parsedWorkouts, 1);
+      final workout = parsed.workouts.single;
+      expect(workout.routeReferencePaths, ['workout-routes/route1.gpx']);
+      expect(workout.routes.single.points.length, 2);
+      expect(workout.unavailableRoutePaths, isEmpty);
+      expect(parsed.workoutRouteArchiveFailure, isNull);
+    });
+  });
+
   group('AppleHealthImportParser + converter', () {
     test('imports sleep category values as sleep stages', () {
       final parsed = parseXml('''

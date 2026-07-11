@@ -110,6 +110,33 @@ class AppleWorkoutRouteFile {
   final List<AppleWorkoutRoutePoint> points;
 }
 
+/// A `workout-routes/*.gpx` entry that could not be read because the ZIP ended
+/// part-way through it, *after* `export.xml` had already been read intact
+/// (Kotlin `AppleWorkoutRouteArchiveFailure`). The health records still import;
+/// this route and every later ZIP entry are dropped.
+class AppleWorkoutRouteArchiveFailure {
+  const AppleWorkoutRouteArchiveFailure({
+    required this.entryName,
+    this.decompressedBytesRead,
+  });
+
+  final String entryName;
+  final int? decompressedBytesRead;
+
+  String get detail {
+    final buffer = StringBuffer('The ZIP ended unexpectedly while reading ')
+      ..write(entryName);
+    if (decompressedBytesRead != null) {
+      buffer.write(' after $decompressedBytesRead decompressed byte(s)');
+    }
+    buffer.write(
+      '. Health records were imported from the intact export.xml, but this '
+      'route and any remaining ZIP entries were unavailable.',
+    );
+    return buffer.toString();
+  }
+}
+
 class AppleWorkout {
   const AppleWorkout({
     required this.workoutActivityType,
@@ -128,7 +155,7 @@ class AppleWorkout {
     this.metadata = const {},
     this.events = const [],
     this.routes = const [],
-    this.routeReferences = 0,
+    this.routeReferencePaths = const [],
   });
 
   final String workoutActivityType;
@@ -147,7 +174,21 @@ class AppleWorkout {
   final Map<String, String> metadata;
   final List<AppleWorkoutEvent> events;
   final List<AppleWorkoutRouteFile> routes;
-  final int routeReferences;
+
+  /// Every `<FileReference path=…>` this workout declared, normalized. Kotlin
+  /// 1.9.0 carries the *paths* (not just a count) so an unreadable route can be
+  /// named in the report for manual recovery.
+  final List<String> routeReferencePaths;
+
+  int get routeReferences => routeReferencePaths.length;
+
+  /// Routes the workout declared but whose GPX never made it out of the ZIP.
+  List<String> get unavailableRoutePaths {
+    final available = routes.map((route) => route.path).toSet();
+    return routeReferencePaths
+        .where((path) => !available.contains(path))
+        .toList();
+  }
 }
 
 class AppleCorrelation {
@@ -187,6 +228,7 @@ class AppleParsedExport {
     required this.parsedTypeCounts,
     this.sanitizedControlChars = 0,
     this.sanitizedAmpersands = 0,
+    this.workoutRouteArchiveFailure,
   });
 
   final List<AppleRecord> records;
@@ -204,8 +246,29 @@ class AppleParsedExport {
   /// Bare `&` characters auto-escaped to `&amp;`.
   final int sanitizedAmpersands;
 
+  /// Set when a truncated workout-route entry was ignored *after* export.xml had
+  /// already been read intact.
+  final AppleWorkoutRouteArchiveFailure? workoutRouteArchiveFailure;
+
   int get parsedElements =>
       parsedRecords + parsedWorkouts + parsedCorrelations + parsedActivitySummaries;
+
+  AppleParsedExport copyWithRouteArchiveFailure(
+    AppleWorkoutRouteArchiveFailure? failure,
+  ) =>
+      AppleParsedExport(
+        records: records,
+        workouts: workouts,
+        correlations: correlations,
+        parsedRecords: parsedRecords,
+        parsedWorkouts: parsedWorkouts,
+        parsedCorrelations: parsedCorrelations,
+        parsedActivitySummaries: parsedActivitySummaries,
+        parsedTypeCounts: parsedTypeCounts,
+        sanitizedControlChars: sanitizedControlChars,
+        sanitizedAmpersands: sanitizedAmpersands,
+        workoutRouteArchiveFailure: failure ?? workoutRouteArchiveFailure,
+      );
 }
 
 class AppleImportTimeRange {
@@ -482,6 +545,7 @@ class AppleHealthImportResult {
     required this.typeSummaries,
     required this.diagnostics,
     required this.shareableReportText,
+    this.workoutRoutesIncomplete = false,
   });
 
   final int parsedRecords;
@@ -495,6 +559,10 @@ class AppleHealthImportResult {
   final int unsupportedElements;
   final int skippedRecords;
   final int failedRecords;
+
+  /// A workout-route entry was unreadable because the ZIP ended unexpectedly;
+  /// health records still imported (Kotlin `workoutRoutesIncomplete`).
+  final bool workoutRoutesIncomplete;
   final List<AppleHealthImportTypeSummary> typeSummaries;
   final List<AppleHealthImportDiagnostic> diagnostics;
   final String shareableReportText;

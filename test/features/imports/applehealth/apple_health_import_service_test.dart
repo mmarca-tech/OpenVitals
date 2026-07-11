@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvitals/data/repository/contract/apple_health_import_repository.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_checkpoint_store.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_models.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_records.dart';
 import 'package:openvitals/features/imports/applehealth/apple_health_import_service.dart';
+import 'package:openvitals/features/imports/applehealth/apple_health_import_xml_support.dart';
 
 class FakeAppleHealthImportRepository implements AppleHealthImportRepository {
   FakeAppleHealthImportRepository({
@@ -70,6 +73,74 @@ List<int> zipExport(
   return ZipEncoder().encodeBytes(archive);
 }
 
+/// The importer only ever reads a *staged file*, never a `List<int>`, so every
+/// fixture is written to a temp file first.
+late Directory exportDirectory;
+var _exportFileIndex = 0;
+
+File exportFile(List<int> bytes) {
+  final file = File('${exportDirectory.path}/export-${_exportFileIndex++}.bin');
+  file.writeAsBytesSync(bytes);
+  return file;
+}
+
+
+/// The byte offset of `name`'s local file header inside [zip], its compressed
+/// payload offset, and that payload's length — enough to cut the archive at a
+/// precise point *inside* a specific entry.
+({int dataOffset, int compressedSize}) entryData(List<int> zip, String name) {
+  final nameBytes = utf8.encode(name);
+  for (var index = 0; index + 30 + nameBytes.length <= zip.length; index++) {
+    if (zip[index] != 0x50 ||
+        zip[index + 1] != 0x4B ||
+        zip[index + 2] != 0x03 ||
+        zip[index + 3] != 0x04) {
+      continue;
+    }
+    final nameLength = zip[index + 26] | (zip[index + 27] << 8);
+    final extraLength = zip[index + 28] | (zip[index + 29] << 8);
+    if (nameLength != nameBytes.length) continue;
+    var matches = true;
+    for (var offset = 0; offset < nameLength; offset++) {
+      if (zip[index + 30 + offset] != nameBytes[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+    final compressedSize = zip[index + 18] |
+        (zip[index + 19] << 8) |
+        (zip[index + 20] << 16) |
+        (zip[index + 21] << 24);
+    return (
+      dataOffset: index + 30 + nameLength + extraLength,
+      compressedSize: compressedSize,
+    );
+  }
+  throw StateError('No local file header for $name');
+}
+
+/// A ZIP cut in half *inside* the payload of [entryName] — the end-of-central
+/// directory record is gone, so only a sequential reader can salvage anything.
+List<int> truncatedInside(List<int> zip, String entryName) {
+  final entry = entryData(zip, entryName);
+  expect(entry.compressedSize, greaterThan(4));
+  return zip.sublist(0, entry.dataOffset + (entry.compressedSize ~/ 2));
+}
+
+String routeGpx(int points) {
+  final buffer = StringBuffer(
+    '<gpx><trk><trkseg>',
+  );
+  for (var index = 0; index < points; index++) {
+    final lat = 45.0 + index * 0.0001;
+    final lon = 9.0 + index * 0.0001;
+    buffer.write('<trkpt lat="$lat" lon="$lon"><ele>${100 + index}</ele></trkpt>');
+  }
+  buffer.write('</trkseg></trk></gpx>');
+  return buffer.toString();
+}
+
 String heartRateExport(int count, {(int, int)? duplicateIndexOf}) {
   final buffer = StringBuffer('<HealthData>');
   for (var index = 0; index < count; index++) {
@@ -90,6 +161,17 @@ String heartRateExport(int count, {(int, int)? duplicateIndexOf}) {
 
 void main() {
   group('AppleHealthImportService', () {
+    setUp(() {
+      exportDirectory =
+          Directory.systemTemp.createTempSync('apple_health_service_test');
+    });
+
+    tearDown(() {
+      if (exportDirectory.existsSync()) {
+        exportDirectory.deleteSync(recursive: true);
+      }
+    });
+
     test('skips duplicate records inside same export and includes report',
         () async {
       const xml = '''
@@ -106,7 +188,7 @@ void main() {
       final phases = <AppleHealthImportPhase>[];
 
       final result = await AppleHealthImportService(repository)
-          .importAppleHealthExport(utf8.encode(xml),
+          .importAppleHealthExport(exportFile(utf8.encode(xml)),
               onProgress: (progress) => phases.add(progress.phase));
 
       expect(result.parsedRecords, 2);
@@ -145,7 +227,7 @@ void main() {
       final repository = FakeAppleHealthImportRepository();
 
       final result = await AppleHealthImportService(repository)
-          .analyzeAppleHealthExport(utf8.encode(xml));
+          .analyzeAppleHealthExport(exportFile(utf8.encode(xml)));
 
       expect(result.parsedRecords, 2);
       expect(result.convertedRecords, 2);
@@ -173,13 +255,13 @@ void main() {
       final repository = FakeAppleHealthImportRepository();
 
       final result = await AppleHealthImportService(repository)
-          .analyzeAppleHealthExport(zipExport(
+          .analyzeAppleHealthExport(exportFile(zipExport(
         xml,
         extraFiles: {
           'apple_health_export/workout-routes/route_2026-01-01_8.00am.gpx':
               '<not-gpx>',
         },
-      ));
+      )));
 
       final workoutSummary = result.categorySummaries
           .firstWhere((it) => it.category == AppleHealthImportCategory.workouts);
@@ -205,7 +287,7 @@ void main() {
 
       final result = await AppleHealthImportService(repository)
           .importAppleHealthExport(
-        utf8.encode(xml),
+        exportFile(utf8.encode(xml)),
         selectedCategories: {AppleHealthImportCategory.body},
       );
 
@@ -238,7 +320,7 @@ void main() {
       final repository = FakeAppleHealthImportRepository();
 
       final result = await AppleHealthImportService(repository)
-          .importAppleHealthExport(utf8.encode(buffer.toString()));
+          .importAppleHealthExport(exportFile(utf8.encode(buffer.toString())));
 
       final report = result.shareableReportText;
       expect(result.unsupportedElements, 206);
@@ -270,7 +352,7 @@ void main() {
 
       final result = await AppleHealthImportService(repository)
           .importAppleHealthExport(
-        utf8.encode(heartRateExport(700)),
+        exportFile(utf8.encode(heartRateExport(700))),
         onProgress: progress.add,
       );
 
@@ -308,7 +390,7 @@ void main() {
 
       final result = await AppleHealthImportService(repository)
           .importAppleHealthExport(
-        utf8.encode(heartRateExport(400, duplicateIndexOf: (350, 0))),
+        exportFile(utf8.encode(heartRateExport(400, duplicateIndexOf: (350, 0)))),
       );
 
       expect(result.parsedRecords, 400);
@@ -341,7 +423,7 @@ void main() {
       );
 
       final result = await AppleHealthImportService(repository)
-          .importAppleHealthExport(utf8.encode(xml));
+          .importAppleHealthExport(exportFile(utf8.encode(xml)));
 
       expect(repository.queried.length, 4);
       expect(
@@ -376,14 +458,14 @@ void main() {
       final repository = FakeAppleHealthImportRepository();
 
       final result = await AppleHealthImportService(repository)
-          .analyzeAppleHealthExport(zipExport(
+          .analyzeAppleHealthExport(exportFile(zipExport(
         xml,
         extraFiles: {
           'apple_health_export/workout-routes/route_2026-01-01_8.00am.gpx':
               '<not-gpx>',
         },
         extraFilesBeforeXml: true,
-      ));
+      )));
 
       final workoutSummary = result.categorySummaries
           .firstWhere((it) => it.category == AppleHealthImportCategory.workouts);
@@ -391,6 +473,188 @@ void main() {
       expect(workoutSummary.convertedRecords, 1);
       expect(workoutSummary.routeSessions, 1);
       expect(repository.insertedBatches, isEmpty);
+    });
+    test(
+        'a ZIP truncated inside a workout-route entry still imports the health '
+        'records and flags workoutRoutesIncomplete', () async {
+      const xml = '''
+        <HealthData>
+          <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch"
+            startDate="2026-01-01 08:00:00 +0000" endDate="2026-01-01 08:00:00 +0000"
+            unit="count/min" value="62" />
+          <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Scale"
+            startDate="2026-01-01 07:00:00 +0000" endDate="2026-01-01 07:00:00 +0000"
+            unit="kg" value="70" />
+          <Workout workoutActivityType="HKWorkoutActivityTypeRunning" sourceName="Watch"
+            startDate="2026-01-01 09:00:00 +0000" endDate="2026-01-01 09:30:00 +0000"
+            duration="30" durationUnit="min">
+            <WorkoutRoute sourceName="Watch">
+              <FileReference path="/workout-routes/route1.gpx" />
+            </WorkoutRoute>
+          </Workout>
+        </HealthData>
+      ''';
+      final zip = zipExport(
+        xml,
+        extraFiles: {
+          'apple_health_export/workout-routes/route1.gpx': routeGpx(80),
+          'apple_health_export/workout-routes/route2.gpx': routeGpx(80),
+        },
+      );
+      final repository = FakeAppleHealthImportRepository();
+
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(truncatedInside(
+          zip,
+          'apple_health_export/workout-routes/route1.gpx',
+        )),
+      );
+
+      // export.xml was intact, so everything it described still imports.
+      expect(result.parsedRecords, 2);
+      expect(result.parsedWorkouts, 1);
+      expect(result.importedRecords, greaterThanOrEqualTo(3));
+      expect(result.workoutRoutesIncomplete, isTrue);
+
+      final report = result.shareableReportText;
+      expect(report, contains('Workout routes incomplete: true'));
+      expect(report, contains('Activities Requiring Manual Route Import'));
+      expect(report, contains('workout-routes/route1.gpx'));
+      expect(report, contains('route_archive_truncated'));
+      expect(
+        result.diagnostics.map((it) => it.reasonCode),
+        containsAll(<String>['route_archive_truncated', 'workout_route_unavailable']),
+      );
+    });
+
+    test('a ZIP truncated before export.xml is read still hard-fails', () async {
+      final zip = zipExport(
+        heartRateExport(200),
+        extraFiles: {
+          'apple_health_export/workout-routes/route1.gpx': routeGpx(80),
+        },
+      );
+      final repository = FakeAppleHealthImportRepository();
+
+      await expectLater(
+        AppleHealthImportService(repository).importAppleHealthExport(
+          exportFile(truncatedInside(zip, 'apple_health_export/export.xml')),
+        ),
+        throwsA(isA<AppleHealthZipReadException>()),
+      );
+      expect(repository.insertedBatches, isEmpty);
+    });
+
+    test('an unreadable route is not reported when workouts are deselected',
+        () async {
+      const xml = '''
+        <HealthData>
+          <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Scale"
+            startDate="2026-01-01 07:00:00 +0000" endDate="2026-01-01 07:00:00 +0000"
+            unit="kg" value="70" />
+          <Workout workoutActivityType="HKWorkoutActivityTypeRunning" sourceName="Watch"
+            startDate="2026-01-01 09:00:00 +0000" endDate="2026-01-01 09:30:00 +0000"
+            duration="30" durationUnit="min">
+            <WorkoutRoute sourceName="Watch">
+              <FileReference path="/workout-routes/route1.gpx" />
+            </WorkoutRoute>
+          </Workout>
+        </HealthData>
+      ''';
+      final zip = zipExport(
+        xml,
+        extraFiles: {
+          'apple_health_export/workout-routes/route1.gpx': routeGpx(80),
+        },
+      );
+      final repository = FakeAppleHealthImportRepository();
+
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(truncatedInside(
+          zip,
+          'apple_health_export/workout-routes/route1.gpx',
+        )),
+        selectedCategories: {AppleHealthImportCategory.body},
+      );
+
+      // Route entries were never read (Kotlin a852d4e), so nothing is damaged.
+      expect(result.workoutRoutesIncomplete, isFalse);
+      expect(
+        result.diagnostics.map((it) => it.reasonCode),
+        isNot(contains('workout_route_unavailable')),
+      );
+      expect(result.importedRecords, 1);
+    });
+
+    test('saves a checkpoint after every batch and resumes without rewriting '
+        'committed records', () async {
+      final xml = heartRateExport(700);
+      final file = exportFile(utf8.encode(xml));
+      const sourceKey = 'content://downloads/1|export.xml|700';
+      const selected = {AppleHealthImportCategory.heart};
+
+      final firstRepository = FakeAppleHealthImportRepository();
+      final checkpoints = <AppleHealthImportCheckpoint>[];
+      final result = await AppleHealthImportService(firstRepository)
+          .importAppleHealthExport(
+        file,
+        selectedCategories: selected,
+        resumeCheckpoint: const AppleHealthImportCheckpoint(
+          sourceKey: sourceKey,
+          selectedCategories: selected,
+        ),
+        onCheckpoint: checkpoints.add,
+      );
+
+      expect(result.importedRecords, 700);
+      expect(firstRepository.insertedRecords.length, 700);
+      // 700 records / 300-record batches → a checkpoint after each of 3 writes.
+      expect(
+        checkpoints.map((it) => it.committedSelectedRecords),
+        [300, 600, 700],
+      );
+      expect(checkpoints.last.importedRecords, 700);
+
+      // The process dies after the first batch: resume from that checkpoint.
+      final resumeFrom = checkpoints.first;
+      final resumedRepository = FakeAppleHealthImportRepository();
+      final resumed = await AppleHealthImportService(resumedRepository)
+          .importAppleHealthExport(
+        file,
+        selectedCategories: selected,
+        resumeCheckpoint: resumeFrom,
+      );
+
+      // The 300 already-committed records are not written again...
+      expect(resumedRepository.insertedRecords.length, 400);
+      // ...but the totals still describe the whole export.
+      expect(resumed.importedRecords, 700);
+      expect(
+        resumed.typeSummaries
+            .firstWhere((it) => it.appleType.contains('HeartRate'))
+            .imported,
+        700,
+      );
+    });
+
+    test('a checkpoint that skips everything writes nothing at all', () async {
+      final repository = FakeAppleHealthImportRepository();
+      final result = await AppleHealthImportService(repository)
+          .importAppleHealthExport(
+        exportFile(utf8.encode(heartRateExport(400))),
+        selectedCategories: const {AppleHealthImportCategory.heart},
+        resumeCheckpoint: const AppleHealthImportCheckpoint(
+          sourceKey: 'k',
+          selectedCategories: {AppleHealthImportCategory.heart},
+          committedSelectedRecords: 400,
+          importedRecords: 400,
+        ),
+      );
+
+      expect(repository.insertedBatches, isEmpty);
+      expect(result.importedRecords, 400);
     });
   });
 }

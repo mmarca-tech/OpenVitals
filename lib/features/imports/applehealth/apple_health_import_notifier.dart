@@ -8,15 +8,38 @@
 /// summarise by category without writing), toggle categories, then import the
 /// selected set, persisting the shareable report through the
 /// [AppleHealthImportReportStore].
+///
+/// Because Kotlin's WorkManager worker has no Flutter counterpart, the
+/// staging/checkpoint orchestration it owns lives here instead:
+///
+///   load checkpoint → stage the export → import → on success clear both.
+///
+/// The picked export is never read into memory: it is staged to app-private
+/// storage (with a verified byte count) and everything downstream works against
+/// that [File]. Resume degrades gracefully — a foreground import that is killed
+/// resumes when the user relaunches and re-picks the same export, skipping the
+/// batches that were already committed.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../di/providers.dart';
+import 'apple_health_import_checkpoint_store.dart';
 import 'apple_health_import_error_formatter.dart';
 import 'apple_health_import_models.dart';
 import 'apple_health_import_report_store.dart';
 import 'apple_health_import_service.dart';
+import 'apple_health_import_staging_store.dart';
+
+final appleHealthImportStagingStoreProvider =
+    Provider<AppleHealthImportStagingStore>(
+  (ref) => AppleHealthImportStagingStore(),
+);
+
+final appleHealthImportCheckpointStoreProvider =
+    Provider<AppleHealthImportCheckpointStore>(
+  (ref) => AppleHealthImportCheckpointStore(),
+);
 
 /// Immutable UI state mirroring the Apple Health fields of the Kotlin
 /// `SettingsUiState` consumed by `AppleHealthImportCard`.
@@ -76,10 +99,15 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
       ref.read(appleHealthImportServiceProvider);
   AppleHealthImportReportStore get _reportStore =>
       ref.read(appleHealthImportReportStoreProvider);
+  AppleHealthImportStagingStore get _stagingStore =>
+      ref.read(appleHealthImportStagingStoreProvider);
+  AppleHealthImportCheckpointStore get _checkpointStore =>
+      ref.read(appleHealthImportCheckpointStoreProvider);
 
-  /// The bytes of the most recently analyzed export, reused by [importSelected]
-  /// (the Kotlin `pendingAppleHealthImportUri`).
-  List<int>? _pendingBytes;
+  /// The most recently analyzed export, reused by [importSelected] (the Kotlin
+  /// `pendingAppleHealthImportUri`). Only the *identity* of the pick is held —
+  /// its bytes live in the staged file.
+  AppleHealthExportSource? _pendingSource;
   String _lastReportText = '';
   String _lastFailureText = '';
 
@@ -103,19 +131,22 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
     return _lastFailureText;
   }
 
-  /// Scan + summarise an export by category without writing anything, then
-  /// auto-select the detected categories (Kotlin `runFullAppleHealthAnalysis`).
-  Future<void> analyze(List<int> bytes) async {
+  /// Stage the picked export into app-private storage (verifying the copied
+  /// byte count), then scan + summarise it by category without writing anything,
+  /// and auto-select the detected categories (Kotlin
+  /// `analyzeStagedAppleHealthExport`).
+  Future<void> analyze(AppleHealthExportSource source) async {
     if (state.isBusy) return;
-    _pendingBytes = bytes;
+    _pendingSource = source;
     state = const AppleHealthImportUiState(
       isAnalyzing: true,
       analysisProgress:
           AppleHealthImportProgress(phase: AppleHealthImportPhase.queued),
     );
     try {
+      final staged = await _stagingStore.stage(source);
       final analysis = await _service.analyzeAppleHealthExport(
-        bytes,
+        staged.file,
         onProgress: (progress) {
           if (ref.mounted && state.isAnalyzing) {
             state = state.copyWith(analysisProgress: progress);
@@ -130,7 +161,9 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
         selectedCategories: detected,
       );
     } catch (error) {
-      _pendingBytes = null;
+      _pendingSource = null;
+      // Never let a retry reuse a copy we already know is bad.
+      await _stagingStore.clear();
       state = AppleHealthImportUiState(
         error: AppleHealthImportErrorFormatter.details(error),
         permissionDenied:
@@ -151,12 +184,13 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
   }
 
   /// Convert + dedup + write the selected categories, then persist the report
-  /// (Kotlin `importSelectedAppleHealthExport`).
+  /// (Kotlin `importSelectedAppleHealthExport` + the worker's checkpoint /
+  /// staging lifecycle).
   Future<void> importSelected() async {
     if (state.isBusy) return;
-    final bytes = _pendingBytes;
+    final source = _pendingSource;
     final analysis = state.analysis;
-    if (bytes == null || analysis == null) return;
+    if (source == null || analysis == null) return;
     final selected = state.selectedCategories;
     if (selected.isEmpty) return;
 
@@ -172,9 +206,31 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
       ),
     );
     try {
+      // Only a checkpoint written for this exact export *and* this exact
+      // category selection may be resumed; anything else starts clean.
+      final stored = await _checkpointStore.load(source.sourceKey, selected);
+      final resumeCheckpoint = stored ??
+          AppleHealthImportCheckpoint(
+            sourceKey: source.sourceKey,
+            selectedCategories: selected,
+          );
+      final staged = await _stagingStore.stage(source);
+      // The service hands checkpoints to a synchronous callback, so the writes
+      // are chained: an earlier save must never land *after* a later one and
+      // wind the checkpoint backwards.
+      var checkpointWrites = Future<void>.value();
       final result = await _service.importAppleHealthExport(
-        bytes,
+        staged.file,
         selectedCategories: selected,
+        resumeCheckpoint: resumeCheckpoint,
+        onCheckpoint: (checkpoint) {
+          checkpointWrites = checkpointWrites
+              .then((_) => _checkpointStore.save(checkpoint))
+              .catchError((_) {
+            // A checkpoint we could not persist only costs a re-import of the
+            // batch; it must never fail the import itself.
+          });
+        },
         onProgress: (progress) {
           if (ref.mounted && state.isImporting) {
             // The service emits progress without the expected total, so re-seed
@@ -190,12 +246,19 @@ class AppleHealthImportNotifier extends Notifier<AppleHealthImportUiState> {
       );
       await _reportStore.writeReport(result.shareableReportText);
       _lastReportText = result.shareableReportText;
+      // Success: the staged copy, its metadata, any leftover `.tmp`, the
+      // checkpoint and the (now empty) import directory all go away.
+      await checkpointWrites;
+      await _checkpointStore.clear();
+      await _stagingStore.clear();
       state = AppleHealthImportUiState(
         analysis: analysis,
         selectedCategories: selected,
         result: result,
       );
     } catch (error) {
+      // The staged copy and checkpoint are deliberately kept so the user can
+      // retry and resume from the last committed batch.
       final failureText = buildAppleHealthFailureReportText(error);
       await _reportStore.writeFailure(failureText);
       _lastFailureText = failureText;

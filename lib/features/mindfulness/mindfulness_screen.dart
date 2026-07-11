@@ -13,6 +13,7 @@ import '../../core/time/local_date.dart';
 import '../../di/providers.dart';
 import '../../domain/model/mindfulness_models.dart';
 import '../../health/health_permissions.dart';
+import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
 import '../../ui/charts/period_chart.dart';
@@ -99,6 +100,7 @@ List<Widget> _content(
     ];
   }
 
+  final l10n = AppLocalizations.of(context);
   final summary = _MindfulnessSummary.of(sessions);
   final chartValues = _chartValues(sessions);
   final total = formatter.minutes(summary.totalMinutes);
@@ -116,7 +118,7 @@ List<Widget> _content(
               unit: total.unit,
               icon: Icons.self_improvement,
               accentColor: AppColors.mindfulness,
-              subtitle: periodTitle(state.selectedRange, period),
+              subtitle: periodTitle(l10n, state.selectedRange, period),
             ),
           ),
           const SizedBox(width: 12),

@@ -590,8 +590,10 @@ class ExerciseRouteMsg {
   ExerciseRouteMsg(this.status, this.points);
 }
 
-/// Intrinsic exercise-session fields (aggregate-derived metrics are resolved on
-/// the Dart side / left null, matching the current data source).
+/// Intrinsic exercise-session fields, plus the two route metrics that are only
+/// obtainable by aggregating over the session window ([totalDistanceMeters] /
+/// [averageSpeedMetersPerSecond]). The remaining aggregate-derived metrics are
+/// resolved on the Dart side / left null, matching the current data source.
 class ExerciseDataMsg {
   final String id;
   final String? title;
@@ -607,6 +609,17 @@ class ExerciseDataMsg {
   final List<ExerciseLapMsg> laps;
   final ExerciseRouteMsg route;
   final bool isOpenVitalsEntry;
+
+  /// `DistanceRecord.DISTANCE_TOTAL` aggregated over the session window. Null
+  /// unless the session was read through `readExerciseSessionsWithMetrics` with
+  /// the read-distance permission granted.
+  final double? totalDistanceMeters;
+
+  /// `SpeedRecord.SPEED_AVG` aggregated over the session window. Null unless the
+  /// session was read through `readExerciseSessionsWithMetrics` with the
+  /// read-speed permission granted (or the provider recorded no speed samples).
+  final double? averageSpeedMetersPerSecond;
+
   ExerciseDataMsg(
     this.id,
     this.title,
@@ -622,6 +635,8 @@ class ExerciseDataMsg {
     this.laps,
     this.route,
     this.isOpenVitalsEntry,
+    this.totalDistanceMeters,
+    this.averageSpeedMetersPerSecond,
   );
 }
 
@@ -1211,6 +1226,21 @@ abstract class HealthConnectHostApi {
 
   @async
   List<ExerciseDataMsg> readExerciseSessions(int startEpochMs, int endEpochMs);
+
+  /// Exercise sessions in the window, each backfilled with the route metrics
+  /// that only an aggregate over the session window can produce:
+  /// `DistanceRecord.DISTANCE_TOTAL` (when [includeDistance]) and
+  /// `SpeedRecord.SPEED_AVG` (when [includeSpeed]). The two flags are the
+  /// caller's granted read-distance / read-speed permissions — an ungranted
+  /// metric is simply left out of the aggregate (null on the way back), never
+  /// an error.
+  @async
+  List<ExerciseDataMsg> readExerciseSessionsWithMetrics(
+    int startEpochMs,
+    int endEpochMs,
+    bool includeDistance,
+    bool includeSpeed,
+  );
   @async
   ExerciseDataMsg? readExerciseSessionById(String id);
   @async

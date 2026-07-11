@@ -409,6 +409,7 @@ class _HeartSection extends StatelessWidget {
       period: period,
       accentColor: AppColors.heart,
       summaryText: _summary(
+        l10n,
         state,
         period,
         l10n.summaryAvgValueRange(
@@ -442,6 +443,7 @@ class _HeartSection extends StatelessWidget {
       period: period,
       accentColor: AppColors.heart,
       summaryText: _summary(
+        l10n,
         state,
         period,
         l10n.summaryAvgValueRange(
@@ -474,6 +476,7 @@ class _HeartSection extends StatelessWidget {
       period: period,
       accentColor: AppColors.heart.withValues(alpha: 0.85),
       summaryText: _summary(
+        l10n,
         state,
         period,
         l10n.summaryAvgValueRange(
@@ -605,7 +608,7 @@ class _CardiovascularSection extends StatelessWidget {
             selectedRange: range,
             period: period,
             accentColor: AppColors.vitals,
-            summaryText: _summary(state, period,
+            summaryText: _summary(l10n, state, period,
                 l10n.summaryReadings(formatter.count(bloodPressure.length))),
             selectedDate: daySelection.selectedDate,
             onDateSelected: daySelection.onDateSelected,
@@ -623,6 +626,7 @@ class _CardiovascularSection extends StatelessWidget {
             period: period,
             accentColor: _oxygenColor,
             summaryText: _summary(
+              l10n,
               state,
               period,
               l10n.summaryValueAvg(
@@ -643,7 +647,7 @@ class _CardiovascularSection extends StatelessWidget {
             selectedRange: range,
             period: period,
             accentColor: _vo2Color,
-            summaryText: _summary(state, period,
+            summaryText: _summary(l10n, state, period,
                 l10n.summaryReadings(formatter.count(vo2Max.length))),
             selectedDate: daySelection.selectedDate,
             onDateSelected: daySelection.onDateSelected,
@@ -661,6 +665,7 @@ class _CardiovascularSection extends StatelessWidget {
             period: period,
             accentColor: _glucoseColor,
             summaryText: _summary(
+              l10n,
               state,
               period,
               l10n.summaryValueAvg(formatter
@@ -755,6 +760,7 @@ class _RespiratorySection extends StatelessWidget {
             period: period,
             accentColor: _respiratoryColor,
             summaryText: _summary(
+              l10n,
               state,
               period,
               l10n.summaryValueAvg(
@@ -779,7 +785,7 @@ class _RespiratorySection extends StatelessWidget {
             selectedRange: range,
             period: period,
             accentColor: _temperatureColor,
-            summaryText: _summary(state, period,
+            summaryText: _summary(l10n, state, period,
                 l10n.summaryReadings(formatter.count(bodyTemperature.length))),
             selectedDate: daySelection.selectedDate,
             onDateSelected: daySelection.onDateSelected,
@@ -797,6 +803,7 @@ class _RespiratorySection extends StatelessWidget {
             period: period,
             accentColor: _temperatureColor,
             summaryText: _summary(
+              l10n,
               state,
               period,
               l10n.summaryValueAvg(
@@ -1027,11 +1034,12 @@ Widget _padded(Widget child) => Padding(
     );
 
 String _summary(
+  AppLocalizations l10n,
   HeartVitalsOverviewState state,
   DatePeriod period,
   String extra,
 ) =>
-    '${periodTitle(state.selectedRange, period)} · $extra';
+    '${periodTitle(l10n, state.selectedRange, period)} · $extra';
 
 /// Kotlin `hasRenderableChartData`: within a day, needs more than one distinct
 /// timestamp; otherwise any reading renders.

@@ -29,6 +29,15 @@ abstract interface class ActivityRepository {
 
   Future<List<ExerciseData>> loadWorkouts(LocalDate start, LocalDate end);
 
+  /// [loadWorkouts] plus the per-session route metrics (total distance / average
+  /// speed) that only a Health Connect aggregate over each session's window can
+  /// produce. Costs one aggregate per session, so it is reserved for the window
+  /// that actually renders those metrics.
+  Future<List<ExerciseData>> loadWorkoutsWithMetrics(
+    LocalDate start,
+    LocalDate end,
+  );
+
   Future<ExerciseData?> loadWorkout(String id);
 
   Future<List<SpeedSample>> loadSpeedSamples(DateTime start, DateTime end);

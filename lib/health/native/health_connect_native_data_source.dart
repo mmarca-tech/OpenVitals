@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:health_connect_native/health_connect_native.dart';
 
 import '../../core/time/local_date.dart';
+import '../../domain/model/activity_backfill.dart';
 import '../../domain/model/activity_models.dart';
 import '../../domain/model/activity_session_deduplication.dart';
 import '../../domain/model/body_models.dart';
@@ -435,6 +436,10 @@ class HealthConnectNativeDataSource extends HealthDataSource {
         endTime: _fromMs(m.endEpochMs),
         durationMs: m.endEpochMs - m.startEpochMs,
         source: m.source,
+        // Null unless the session came from `readExerciseSessionsWithMetrics`
+        // with the matching read permission granted.
+        totalDistanceMeters: m.totalDistanceMeters,
+        averageSpeedMetersPerSecond: m.averageSpeedMetersPerSecond,
         notes: m.notes,
         clientRecordId: m.clientRecordId,
         plannedExerciseSessionId: m.plannedExerciseSessionId,
@@ -584,6 +589,31 @@ class HealthConnectNativeDataSource extends HealthDataSource {
       const <ExerciseDataMsg>[],
     );
     return deduplicateExerciseSessions([for (final m in msgs) _exerciseData(m)]);
+  }
+
+  @override
+  Future<List<ExerciseData>> readExerciseSessionsWithMetrics(
+    DateTime start,
+    DateTime end, {
+    bool includeDistance = false,
+    bool includeSpeed = false,
+  }) async {
+    final msgs = await _catch(
+      () => _api.readExerciseSessionsWithMetrics(
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+        includeDistance,
+        includeSpeed,
+      ),
+      const <ExerciseDataMsg>[],
+    );
+    // Route backfill mirrors Kotlin's `toExerciseData(backfillRouteMetrics = true)`
+    // on this path: a session whose provider recorded a route but no
+    // DistanceRecord still gets a distance (and hence a pace) from the route
+    // geometry. Backfill first, dedup after — as Kotlin does.
+    return deduplicateExerciseSessions([
+      for (final m in msgs) _exerciseData(m).withRouteBackfilledMetrics(),
+    ]);
   }
 
   @override

@@ -2985,8 +2985,10 @@ class ExerciseRouteMsg {
   }
 }
 
-/// Intrinsic exercise-session fields (aggregate-derived metrics are resolved on
-/// the Dart side / left null, matching the current data source).
+/// Intrinsic exercise-session fields, plus the two route metrics that are only
+/// obtainable by aggregating over the session window ([totalDistanceMeters] /
+/// [averageSpeedMetersPerSecond]). The remaining aggregate-derived metrics are
+/// resolved on the Dart side / left null, matching the current data source.
 class ExerciseDataMsg {
   ExerciseDataMsg({
     required this.id,
@@ -3003,6 +3005,8 @@ class ExerciseDataMsg {
     required this.laps,
     required this.route,
     required this.isOpenVitalsEntry,
+    this.totalDistanceMeters,
+    this.averageSpeedMetersPerSecond,
   });
 
   String id;
@@ -3033,6 +3037,16 @@ class ExerciseDataMsg {
 
   bool isOpenVitalsEntry;
 
+  /// `DistanceRecord.DISTANCE_TOTAL` aggregated over the session window. Null
+  /// unless the session was read through `readExerciseSessionsWithMetrics` with
+  /// the read-distance permission granted.
+  double? totalDistanceMeters;
+
+  /// `SpeedRecord.SPEED_AVG` aggregated over the session window. Null unless the
+  /// session was read through `readExerciseSessionsWithMetrics` with the
+  /// read-speed permission granted (or the provider recorded no speed samples).
+  double? averageSpeedMetersPerSecond;
+
   List<Object?> _toList() {
     return <Object?>[
       id,
@@ -3049,6 +3063,8 @@ class ExerciseDataMsg {
       laps,
       route,
       isOpenVitalsEntry,
+      totalDistanceMeters,
+      averageSpeedMetersPerSecond,
     ];
   }
 
@@ -3072,6 +3088,8 @@ class ExerciseDataMsg {
       laps: (result[11]! as List<Object?>).cast<ExerciseLapMsg>(),
       route: result[12]! as ExerciseRouteMsg,
       isOpenVitalsEntry: result[13]! as bool,
+      totalDistanceMeters: result[14] as double?,
+      averageSpeedMetersPerSecond: result[15] as double?,
     );
   }
 
@@ -3084,7 +3102,7 @@ class ExerciseDataMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(exerciseType, other.exerciseType) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(source, other.source) && _deepEquals(notes, other.notes) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(plannedExerciseSessionId, other.plannedExerciseSessionId) && _deepEquals(device, other.device) && _deepEquals(segments, other.segments) && _deepEquals(laps, other.laps) && _deepEquals(route, other.route) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry);
+    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(exerciseType, other.exerciseType) && _deepEquals(startEpochMs, other.startEpochMs) && _deepEquals(endEpochMs, other.endEpochMs) && _deepEquals(source, other.source) && _deepEquals(notes, other.notes) && _deepEquals(clientRecordId, other.clientRecordId) && _deepEquals(plannedExerciseSessionId, other.plannedExerciseSessionId) && _deepEquals(device, other.device) && _deepEquals(segments, other.segments) && _deepEquals(laps, other.laps) && _deepEquals(route, other.route) && _deepEquals(isOpenVitalsEntry, other.isOpenVitalsEntry) && _deepEquals(totalDistanceMeters, other.totalDistanceMeters) && _deepEquals(averageSpeedMetersPerSecond, other.averageSpeedMetersPerSecond);
   }
 
   @override
@@ -3093,7 +3111,7 @@ class ExerciseDataMsg {
 
   @override
   String toString() {
-    return 'ExerciseDataMsg(id: $id, title: $title, exerciseType: $exerciseType, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, source: $source, notes: $notes, clientRecordId: $clientRecordId, plannedExerciseSessionId: $plannedExerciseSessionId, device: $device, segments: $segments, laps: $laps, route: $route, isOpenVitalsEntry: $isOpenVitalsEntry)';
+    return 'ExerciseDataMsg(id: $id, title: $title, exerciseType: $exerciseType, startEpochMs: $startEpochMs, endEpochMs: $endEpochMs, source: $source, notes: $notes, clientRecordId: $clientRecordId, plannedExerciseSessionId: $plannedExerciseSessionId, device: $device, segments: $segments, laps: $laps, route: $route, isOpenVitalsEntry: $isOpenVitalsEntry, totalDistanceMeters: $totalDistanceMeters, averageSpeedMetersPerSecond: $averageSpeedMetersPerSecond)';
   }
 }
 
@@ -6333,6 +6351,32 @@ class HealthConnectHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<ExerciseDataMsg>();
+  }
+
+  /// Exercise sessions in the window, each backfilled with the route metrics
+  /// that only an aggregate over the session window can produce:
+  /// `DistanceRecord.DISTANCE_TOTAL` (when [includeDistance]) and
+  /// `SpeedRecord.SPEED_AVG` (when [includeSpeed]). The two flags are the
+  /// caller's granted read-distance / read-speed permissions — an ungranted
+  /// metric is simply left out of the aggregate (null on the way back), never
+  /// an error.
+  Future<List<ExerciseDataMsg>> readExerciseSessionsWithMetrics(int startEpochMs, int endEpochMs, bool includeDistance, bool includeSpeed) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readExerciseSessionsWithMetrics$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[startEpochMs, endEpochMs, includeDistance, includeSpeed]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

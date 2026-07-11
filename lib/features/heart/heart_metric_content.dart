@@ -190,6 +190,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryAvgValueRange(
             formatter.heartRate(average).text,
             formatter.heartRate(lowest).text,
@@ -409,6 +410,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryAvgValueRange(
             formatter.heartRate(average).text,
             formatter.heartRate(_min(bpm).round()).text,
@@ -573,6 +575,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryAvgValueRange(
             formatter.hrv(_avg(ms)).text,
             formatter.hrv(_min(ms)).text,
@@ -638,6 +641,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryReadings(formatter.count(entries.length)),
         ),
         valueFormatter: (value) => '${value.round()} mmHg',
@@ -702,6 +706,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryValueAvg(
             formatter.percent(_avg(entries.map((e) => e.percent))).text,
           ),
@@ -788,6 +793,7 @@ class HeartMetricContentView extends StatelessWidget {
               period: period,
               accentColor: metric.accentColor,
               summaryText: _summary(
+                l10n,
                 l10n.summaryReadings(formatter.count(sorted.length)),
               ),
               valueFormatter: (value) => formatter.vo2Max(value).text,
@@ -854,6 +860,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryValueAvg(formatter.respiratoryRate(periodAverage).text),
         ),
         selectedDate: selectedDay,
@@ -951,6 +958,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryReadings(formatter.count(sorted.length)),
         ),
         valueFormatter: (value) => formatter.temperature(value).text,
@@ -1017,6 +1025,7 @@ class HeartMetricContentView extends StatelessWidget {
         period: period,
         accentColor: metric.accentColor,
         summaryText: _summary(
+          l10n,
           l10n.summaryValueAvg(
             formatter
                 .bloodGlucose(_avg(sorted.map((e) => e.millimolesPerLiter)))
@@ -1099,6 +1108,7 @@ class HeartMetricContentView extends StatelessWidget {
               period: period,
               accentColor: metric.accentColor,
               summaryText: _summary(
+                l10n,
                 l10n.summaryValueAvg(
                   formatter
                       .temperatureDelta(_avg(chartEntries
@@ -1150,8 +1160,8 @@ class HeartMetricContentView extends StatelessWidget {
 
   // ── Building blocks ─────────────────────────────────────────────────────────
 
-  String _summary(String extra) =>
-      '${periodTitle(state.selectedRange, period)} · $extra';
+  String _summary(AppLocalizations l10n, String extra) =>
+      '${periodTitle(l10n, state.selectedRange, period)} · $extra';
 
   Widget _placeholder() => heartPadded(MetricCardPlaceholder(
         title: metric.title,

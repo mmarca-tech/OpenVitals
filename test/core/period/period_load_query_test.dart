@@ -51,6 +51,40 @@ void main() {
         DatePeriod(today.minusDays(36), today.minusDays(7)));
   });
 
+  test('query uses rolling last thirty days for month when rolling dates are '
+      'selected', () {
+    final query = PeriodLoadQuery(
+      range: TimeRange.month,
+      anchorDate: today,
+      today: today,
+      baselineDays: 30,
+      weekPeriodMode: WeekPeriodMode.last7Days,
+    );
+
+    expect(query.windows.current, DatePeriod(today.minusDays(29), today));
+    expect(query.windows.previous,
+        DatePeriod(today.minusDays(59), today.minusDays(30)));
+    expect(query.windows.baseline,
+        DatePeriod(today.minusDays(59), today.minusDays(30)));
+  });
+
+  test('query uses rolling last three hundred sixty five days for year when '
+      'rolling dates are selected', () {
+    final query = PeriodLoadQuery(
+      range: TimeRange.year,
+      anchorDate: today,
+      today: today,
+      baselineDays: 30,
+      weekPeriodMode: WeekPeriodMode.last7Days,
+    );
+
+    expect(query.windows.current, DatePeriod(today.minusDays(364), today));
+    expect(query.windows.previous,
+        DatePeriod(today.minusDays(729), today.minusDays(365)));
+    expect(query.windows.baseline,
+        DatePeriod(today.minusDays(394), today.minusDays(365)));
+  });
+
   test('query clips current Monday to Sunday load window to today', () {
     final wednesday = LocalDate(2026, 5, 27);
     final query = PeriodLoadQuery(

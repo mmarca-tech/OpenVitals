@@ -13,15 +13,28 @@ class PeriodSelection {
     return PeriodSelection(range, selectedDate.coerceAtMost(resolvedToday));
   }
 
-  PeriodSelection previousPeriod() =>
-      PeriodSelection(selectedRange, selectedRange.shift(selectedDate, -1));
+  PeriodSelection previousPeriod({
+    WeekPeriodMode weekPeriodMode = WeekPeriodMode.mondayToSunday,
+  }) =>
+      PeriodSelection(
+        selectedRange,
+        selectedRange.shift(
+          selectedDate,
+          -1,
+          weekPeriodMode: weekPeriodMode,
+        ),
+      );
 
   PeriodSelection nextPeriod({
     LocalDate? today,
     WeekPeriodMode weekPeriodMode = WeekPeriodMode.mondayToSunday,
   }) {
     final resolvedToday = today ?? LocalDate.now();
-    final nextDate = selectedRange.shift(selectedDate, 1);
+    final nextDate = selectedRange.shift(
+      selectedDate,
+      1,
+      weekPeriodMode: weekPeriodMode,
+    );
     final next = periodFor(
       selectedRange,
       nextDate,

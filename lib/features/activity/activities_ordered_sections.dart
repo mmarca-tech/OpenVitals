@@ -21,6 +21,7 @@ import '../../domain/insights/personal_baseline.dart';
 import '../../domain/model/activity_models.dart';
 import '../../domain/model/nutrition_models.dart';
 import '../../domain/preferences/metric_detail_section_id.dart';
+import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../navigation/app_routes.dart';
 import '../../state/app_providers.dart';
@@ -67,6 +68,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final formatter = ref.watch(unitFormatterProvider);
     final notifier = ref.read(activitiesNotifierProvider.notifier);
+    final weekPeriodMode = ref.watch(preferencesRepositoryProvider).weekPeriodMode;
 
     final workouts = state.workouts;
     final sortedDays = [...state.overviewDays]
@@ -106,15 +108,16 @@ class ActivitiesOrderedSections extends ConsumerWidget {
               sortedDays.isNotEmpty ||
               state.plannedWorkouts.isNotEmpty ||
               !state.isLoading,
-          _summarySection(context, ref, l10n, formatter, notifier, sortedDays),
+          _summarySection(
+              context, ref, l10n, formatter, notifier, sortedDays, weekPeriodMode),
         ),
         MetricDetailSection(
           MetricDetailSectionId.activityKeyMetrics,
           visible: sortedDays.isNotEmpty && overviewTotals != null,
           overviewTotals == null
               ? const SizedBox.shrink()
-              : _keyMetricsSection(
-                  context, l10n, formatter, sortedDays, overviewTotals),
+              : _keyMetricsSection(context, l10n, formatter, sortedDays,
+                  overviewTotals, weekPeriodMode),
         ),
         MetricDetailSection(
           MetricDetailSectionId.periodChart,
@@ -185,6 +188,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
     UnitFormatter formatter,
     ActivitiesNotifier notifier,
     List<ActivityOverviewDay> sortedDays,
+    WeekPeriodMode weekPeriodMode,
   ) {
     final showFilter = state.availableActivityTypes.isNotEmpty ||
         state.selectedActivityType != null;
@@ -203,6 +207,7 @@ class ActivitiesOrderedSections extends ConsumerWidget {
             period: period,
             days: sortedDays,
             formatter: formatter,
+            weekPeriodMode: weekPeriodMode,
             showEmptyState: !state.isLoading,
             onOpen: (id) => context.push(AppRoutes.activityDetailLocation(id)),
             onDelete: notifier.deleteActivityEntry,
@@ -231,8 +236,14 @@ class ActivitiesOrderedSections extends ConsumerWidget {
     UnitFormatter formatter,
     List<ActivityOverviewDay> days,
     _OverviewTotals totals,
+    WeekPeriodMode weekPeriodMode,
   ) {
-    final title = periodTitle(state.selectedRange, period);
+    final title = periodTitle(
+      l10n,
+      state.selectedRange,
+      period,
+      weekPeriodMode: weekPeriodMode,
+    );
     final buckets = _buckets(days, state.selectedRange);
     final bucketLabels = _bucketLabels(
       buckets,
@@ -759,6 +770,7 @@ class _ActivityPeriodSummaryCard extends StatefulWidget {
     required this.period,
     required this.days,
     required this.formatter,
+    required this.weekPeriodMode,
     required this.showEmptyState,
     required this.onOpen,
     required this.onDelete,
@@ -768,6 +780,7 @@ class _ActivityPeriodSummaryCard extends StatefulWidget {
   final DatePeriod period;
   final List<ActivityOverviewDay> days;
   final UnitFormatter formatter;
+  final WeekPeriodMode weekPeriodMode;
   final bool showEmptyState;
   final ValueChanged<String> onOpen;
   final Future<void> Function(String) onDelete;
@@ -791,7 +804,12 @@ class _ActivityPeriodSummaryCardState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionHeader(periodTitle(widget.state.selectedRange, widget.period)),
+        SectionHeader(periodTitle(
+          AppLocalizations.of(context),
+          widget.state.selectedRange,
+          widget.period,
+          weekPeriodMode: widget.weekPeriodMode,
+        )),
         OpenVitalsCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

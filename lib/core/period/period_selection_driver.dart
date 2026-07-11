@@ -34,8 +34,9 @@ class PeriodSelectionDriver {
     return _update(_selection.selectRange(range), _userPinnedPastPeriod);
   }
 
-  PeriodSelection previousPeriod() =>
-      _updateUserSelection(_selection.previousPeriod());
+  PeriodSelection previousPeriod() => _updateUserSelection(
+        _selection.previousPeriod(weekPeriodMode: weekPeriodMode),
+      );
 
   PeriodSelection? nextPeriod() {
     final next = _selection.nextPeriod(weekPeriodMode: weekPeriodMode);

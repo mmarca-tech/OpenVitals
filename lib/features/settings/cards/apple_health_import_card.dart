@@ -13,6 +13,7 @@ import '../../../ui/components/health_connect_gate.dart';
 import '../../../ui/components/ov_card.dart';
 import '../../imports/applehealth/apple_health_import_models.dart';
 import '../../imports/applehealth/apple_health_import_notifier.dart';
+import '../../imports/applehealth/apple_health_import_staging_store.dart';
 
 /// The Kotlin `AppleHealthExportMimeTypes` (application/zip, application/xml,
 /// text/xml, application/octet-stream, any). The trailing unconstrained group
@@ -31,14 +32,16 @@ const List<String> kAppleHealthExportMimeTypes = <String>[
 class AppleHealthImportCard extends ConsumerWidget {
   const AppleHealthImportCard({
     super.key,
-    this.pickExportBytes,
+    this.pickExportSource,
     this.saveReportFile,
   });
 
   /// Test seam for the system file picker; defaults to `file_selector`'s
-  /// [openFile] with the Apple Health export type groups, returning the picked
-  /// file's bytes (or `null` when the user cancels).
-  final Future<List<int>?> Function()? pickExportBytes;
+  /// [openFile] with the Apple Health export type groups. Returns the picked
+  /// export as a streamable [AppleHealthExportSource] (or `null` when the user
+  /// cancels) — deliberately NOT its bytes: a multi-gigabyte export must never
+  /// be read into RAM.
+  final Future<AppleHealthExportSource?> Function()? pickExportSource;
 
   /// Test seam for the report save flow; defaults to [_defaultSaveReport].
   /// Returns `true` on success.
@@ -137,6 +140,16 @@ class AppleHealthImportCard extends ConsumerWidget {
               ?.copyWith(color: theme.colorScheme.primary),
         ),
       ));
+      if (result.workoutRoutesIncomplete) {
+        children.add(Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            l10n.settingsAppleHealthImportRoutesIncomplete,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.error),
+          ),
+        ));
+      }
       children.add(Padding(
         padding: const EdgeInsets.only(top: 8),
         child: Row(
@@ -356,13 +369,13 @@ class AppleHealthImportCard extends ConsumerWidget {
   }
 
   Future<void> _pickAndAnalyze(AppleHealthImportNotifier notifier) async {
-    final bytes = await _pickBytes();
-    if (bytes == null) return;
-    await notifier.analyze(bytes);
+    final source = await _pickSource();
+    if (source == null) return;
+    await notifier.analyze(source);
   }
 
-  Future<List<int>?> _pickBytes() async {
-    final picker = pickExportBytes;
+  Future<AppleHealthExportSource?> _pickSource() async {
+    final picker = pickExportSource;
     if (picker != null) return picker();
     final file = await openFile(
       acceptedTypeGroups: const [
@@ -375,7 +388,17 @@ class AppleHealthImportCard extends ConsumerWidget {
       ],
     );
     if (file == null) return null;
-    return file.readAsBytes();
+    // The picker's reported length is the expectation the staging store then
+    // verifies its copy against (Kotlin: the SAF `SIZE` column).
+    final size = await file.length();
+    return AppleHealthExportSource(
+      sourceId: file.path,
+      fingerprint: AppleHealthExportFingerprint(
+        displayName: file.name,
+        size: size,
+      ),
+      openRead: file.openRead,
+    );
   }
 
   void _grant(WidgetRef ref, Set<String> missing) {

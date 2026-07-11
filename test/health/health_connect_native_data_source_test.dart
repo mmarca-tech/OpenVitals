@@ -234,6 +234,45 @@ class FakeHostApi extends HealthConnectHostApi {
   ) async =>
       exerciseSessions;
 
+  /// The include-flags the last `readExerciseSessionsWithMetrics` was made with.
+  ({bool includeDistance, bool includeSpeed})? lastMetricsQuery;
+
+  @override
+  Future<List<ExerciseDataMsg>> readExerciseSessionsWithMetrics(
+    int startEpochMs,
+    int endEpochMs,
+    bool includeDistance,
+    bool includeSpeed,
+  ) async {
+    lastMetricsQuery =
+        (includeDistance: includeDistance, includeSpeed: includeSpeed);
+    // Mirrors the native reader: an ungranted metric is simply left out of the
+    // aggregate, so it comes back null.
+    return [
+      for (final m in exerciseSessions)
+        ExerciseDataMsg(
+          id: m.id,
+          title: m.title,
+          exerciseType: m.exerciseType,
+          startEpochMs: m.startEpochMs,
+          endEpochMs: m.endEpochMs,
+          source: m.source,
+          notes: m.notes,
+          clientRecordId: m.clientRecordId,
+          plannedExerciseSessionId: m.plannedExerciseSessionId,
+          device: m.device,
+          segments: m.segments,
+          laps: m.laps,
+          route: m.route,
+          isOpenVitalsEntry: m.isOpenVitalsEntry,
+          totalDistanceMeters:
+              includeDistance ? m.totalDistanceMeters : null,
+          averageSpeedMetersPerSecond:
+              includeSpeed ? m.averageSpeedMetersPerSecond : null,
+        ),
+    ];
+  }
+
   @override
   Future<String> writeActivityEntry(ActivityWriteRequestMsg request) async {
     activityWriteRequest = request;
@@ -251,6 +290,37 @@ HealthConnectNativeDataSource _source(FakeHostApi api) =>
 
 int _ms(int y, int mo, int d, [int h = 0, int mi = 0]) =>
     DateTime.utc(y, mo, d, h, mi).millisecondsSinceEpoch;
+
+/// A minimal one-hour exercise session, with the route metrics the with-metrics
+/// read backfills.
+ExerciseDataMsg _exerciseMsg({
+  double? totalDistanceMeters,
+  double? averageSpeedMetersPerSecond,
+  List<ExerciseRoutePointMsg> routePoints = const [],
+}) =>
+    ExerciseDataMsg(
+      id: 'ex-1',
+      title: 'Morning run',
+      exerciseType: 56,
+      startEpochMs: _ms(2026, 1, 2, 8),
+      endEpochMs: _ms(2026, 1, 2, 9),
+      source: _appPackage,
+      notes: null,
+      clientRecordId: null,
+      plannedExerciseSessionId: null,
+      device: null,
+      segments: const [],
+      laps: const [],
+      route: ExerciseRouteMsg(
+        status: routePoints.isEmpty
+            ? ExerciseRouteStatusMsg.noData
+            : ExerciseRouteStatusMsg.data,
+        points: routePoints,
+      ),
+      isOpenVitalsEntry: true,
+      totalDistanceMeters: totalDistanceMeters,
+      averageSpeedMetersPerSecond: averageSpeedMetersPerSecond,
+    );
 
 void main() {
   group('availability', () {
@@ -435,6 +505,91 @@ void main() {
       expect(session.route.status, ExerciseRouteStatus.data);
       expect(session.route.points, hasLength(1));
       expect(session.route.points.single.latitude, 51.5);
+      // The plain read carries no aggregate-derived route metrics.
+      expect(session.totalDistanceMeters, isNull);
+      expect(session.averageSpeedMetersPerSecond, isNull);
+    });
+
+    test('readExerciseSessionsWithMetrics maps aggregate distance/speed through',
+        () async {
+      final api = FakeHostApi()
+        ..exerciseSessions = [
+          _exerciseMsg(totalDistanceMeters: 5000.0, averageSpeedMetersPerSecond: 2.7),
+        ];
+
+      final sessions = await _source(api).readExerciseSessionsWithMetrics(
+        DateTime.utc(2026, 1, 2),
+        DateTime.utc(2026, 1, 3),
+        includeDistance: true,
+        includeSpeed: true,
+      );
+
+      expect(api.lastMetricsQuery,
+          (includeDistance: true, includeSpeed: true));
+      expect(sessions.single.totalDistanceMeters, 5000.0);
+      expect(sessions.single.averageSpeedMetersPerSecond, 2.7);
+    });
+
+    test('readExerciseSessionsWithMetrics degrades to null without the perms',
+        () async {
+      final api = FakeHostApi()
+        ..exerciseSessions = [
+          _exerciseMsg(totalDistanceMeters: 5000.0, averageSpeedMetersPerSecond: 2.7),
+        ];
+
+      // Health Connect reads are permission-gated: an ungranted distance/speed
+      // must degrade to null metrics, never throw or drop the session.
+      final sessions = await _source(api).readExerciseSessionsWithMetrics(
+        DateTime.utc(2026, 1, 2),
+        DateTime.utc(2026, 1, 3),
+      );
+
+      expect(api.lastMetricsQuery,
+          (includeDistance: false, includeSpeed: false));
+      expect(sessions, hasLength(1));
+      expect(sessions.single.id, 'ex-1');
+      expect(sessions.single.totalDistanceMeters, isNull);
+      expect(sessions.single.averageSpeedMetersPerSecond, isNull);
+    });
+
+    test('readExerciseSessionsWithMetrics backfills distance from the route',
+        () async {
+      // No DistanceRecord in the window (aggregate returns nothing), but the
+      // session has a route — Kotlin's `backfillRouteMetrics = true` path
+      // derives the distance from the route geometry.
+      final api = FakeHostApi()
+        ..exerciseSessions = [
+          _exerciseMsg(
+            totalDistanceMeters: 0.0,
+            routePoints: [
+              ExerciseRoutePointMsg(
+                timeEpochMs: _ms(2026, 1, 2, 8),
+                latitude: 51.5,
+                longitude: -0.12,
+                altitudeMeters: null,
+                horizontalAccuracyMeters: null,
+                verticalAccuracyMeters: null,
+              ),
+              ExerciseRoutePointMsg(
+                timeEpochMs: _ms(2026, 1, 2, 8, 30),
+                latitude: 51.51,
+                longitude: -0.12,
+                altitudeMeters: null,
+                horizontalAccuracyMeters: null,
+                verticalAccuracyMeters: null,
+              ),
+            ],
+          ),
+        ];
+
+      final sessions = await _source(api).readExerciseSessionsWithMetrics(
+        DateTime.utc(2026, 1, 2),
+        DateTime.utc(2026, 1, 3),
+        includeDistance: true,
+      );
+
+      // ~0.01 degrees of latitude ≈ 1.1 km.
+      expect(sessions.single.totalDistanceMeters, closeTo(1112, 20));
     });
 
     test('HeartRate raw samples map from typed msgs (short range)', () async {

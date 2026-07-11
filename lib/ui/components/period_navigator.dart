@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/period/period_titles.dart';
 import '../../core/period/time_range.dart';
 import '../../core/time/local_date.dart';
+import '../../l10n/app_localizations.dart';
 
 final DateFormat _dayTitleFormat = DateFormat('EEE, d MMM');
 final DateFormat _daySubtitleFormat = DateFormat('d MMM yyyy');
@@ -20,10 +21,10 @@ String periodSubtitle(TimeRange range, DatePeriod period) {
   return '$start - $end';
 }
 
-String _dayTitle(LocalDate date) {
+String _dayTitle(AppLocalizations l10n, LocalDate date) {
   final today = LocalDate.now();
-  if (date == today) return 'Today';
-  if (date == today.minusDays(1)) return 'Yesterday';
+  if (date == today) return l10n.periodToday;
+  if (date == today.minusDays(1)) return l10n.periodYesterday;
   return _dayTitleFormat.format(_toDateTime(date));
 }
 
@@ -41,6 +42,7 @@ class PeriodNavigator extends StatelessWidget {
     required this.onOpenCalendar,
     this.title,
     this.subtitle,
+    this.weekPeriodMode = WeekPeriodMode.mondayToSunday,
   });
 
   final TimeRange selectedRange;
@@ -51,11 +53,18 @@ class PeriodNavigator extends StatelessWidget {
   final VoidCallback onOpenCalendar;
   final String? title;
   final String? subtitle;
+  final WeekPeriodMode weekPeriodMode;
 
   @override
   Widget build(BuildContext context) {
     return _NavigatorRow(
-      title: title ?? periodTitle(selectedRange, period),
+      title: title ??
+          periodTitle(
+            AppLocalizations.of(context),
+            selectedRange,
+            period,
+            weekPeriodMode: weekPeriodMode,
+          ),
       subtitle: subtitle ?? periodSubtitle(selectedRange, period),
       canGoForward: canGoForward,
       onPrevious: onPreviousPeriod,
@@ -87,7 +96,7 @@ class DayNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _NavigatorRow(
-      title: _dayTitle(date),
+      title: _dayTitle(AppLocalizations.of(context), date),
       subtitle: _daySubtitleFormat.format(_toDateTime(date)),
       canGoForward: canGoForward,
       onPrevious: onPreviousDay,

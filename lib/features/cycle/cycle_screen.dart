@@ -10,6 +10,7 @@ import '../../core/time/local_date.dart';
 import '../../di/providers.dart';
 import '../../domain/model/cycle_models.dart';
 import '../../health/health_permissions.dart';
+import '../../l10n/app_localizations.dart';
 import '../../state/app_providers.dart';
 import '../../ui/components/health_connect_gate.dart';
 import '../../ui/components/metric_card.dart';
@@ -86,6 +87,7 @@ List<Widget> _content(
     ];
   }
 
+  final l10n = AppLocalizations.of(context);
   final summary = _CycleSummary.of(data);
   final observations = _observations(data, formatter);
 
@@ -100,7 +102,7 @@ List<Widget> _content(
               unit: 'days',
               icon: Icons.calendar_month,
               accentColor: AppColors.cycle,
-              subtitle: periodTitle(state.selectedRange, period),
+              subtitle: periodTitle(l10n, state.selectedRange, period),
             ),
           ),
           const SizedBox(width: 12),

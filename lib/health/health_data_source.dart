@@ -130,6 +130,20 @@ class HealthDataSource {
   ) async =>
       const <ExerciseData>[];
 
+  /// Like [readExerciseSessions], but each session also carries the route
+  /// metrics that only an aggregate over the session's own window can produce —
+  /// total distance ([includeDistance]) and average speed ([includeSpeed]).
+  ///
+  /// The flags are the caller's granted read-distance / read-speed permissions:
+  /// an ungranted metric comes back null, never an error.
+  Future<List<ExerciseData>> readExerciseSessionsWithMetrics(
+    DateTime start,
+    DateTime end, {
+    bool includeDistance = false,
+    bool includeSpeed = false,
+  }) async =>
+      const <ExerciseData>[];
+
   Future<ExerciseData?> readExerciseSession(String id) async => null;
 
   /// The day's cumulative metrics, hour by hour. Overridden by the native

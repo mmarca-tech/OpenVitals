@@ -229,7 +229,11 @@ class ActivitiesNotifier extends Notifier<ActivitiesState> {
 
     try {
       final results = await (
-        repo.loadWorkouts(current.start, current.end),
+        // Only the current window pays for the per-session distance/speed
+        // aggregates — it is the one that renders the activity-type stats card.
+        // Previous/baseline stay on the plain read (Kotlin `ActivitiesViewModel`
+        // switched exactly this one call site).
+        repo.loadWorkoutsWithMetrics(current.start, current.end),
         repo.loadPlannedWorkouts(current.start, current.end),
         repo.loadWorkouts(windows.previous.start, windows.previous.end),
         repo.loadWorkouts(windows.baseline.start, windows.baseline.end),
@@ -400,11 +404,20 @@ List<ActivityTypeAggregate> activityTypeAggregatesOf(
     final averageMovingSpeed = totalDistance > 0 && totalMovingDuration > 0
         ? _finitePositive(totalDistance / (totalMovingDuration / 1000.0))
         : null;
+    // Fastest workout of the group. Per workout Kotlin takes the *max* of the
+    // recorded average speed and the derived distance/moving-duration speed —
+    // a provider may record only one of the two, and where both exist the
+    // recorded average can be diluted by paused stretches the moving duration
+    // already excludes.
     double? bestSpeed;
     for (final w in group) {
-      final candidate = _finitePositive(w.averageSpeedMetersPerSecond ?? 0);
-      if (candidate != null && (bestSpeed == null || candidate > bestSpeed)) {
-        bestSpeed = candidate;
+      for (final candidate in [
+        _finitePositive(w.averageSpeedMetersPerSecond ?? 0),
+        _workoutMovingSpeedMetersPerSecond(w),
+      ]) {
+        if (candidate != null && (bestSpeed == null || candidate > bestSpeed)) {
+          bestSpeed = candidate;
+        }
       }
     }
     aggregates.add(ActivityTypeAggregate(
@@ -428,6 +441,17 @@ List<ActivityTypeAggregate> activityTypeAggregatesOf(
 
 double? _finitePositive(double value) =>
     value.isFinite && value > 0 ? value : null;
+
+/// A single workout's distance / moving-duration speed (Kotlin
+/// `ExerciseData.averageMovingSpeedMetersPerSecond`). Null when the workout has
+/// no positive distance or no moving time.
+double? _workoutMovingSpeedMetersPerSecond(ExerciseData workout) {
+  final distance = workout.totalDistanceMeters;
+  if (distance == null || distance <= 0) return null;
+  final movingMs = _movingDurationMs(workout);
+  if (movingMs <= 0) return null;
+  return _finitePositive(distance / (movingMs / 1000.0));
+}
 
 /// Summed pause-segment duration of a workout, each coerced >= 0 and the total
 /// capped at the workout's own duration (Kotlin `ActivityMetrics.pausedDurationMs`).

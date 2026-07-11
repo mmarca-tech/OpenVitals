@@ -2,13 +2,25 @@
 /// Kotlin `AppleHealthImportParser.kt`.
 ///
 /// Uses `package:xml`'s event API (`parseEvents`) so the document is consumed as
-/// a stream of start/end/text events without materializing a DOM, and
-/// `package:archive` to read `export.xml` (and workout-route GPX files) out of a
-/// zipped export. Character repair and DTD stripping happen in
+/// a stream of start/end/text events without materializing a DOM.
+///
+/// The ZIP is read **sequentially** from local file headers over an
+/// `InputFileStream` — the Dart analogue of Kotlin's `ZipInputStream`, and the
+/// reason a truncated export is recoverable at all. The previous
+/// `ZipDecoder().decodeBytes()` was a whole-archive random-access decode that
+/// needs the end-of-central-directory record, so a ZIP whose tail was missing
+/// failed instantly (even for analysis) and every entry landed in RAM. Reading
+/// forward instead means `export.xml` (extracted to a temp file, never a
+/// `List<int>`) is usable even when the archive is cut short inside a later
+/// `workout-routes/*.gpx` entry; see [AppleWorkoutRouteArchiveFailure].
+///
+/// Character repair and DTD stripping happen in
 /// `apple_health_import_xml_support.dart` before any event is emitted.
 library;
 
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
@@ -41,6 +53,30 @@ abstract interface class AppleHealthXmlEventConsumer {
 class AppleHealthImportParser {
   const AppleHealthImportParser._();
 
+  /// Parses a staged export [file] — a `.zip` (read sequentially) or a bare
+  /// `export.xml`. This is the production entry point; the export never has to
+  /// exist as a `List<int>`.
+  static AppleParsedExport parseFile(
+    File file, {
+    AppleHealthXmlEventConsumer? consumer,
+    AppleHealthParseOptions options = const AppleHealthParseOptions(),
+    Map<String, AppleWorkoutRouteFile> routeFiles = const {},
+  }) {
+    if (_fileHasZipHeader(file)) {
+      return _parseZipFile(file, consumer, routeFiles, options);
+    }
+    final xml = utf8.decode(file.readAsBytesSync(), allowMalformed: true);
+    return _parseXmlExport(
+      xml,
+      consumer,
+      routeFiles,
+      options.parseRecordDetails,
+    );
+  }
+
+  /// Byte-oriented entry point kept for XML fixtures and callers that already
+  /// hold the document. A zipped payload is spilled to a temp file so it goes
+  /// through exactly the same sequential reader as [parseFile].
   static AppleParsedExport parse(
     List<int> bytes, {
     AppleHealthXmlEventConsumer? consumer,
@@ -48,43 +84,106 @@ class AppleHealthImportParser {
     Map<String, AppleWorkoutRouteFile> routeFiles = const {},
   }) {
     if (_hasZipHeader(bytes)) {
-      return _parseZipExport(bytes, consumer, routeFiles, options);
+      final directory = Directory.systemTemp.createTempSync('apple_health_zip');
+      final file = File('${directory.path}/export.zip')
+        ..writeAsBytesSync(bytes);
+      try {
+        return _parseZipFile(file, consumer, routeFiles, options);
+      } finally {
+        try {
+          directory.deleteSync(recursive: true);
+        } catch (_) {
+          // Best effort.
+        }
+      }
     }
     final xml = utf8.decode(bytes, allowMalformed: true);
     return _parseXmlExport(xml, consumer, routeFiles, options.parseRecordDetails);
   }
 
-  static AppleParsedExport _parseZipExport(
-    List<int> bytes,
+  /// Walks the ZIP's local file headers front-to-back (Kotlin `ZipInputStream`),
+  /// extracting `export.xml` to a temp file and streaming each route GPX.
+  static AppleParsedExport _parseZipFile(
+    File file,
     AppleHealthXmlEventConsumer? consumer,
     Map<String, AppleWorkoutRouteFile> routeFiles,
     AppleHealthParseOptions options,
   ) {
-    final archive = ZipDecoder().decodeBytes(bytes);
-    List<int>? exportXmlBytes;
-    final resolvedRouteFiles =
-        Map<String, AppleWorkoutRouteFile>.of(routeFiles);
-    for (final file in archive.files) {
-      if (!file.isFile) continue;
-      final name = file.name;
-      if (_isAppleHealthExportXml(name)) {
-        exportXmlBytes = file.content as List<int>;
-      } else if (options.parseRouteFiles && _isAppleWorkoutRouteFile(name)) {
-        final gpx = utf8.decode(file.content as List<int>, allowMalformed: true);
-        final routeFile = AppleHealthImportRouteParser.parse(name, gpx);
-        if (routeFile != null) resolvedRouteFiles[routeFile.path] = routeFile;
+    final resolvedRouteFiles = Map<String, AppleWorkoutRouteFile>.of(routeFiles);
+    final fileLength = file.lengthSync();
+    final input = InputFileStream(file.path);
+    final workspace = Directory.systemTemp.createTempSync('apple_health_export');
+    final exportXml = File('${workspace.path}/export.xml');
+    var foundExportXml = false;
+    AppleWorkoutRouteArchiveFailure? routeArchiveFailure;
+
+    try {
+      var position = 0;
+      while (position + _localHeaderMinimumBytes <= fileLength) {
+        input.setPosition(position);
+        if (input.readUint32() != _localFileHeaderSignature) break;
+        final entry = _readLocalHeader(input, position, fileLength);
+        if (entry == null) {
+          // The header itself was cut short: we cannot even name the entry, so
+          // this is never recoverable (Kotlin throws with entryName = null).
+          throw AppleHealthZipReadException();
+        }
+        final truncated = entry.dataEnd > fileLength;
+        if (_isAppleHealthExportXml(entry.name)) {
+          if (truncated) {
+            // Damage at or before export.xml is fatal — there is nothing to
+            // import from a half-read document.
+            throw AppleHealthZipReadException(entryName: entry.name);
+          }
+          _extractEntryToFile(input, entry, exportXml);
+          foundExportXml = true;
+        } else if (options.parseRouteFiles &&
+            _isAppleWorkoutRouteFile(entry.name)) {
+          final failure = _readRouteEntry(
+            input,
+            entry,
+            fileLength,
+            resolvedRouteFiles,
+          );
+          if (failure != null) {
+            if (!foundExportXml) {
+              throw AppleHealthZipReadException(
+                entryName: failure.entryName,
+                decompressedBytesRead: failure.decompressedBytesRead,
+              );
+            }
+            // export.xml is already safe: keep the health records, drop this
+            // route and every entry after it.
+            routeArchiveFailure = failure;
+            break;
+          }
+        }
+        if (truncated) break;
+        // Always strictly greater than `position`: an entry is at least a
+        // 30-byte header, so the walk cannot stall.
+        position = entry.nextEntryOffset;
+      }
+
+      if (!foundExportXml) {
+        throw ArgumentError('Apple Health export.zip must contain export.xml.');
+      }
+
+      final xml = utf8.decode(exportXml.readAsBytesSync(), allowMalformed: true);
+      final parsed = _parseXmlExport(
+        xml,
+        consumer,
+        resolvedRouteFiles,
+        options.parseRecordDetails,
+      );
+      return parsed.copyWithRouteArchiveFailure(routeArchiveFailure);
+    } finally {
+      input.closeSync();
+      try {
+        workspace.deleteSync(recursive: true);
+      } catch (_) {
+        // Best effort; the temp dir is reclaimed by the OS otherwise.
       }
     }
-    if (exportXmlBytes == null) {
-      throw ArgumentError('Apple Health export.zip must contain export.xml.');
-    }
-    final xml = utf8.decode(exportXmlBytes, allowMalformed: true);
-    return _parseXmlExport(
-      xml,
-      consumer,
-      resolvedRouteFiles,
-      options.parseRecordDetails,
-    );
   }
 
   static AppleParsedExport _parseXmlExport(
@@ -261,7 +360,7 @@ class _MutableWorkout extends _MutableElement {
   late final bool _hasTotalEnergyBurnedAttribute;
   final List<AppleWorkoutEvent> events = [];
   final List<AppleWorkoutRouteFile> routes = [];
-  int routeReferences = 0;
+  final List<String> routeReferencePaths = [];
 
   void addStatistic(Map<String, String> attrs) {
     final type = attrs['type'];
@@ -307,7 +406,7 @@ class _MutableWorkout extends _MutableElement {
       metadata: Map.of(metadata),
       events: List.of(events),
       routes: deduped.values.toList(),
-      routeReferences: routeReferences,
+      routeReferencePaths: routeReferencePaths.toSet().toList(),
     );
   }
 }
@@ -484,7 +583,7 @@ class _AppleHealthXmlHandler {
         for (final path in route.paths) {
           referencedPaths.add(normalizedAppleWorkoutRoutePath(path));
         }
-        workout.routeReferences += referencedPaths.length;
+        workout.routeReferencePaths.addAll(referencedPaths);
         for (final path in referencedPaths) {
           final routeFile = _routeFiles[path];
           if (routeFile != null) workout.addRoute(routeFile);
@@ -524,6 +623,264 @@ Map<String, String> _attributes(List<XmlEventAttribute> attributes) {
     if (value.trim().isNotEmpty) result[attribute.name] = value;
   }
   return result;
+}
+
+// ── Sequential ZIP reading ────────────────────────────────────────────────
+//
+// The Dart analogue of Kotlin's `ZipInputStream`: walk the local file headers
+// forward instead of seeking to the end-of-central-directory record, so a ZIP
+// whose tail is missing is still readable up to the point of damage.
+
+const int _localFileHeaderSignature = 0x04034b50;
+const int _centralDirectorySignature = 0x02014b50;
+const int _dataDescriptorSignature = 0x08074b50;
+const int _localHeaderMinimumBytes = 30;
+const int _zip64ExtraFieldId = 0x0001;
+const int _dataDescriptorFlag = 0x08;
+const int _compressionDeflate = 8;
+const int _sizeUnknown = 0xFFFFFFFF;
+
+class _ZipLocalEntry {
+  const _ZipLocalEntry({
+    required this.name,
+    required this.compressionMethod,
+    required this.dataOffset,
+    required this.compressedSize,
+    required this.nextEntryOffset,
+  });
+
+  final String name;
+  final int compressionMethod;
+  final int dataOffset;
+  final int compressedSize;
+
+  /// Where the *next* local header starts (past any data descriptor).
+  final int nextEntryOffset;
+
+  int get dataEnd => dataOffset + compressedSize;
+}
+
+/// Reads one local file header, with [input] positioned just past its signature.
+/// Returns `null` when the header (or its name/extra field) runs past the end of
+/// a truncated file.
+_ZipLocalEntry? _readLocalHeader(
+  InputFileStream input,
+  int headerOffset,
+  int fileLength,
+) {
+  input.readUint16(); // version needed
+  final flags = input.readUint16();
+  final compressionMethod = input.readUint16();
+  input
+    ..readUint16() // modification time
+    ..readUint16() // modification date
+    ..readUint32(); // crc32
+  var compressedSize = input.readUint32();
+  var uncompressedSize = input.readUint32();
+  final nameLength = input.readUint16();
+  final extraLength = input.readUint16();
+  final headerEnd =
+      headerOffset + _localHeaderMinimumBytes + nameLength + extraLength;
+  if (headerEnd > fileLength) return null;
+
+  final name = input.readString(size: nameLength, utf8: true);
+  final extra = input.readBytes(extraLength).toUint8List();
+  if (compressedSize == _sizeUnknown || uncompressedSize == _sizeUnknown) {
+    final zip64 = _readZip64Sizes(extra);
+    if (zip64 != null) {
+      uncompressedSize = zip64.$1;
+      compressedSize = zip64.$2;
+    }
+  }
+
+  final dataOffset = headerEnd;
+  if (compressedSize > 0) {
+    return _ZipLocalEntry(
+      name: name,
+      compressionMethod: compressionMethod,
+      dataOffset: dataOffset,
+      compressedSize: compressedSize,
+      nextEntryOffset: dataOffset + compressedSize,
+    );
+  }
+
+  // A streaming ZIP writer leaves the sizes at zero and appends a data
+  // descriptor after the payload. There is no central directory to consult
+  // (that is the whole point of reading sequentially), so bound the entry by
+  // the next signature in the file.
+  final hasDataDescriptor = (flags & _dataDescriptorFlag) != 0;
+  final boundary = _findNextSignature(input, dataOffset, fileLength);
+  if (boundary == null) {
+    // Nothing follows. An intact archive always has a central directory, so
+    // either this is a genuinely empty entry, or the file was cut short — in
+    // which case the caller sees dataEnd > fileLength and reports the damage.
+    final isEmptyEntry = uncompressedSize == 0 && !hasDataDescriptor;
+    return _ZipLocalEntry(
+      name: name,
+      compressionMethod: compressionMethod,
+      dataOffset: dataOffset,
+      compressedSize: isEmptyEntry ? 0 : fileLength - dataOffset + 1,
+      nextEntryOffset: fileLength,
+    );
+  }
+  final descriptorLength = hasDataDescriptor
+      ? _dataDescriptorLength(input, boundary, dataOffset)
+      : 0;
+  return _ZipLocalEntry(
+    name: name,
+    compressionMethod: compressionMethod,
+    dataOffset: dataOffset,
+    compressedSize: boundary - descriptorLength - dataOffset,
+    nextEntryOffset: boundary,
+  );
+}
+
+/// The zip64 extended-information extra field: `(uncompressedSize, compressedSize)`.
+(int, int)? _readZip64Sizes(Uint8List extra) {
+  var index = 0;
+  while (index + 4 <= extra.length) {
+    final id = extra[index] | (extra[index + 1] << 8);
+    final size = extra[index + 2] | (extra[index + 3] << 8);
+    final body = index + 4;
+    if (id == _zip64ExtraFieldId && size >= 16 && body + 16 <= extra.length) {
+      return (
+        _readUint64(extra, body),
+        _readUint64(extra, body + 8),
+      );
+    }
+    index = body + size;
+  }
+  return null;
+}
+
+int _readUint64(Uint8List bytes, int offset) {
+  var value = 0;
+  for (var index = 7; index >= 0; index--) {
+    value = (value << 8) | bytes[offset + index];
+  }
+  return value;
+}
+
+/// Scans forward for the next local-header / central-directory signature, which
+/// bounds an entry whose size the local header did not record.
+int? _findNextSignature(InputFileStream input, int from, int fileLength) {
+  const chunkSize = 64 * 1024;
+  var position = from;
+  while (position + 4 <= fileLength) {
+    final length = (fileLength - position).clamp(0, chunkSize);
+    input.setPosition(position);
+    final chunk = input.readBytes(length).toUint8List();
+    for (var index = 0; index + 4 <= chunk.length; index++) {
+      if (chunk[index] != 0x50 || chunk[index + 1] != 0x4B) continue;
+      final signature = chunk[index] |
+          (chunk[index + 1] << 8) |
+          (chunk[index + 2] << 16) |
+          (chunk[index + 3] << 24);
+      if (signature == _localFileHeaderSignature ||
+          signature == _centralDirectorySignature) {
+        return position + index;
+      }
+    }
+    if (length < chunkSize) break;
+    // Overlap by three bytes so a signature straddling a chunk edge is seen.
+    position += chunkSize - 3;
+  }
+  return null;
+}
+
+/// How many bytes of data descriptor sit between the entry data and [boundary].
+/// Only called when the local header's data-descriptor flag was set, so one is
+/// definitely there: 16 bytes with the optional signature, 12 without.
+int _dataDescriptorLength(InputFileStream input, int boundary, int dataOffset) {
+  if (boundary - 16 >= dataOffset) {
+    input.setPosition(boundary - 16);
+    if (input.readUint32() == _dataDescriptorSignature) return 16;
+  }
+  if (boundary - 12 >= dataOffset) return 12;
+  return 0;
+}
+
+/// Extracts a (never-truncated) entry to [destination] without holding it in RAM.
+void _extractEntryToFile(
+  InputFileStream input,
+  _ZipLocalEntry entry,
+  File destination,
+) {
+  final data = input.subset(
+    position: entry.dataOffset,
+    length: entry.compressedSize,
+  );
+  final output = OutputFileStream(destination.path);
+  try {
+    if (entry.compressionMethod == _compressionDeflate) {
+      ZLibDecoder().decodeStream(data, output, raw: true);
+    } else {
+      output.writeStream(data);
+    }
+  } finally {
+    output.closeSync();
+  }
+}
+
+/// Reads one `workout-routes/*.gpx` entry into [routeFiles]. Returns a failure
+/// when the entry could not be read because the archive ends inside it (or its
+/// GPX is cut short) — the caller decides whether that is fatal.
+AppleWorkoutRouteArchiveFailure? _readRouteEntry(
+  InputFileStream input,
+  _ZipLocalEntry entry,
+  int fileLength,
+  Map<String, AppleWorkoutRouteFile> routeFiles,
+) {
+  final truncated = entry.dataEnd > fileLength;
+  final available = truncated ? fileLength - entry.dataOffset : entry.compressedSize;
+  final data = input.subset(
+    position: entry.dataOffset,
+    length: available < 0 ? 0 : available,
+  );
+  final output = OutputMemoryStream();
+  var decompressionFailed = false;
+  try {
+    if (entry.compressionMethod == _compressionDeflate) {
+      // The pure-Dart inflater yields whatever it managed to decode before the
+      // stream ran out, which is exactly the byte count Kotlin reports.
+      Inflate.stream(data, output: output);
+    } else {
+      output.writeStream(data);
+    }
+  } catch (_) {
+    decompressionFailed = true;
+  }
+  final bytes = output.getBytes();
+  if (truncated || decompressionFailed) {
+    return AppleWorkoutRouteArchiveFailure(
+      entryName: entry.name,
+      decompressedBytesRead: bytes.length,
+    );
+  }
+  final gpx = utf8.decode(bytes, allowMalformed: true);
+  try {
+    final routeFile = AppleHealthImportRouteParser.parse(entry.name, gpx);
+    if (routeFile != null) routeFiles[routeFile.path] = routeFile;
+  } catch (_) {
+    // A GPX that does not parse as XML at all means the entry's bytes are not
+    // what the archive claimed (Kotlin maps an unexpected XML end inside an
+    // archived entry onto the same ZIP-read failure).
+    return AppleWorkoutRouteArchiveFailure(
+      entryName: entry.name,
+      decompressedBytesRead: bytes.length,
+    );
+  }
+  return null;
+}
+
+bool _fileHasZipHeader(File file) {
+  final handle = file.openSync();
+  try {
+    final header = handle.readSync(2);
+    return header.length >= 2 && header[0] == 0x50 && header[1] == 0x4B;
+  } finally {
+    handle.closeSync();
+  }
 }
 
 bool _hasZipHeader(List<int> bytes) =>

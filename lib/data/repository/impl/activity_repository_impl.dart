@@ -145,6 +145,23 @@ class ActivityRepositoryImpl implements ActivityRepository {
   }
 
   @override
+  Future<List<ExerciseData>> loadWorkoutsWithMetrics(
+    LocalDate start,
+    LocalDate end,
+  ) async {
+    final granted = await _grantedIfAvailable();
+    if (!granted.contains(HcPermissions.readExercise)) return const [];
+    // Distance / speed are gated independently: an ungranted metric is left out
+    // of the aggregate and comes back null, rather than failing the read.
+    return _dataSource.readExerciseSessionsWithMetrics(
+      localDayStart(start),
+      localDayEnd(end),
+      includeDistance: granted.contains(HcPermissions.readDistance),
+      includeSpeed: granted.contains(HcPermissions.readSpeed),
+    );
+  }
+
+  @override
   Future<ExerciseData?> loadWorkout(String id) =>
       _dataSource.readExerciseSession(id);
 

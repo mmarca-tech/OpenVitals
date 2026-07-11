@@ -2622,8 +2622,10 @@ data class ExerciseRouteMsg (
 }
 
 /**
- * Intrinsic exercise-session fields (aggregate-derived metrics are resolved on
- * the Dart side / left null, matching the current data source).
+ * Intrinsic exercise-session fields, plus the two route metrics that are only
+ * obtainable by aggregating over the session window ([totalDistanceMeters] /
+ * [averageSpeedMetersPerSecond]). The remaining aggregate-derived metrics are
+ * resolved on the Dart side / left null, matching the current data source.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -2641,7 +2643,19 @@ data class ExerciseDataMsg (
   val segments: List<ExerciseSegmentMsg>,
   val laps: List<ExerciseLapMsg>,
   val route: ExerciseRouteMsg,
-  val isOpenVitalsEntry: Boolean
+  val isOpenVitalsEntry: Boolean,
+  /**
+   * `DistanceRecord.DISTANCE_TOTAL` aggregated over the session window. Null
+   * unless the session was read through `readExerciseSessionsWithMetrics` with
+   * the read-distance permission granted.
+   */
+  val totalDistanceMeters: Double? = null,
+  /**
+   * `SpeedRecord.SPEED_AVG` aggregated over the session window. Null unless the
+   * session was read through `readExerciseSessionsWithMetrics` with the
+   * read-speed permission granted (or the provider recorded no speed samples).
+   */
+  val averageSpeedMetersPerSecond: Double? = null
 )
  {
   companion object {
@@ -2660,7 +2674,9 @@ data class ExerciseDataMsg (
       val laps = pigeonVar_list[11] as List<ExerciseLapMsg>
       val route = pigeonVar_list[12] as ExerciseRouteMsg
       val isOpenVitalsEntry = pigeonVar_list[13] as Boolean
-      return ExerciseDataMsg(id, title, exerciseType, startEpochMs, endEpochMs, source, notes, clientRecordId, plannedExerciseSessionId, device, segments, laps, route, isOpenVitalsEntry)
+      val totalDistanceMeters = pigeonVar_list[14] as Double?
+      val averageSpeedMetersPerSecond = pigeonVar_list[15] as Double?
+      return ExerciseDataMsg(id, title, exerciseType, startEpochMs, endEpochMs, source, notes, clientRecordId, plannedExerciseSessionId, device, segments, laps, route, isOpenVitalsEntry, totalDistanceMeters, averageSpeedMetersPerSecond)
     }
   }
   fun toList(): List<Any?> {
@@ -2679,6 +2695,8 @@ data class ExerciseDataMsg (
       laps,
       route,
       isOpenVitalsEntry,
+      totalDistanceMeters,
+      averageSpeedMetersPerSecond,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -2689,7 +2707,7 @@ data class ExerciseDataMsg (
       return true
     }
     val other = other as ExerciseDataMsg
-    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.source, other.source) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.clientRecordId, other.clientRecordId) && MessagesPigeonUtils.deepEquals(this.plannedExerciseSessionId, other.plannedExerciseSessionId) && MessagesPigeonUtils.deepEquals(this.device, other.device) && MessagesPigeonUtils.deepEquals(this.segments, other.segments) && MessagesPigeonUtils.deepEquals(this.laps, other.laps) && MessagesPigeonUtils.deepEquals(this.route, other.route) && MessagesPigeonUtils.deepEquals(this.isOpenVitalsEntry, other.isOpenVitalsEntry)
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.exerciseType, other.exerciseType) && MessagesPigeonUtils.deepEquals(this.startEpochMs, other.startEpochMs) && MessagesPigeonUtils.deepEquals(this.endEpochMs, other.endEpochMs) && MessagesPigeonUtils.deepEquals(this.source, other.source) && MessagesPigeonUtils.deepEquals(this.notes, other.notes) && MessagesPigeonUtils.deepEquals(this.clientRecordId, other.clientRecordId) && MessagesPigeonUtils.deepEquals(this.plannedExerciseSessionId, other.plannedExerciseSessionId) && MessagesPigeonUtils.deepEquals(this.device, other.device) && MessagesPigeonUtils.deepEquals(this.segments, other.segments) && MessagesPigeonUtils.deepEquals(this.laps, other.laps) && MessagesPigeonUtils.deepEquals(this.route, other.route) && MessagesPigeonUtils.deepEquals(this.isOpenVitalsEntry, other.isOpenVitalsEntry) && MessagesPigeonUtils.deepEquals(this.totalDistanceMeters, other.totalDistanceMeters) && MessagesPigeonUtils.deepEquals(this.averageSpeedMetersPerSecond, other.averageSpeedMetersPerSecond)
   }
 
   override fun hashCode(): Int {
@@ -2708,10 +2726,12 @@ data class ExerciseDataMsg (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.laps)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.route)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.isOpenVitalsEntry)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.totalDistanceMeters)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.averageSpeedMetersPerSecond)
     return result
   }
   override fun toString(): String {
-    return "ExerciseDataMsg(id=$id, title=$title, exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, source=$source, notes=$notes, clientRecordId=$clientRecordId, plannedExerciseSessionId=$plannedExerciseSessionId, device=$device, segments=$segments, laps=$laps, route=$route, isOpenVitalsEntry=$isOpenVitalsEntry)"
+    return "ExerciseDataMsg(id=$id, title=$title, exerciseType=$exerciseType, startEpochMs=$startEpochMs, endEpochMs=$endEpochMs, source=$source, notes=$notes, clientRecordId=$clientRecordId, plannedExerciseSessionId=$plannedExerciseSessionId, device=$device, segments=$segments, laps=$laps, route=$route, isOpenVitalsEntry=$isOpenVitalsEntry, totalDistanceMeters=$totalDistanceMeters, averageSpeedMetersPerSecond=$averageSpeedMetersPerSecond)"
   }
 }
 
@@ -4549,6 +4569,16 @@ interface HealthConnectHostApi {
   fun readSleepSessionsRaw(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SleepDataMsg>>) -> Unit)
   fun readSleepSessionById(id: String, callback: (Result<SleepDataMsg?>) -> Unit)
   fun readExerciseSessions(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<ExerciseDataMsg>>) -> Unit)
+  /**
+   * Exercise sessions in the window, each backfilled with the route metrics
+   * that only an aggregate over the session window can produce:
+   * `DistanceRecord.DISTANCE_TOTAL` (when [includeDistance]) and
+   * `SpeedRecord.SPEED_AVG` (when [includeSpeed]). The two flags are the
+   * caller's granted read-distance / read-speed permissions — an ungranted
+   * metric is simply left out of the aggregate (null on the way back), never
+   * an error.
+   */
+  fun readExerciseSessionsWithMetrics(startEpochMs: Long, endEpochMs: Long, includeDistance: Boolean, includeSpeed: Boolean, callback: (Result<List<ExerciseDataMsg>>) -> Unit)
   fun readExerciseSessionById(id: String, callback: (Result<ExerciseDataMsg?>) -> Unit)
   fun readSpeedSamples(startEpochMs: Long, endEpochMs: Long, callback: (Result<List<SpeedSampleMsg>>) -> Unit)
   /**
@@ -6269,6 +6299,29 @@ interface HealthConnectHostApi {
             val startEpochMsArg = args[0] as Long
             val endEpochMsArg = args[1] as Long
             api.readExerciseSessions(startEpochMsArg, endEpochMsArg) { result: Result<List<ExerciseDataMsg>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.health_connect_native.HealthConnectHostApi.readExerciseSessionsWithMetrics$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startEpochMsArg = args[0] as Long
+            val endEpochMsArg = args[1] as Long
+            val includeDistanceArg = args[2] as Boolean
+            val includeSpeedArg = args[3] as Boolean
+            api.readExerciseSessionsWithMetrics(startEpochMsArg, endEpochMsArg, includeDistanceArg, includeSpeedArg) { result: Result<List<ExerciseDataMsg>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

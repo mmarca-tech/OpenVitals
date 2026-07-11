@@ -23,6 +23,7 @@ import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.StepsCadenceRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Length
@@ -56,6 +57,76 @@ internal class ActivityHealthReader(
         pageSize = 50,
       ).map { it.toMsg() }
     }
+
+  /**
+   * Port of the native app's `ActivityHealthReader.readExerciseSessionsWithMetrics`.
+   *
+   * `ExerciseSessionRecord` itself carries no distance/speed — those live in
+   * sibling `DistanceRecord` / `SpeedRecord` series, so the only way to attach
+   * them to a session is to aggregate over the session's own window. One
+   * `AggregateRequest` per session, with only the metrics the caller holds a
+   * read permission for; an aggregate failure degrades that session to null
+   * metrics rather than failing the whole read (rate limits still propagate so
+   * [HealthConnectReaderSupport] can wait them out and retry).
+   */
+  suspend fun readExerciseSessionsWithMetrics(
+    start: Instant,
+    end: Instant,
+    includeDistance: Boolean,
+    includeSpeed: Boolean,
+  ): List<ExerciseDataMsg> =
+    support.withLogging("readExerciseSessionsWithMetrics[$start..$end]", emptyList()) {
+      support.client().readRecordsPaged(
+        recordType = ExerciseSessionRecord::class,
+        timeRangeFilter = TimeRangeFilter.between(start, end),
+        ascendingOrder = false,
+        pageSize = 50,
+      ).map { record ->
+        readExerciseSessionMetrics(
+          record = record,
+          includeDistance = includeDistance,
+          includeSpeed = includeSpeed,
+        )
+      }
+    }
+
+  private suspend fun readExerciseSessionMetrics(
+    record: ExerciseSessionRecord,
+    includeDistance: Boolean,
+    includeSpeed: Boolean,
+  ): ExerciseDataMsg {
+    val metrics = buildSet {
+      if (includeDistance) add(DistanceRecord.DISTANCE_TOTAL)
+      if (includeSpeed) add(SpeedRecord.SPEED_AVG)
+    }
+    val aggregate = if (metrics.isEmpty()) {
+      null
+    } else {
+      runCatching {
+        support.client().aggregate(
+          AggregateRequest(
+            metrics = metrics,
+            timeRangeFilter = TimeRangeFilter.between(record.startTime, record.endTime),
+          ),
+        )
+      }.onFailure {
+        if (HealthConnectRateLimitBackoff.isRateLimitFailure(it)) throw it
+        Log.e(TAG, "Failed readExerciseSessionMetrics aggregate ${support.diagnosticsSummary()}", it)
+      }.getOrNull()
+    }
+    return record.toMsg(
+      totalDistanceMeters = if (includeDistance && aggregate != null) {
+        aggregate[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0
+      } else {
+        null
+      },
+      averageSpeedMetersPerSecond = if (includeSpeed && aggregate != null) {
+        aggregate[SpeedRecord.SPEED_AVG]?.inMetersPerSecond
+      } else {
+        null
+      },
+    )
+  }
 
   suspend fun readExerciseSessionById(id: String): ExerciseDataMsg? =
     support.withNullableLogging("readExerciseSessionById[$id]") {
@@ -631,7 +702,10 @@ internal class ActivityHealthReader(
       else -> ExerciseSegment.EXERCISE_SEGMENT_TYPE_OTHER_WORKOUT
     }
 
-  private fun ExerciseSessionRecord.toMsg() = ExerciseDataMsg(
+  private fun ExerciseSessionRecord.toMsg(
+    totalDistanceMeters: Double? = null,
+    averageSpeedMetersPerSecond: Double? = null,
+  ) = ExerciseDataMsg(
     id = metadata.id,
     title = title,
     exerciseType = exerciseType.toLong(),
@@ -662,6 +736,8 @@ internal class ActivityHealthReader(
     },
     route = exerciseRouteResult.toRouteMsg(),
     isOpenVitalsEntry = isOpenVitalsRecord(metadata.dataOrigin.packageName, appPackageName),
+    totalDistanceMeters = totalDistanceMeters,
+    averageSpeedMetersPerSecond = averageSpeedMetersPerSecond,
   )
 
   private fun ExerciseRouteResult.toRouteMsg(): ExerciseRouteMsg = when (this) {
