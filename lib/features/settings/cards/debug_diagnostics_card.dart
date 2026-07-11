@@ -6,19 +6,23 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/diagnostics/debug_log_sanitizer.dart';
+import '../../../core/diagnostics/debug_log_sharing.dart';
 import '../../../core/diagnostics/logcat_reader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../ui/components/ov_card.dart';
 
 /// Settings "Debug diagnostics" card — a faithful port of the Kotlin
 /// `DebugDiagnosticsCard` (`SettingsCards.kt`): a bug-report icon, the sanitized
-/// diagnostics-logs title/body, and a single "Save logs" action.
+/// diagnostics-logs title/body, and the "Share logs" / "Save logs" actions.
 ///
-/// The action reads the current process logcat over the native
-/// [LogcatReader] channel, privacy-sanitizes it in pure Dart via
-/// [DebugLogSanitizer], and writes the result to a user-chosen file (default
-/// name `openvitals-diagnostics-logs.txt`). The section is only reachable in
-/// debug builds (gated on `kDebugMode` in the hub + router), mirroring Kotlin's
+/// Both actions read the current process logcat over the native [LogcatReader]
+/// channel and privacy-sanitize it in pure Dart via [DebugLogSanitizer]
+/// (see [_buildExportText], the shared half). Share hands the result to the
+/// system share sheet via [DebugLogSharing]; Save writes it to a user-chosen
+/// file (default name `openvitals-diagnostics-logs.txt`).
+///
+/// The section is only reachable in diagnostics-enabled builds (gated on
+/// `kDiagnosticsEnabled` in the hub + router), mirroring Kotlin's
 /// `BuildConfig.OPENVITALS_DIAGNOSTICS`.
 class DebugDiagnosticsCard extends StatelessWidget {
   const DebugDiagnosticsCard({
@@ -26,6 +30,7 @@ class DebugDiagnosticsCard extends StatelessWidget {
     this.readLogcat,
     this.loadPackageInfo,
     this.saveLogsFile,
+    this.shareLogsFile,
   });
 
   /// Test seam for the native logcat read; defaults to the platform channel.
@@ -40,7 +45,12 @@ class DebugDiagnosticsCard extends StatelessWidget {
   final Future<bool> Function(String content, String suggestedName)?
       saveLogsFile;
 
-  static const String _suggestedName = 'openvitals-diagnostics-logs.txt';
+  /// Test seam for the share flow; defaults to [DebugLogSharing]. Throws on
+  /// failure (Kotlin's `runCatching { context.shareDebugDiagnosticsLog() }`).
+  final Future<void> Function(String content, String chooserTitle)?
+      shareLogsFile;
+
+  static const String _suggestedName = DebugLogSharing.exportFileName;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +103,17 @@ class DebugDiagnosticsCard extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
+                    onPressed: () => _shareLogs(context, l10n),
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    label: Text(l10n.settingsDebugLogsShare),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
                     onPressed: () => _saveLogs(context, l10n),
                     icon: const Icon(Icons.download_outlined, size: 18),
                     label: Text(l10n.settingsDebugLogsSave),
@@ -106,42 +127,85 @@ class DebugDiagnosticsCard extends StatelessWidget {
     );
   }
 
-  Future<void> _saveLogs(BuildContext context, AppLocalizations l10n) async {
+  /// The half both actions share: read the current process logcat over the
+  /// native channel, then privacy-sanitize it into the export text.
+  ///
+  /// Returns `null` when the channel is unavailable (non-Android host or a
+  /// build without the native method) so callers degrade gracefully instead of
+  /// crashing.
+  Future<String?> _buildExportText() async {
     final reader = readLogcat ?? const LogcatReader().readCurrentProcessLogcat;
     final rawLines = await reader();
-    if (rawLines == null) {
-      // Channel unavailable (non-Android host or release build) — degrade
-      // gracefully rather than crashing.
-      if (context.mounted) _showResult(context, l10n, ok: false);
-      return;
-    }
-    final info =
-        await (loadPackageInfo?.call() ?? PackageInfo.fromPlatform());
-    final text = DebugLogSanitizer.buildExportText(
+    if (rawLines == null) return null;
+    final info = await (loadPackageInfo?.call() ?? PackageInfo.fromPlatform());
+    return DebugLogSanitizer.buildExportText(
       packageName: info.packageName,
       versionName: info.version,
       versionCode: int.tryParse(info.buildNumber) ?? 0,
       rawLines: rawLines,
     );
-    final saver = saveLogsFile ?? _defaultSaveLogs;
-    final ok = await saver(text, _suggestedName);
-    if (context.mounted) _showResult(context, l10n, ok: ok);
   }
 
-  void _showResult(
+  Future<void> _saveLogs(BuildContext context, AppLocalizations l10n) async {
+    final text = await _buildExportText();
+    if (text == null) {
+      if (context.mounted) _showSaveResult(context, l10n, ok: false);
+      return;
+    }
+    final saver = saveLogsFile ?? _defaultSaveLogs;
+    final ok = await saver(text, _suggestedName);
+    if (context.mounted) _showSaveResult(context, l10n, ok: ok);
+  }
+
+  /// Kotlin `onShareDebugLogs`: a catch-all `runCatching` around the share,
+  /// surfacing `settings_debug_logs_share_failed` on any failure. Kotlin shows
+  /// a Toast; Flutter has none, so this file's existing [ScaffoldMessenger]
+  /// snackbar is the analogue. Unlike Save there is no success message — the
+  /// share sheet itself is the feedback.
+  Future<void> _shareLogs(BuildContext context, AppLocalizations l10n) async {
+    final chooserTitle = l10n.settingsDebugLogsShareChooserTitle;
+    try {
+      final text = await _buildExportText();
+      if (text == null) throw StateError('Diagnostics channel unavailable.');
+      final sharer = shareLogsFile ?? _defaultShareLogs;
+      await sharer(text, chooserTitle);
+    } catch (_) {
+      if (context.mounted) _showShareFailed(context, l10n);
+    }
+  }
+
+  void _showSaveResult(
     BuildContext context,
     AppLocalizations l10n, {
     required bool ok,
   }) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? l10n.settingsDebugLogsSaved : l10n.settingsDebugLogsSaveFailed,
-        ),
-      ),
+    _showSnackBar(
+      context,
+      ok ? l10n.settingsDebugLogsSaved : l10n.settingsDebugLogsSaveFailed,
     );
   }
+
+  void _showShareFailed(BuildContext context, AppLocalizations l10n) {
+    _showSnackBar(context, l10n.settingsDebugLogsShareFailed);
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  /// Writes the export into the cache dir and raises the system share sheet —
+  /// the Kotlin `shareDebugDiagnosticsLog()` path.
+  static Future<void> _defaultShareLogs(
+    String content,
+    String chooserTitle,
+  ) =>
+      const DebugLogSharing().shareDiagnosticsLog(
+        content: content,
+        chooserTitle: chooserTitle,
+      );
 
   /// Writes the export to a user-chosen location where `getSaveLocation` is
   /// supported (desktop), falling back to the app documents directory on

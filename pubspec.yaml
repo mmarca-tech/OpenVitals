@@ -115,6 +115,22 @@ dependencies:
   # Not used directly: pins wakelock_plus's transitive dependency to the 9.x
   # line that still compiles its Kotlin under AGP 9 (see wakelock_plus above).
   package_info_plus: ^9.0.1
+  # Raises the system share sheet for the sanitized diagnostics-log export
+  # (Kotlin `DebugLogSharing.kt` / `Intent.createChooser(ACTION_SEND)`).
+  # file_selector is a save-picker and cannot share, and reimplementing this
+  # natively would force a Kotlin+Swift duplication once iOS lands.
+  #
+  # share_plus ships its OWN FileProvider (authority
+  # `${applicationId}.flutter.share_provider`) and copies any file handed to it
+  # into `cacheDir/share_plus/` before granting the URI, so the Kotlin commit's
+  # `res/xml/file_paths.xml` + manifest half needs no counterpart in the Android
+  # host here.
+  #
+  # Held at 12.x: the whole 13.x line requires win32 ^6, which drags
+  # package_info_plus up to 10.x — the version that does not apply the Kotlin
+  # Gradle plugin and breaks this AGP 9 build (see package_info_plus above).
+  # 12.0.2 is the newest release that still resolves against win32 ^5.5.3.
+  share_plus: ^12.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

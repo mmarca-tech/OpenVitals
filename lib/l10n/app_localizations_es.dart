@@ -4020,7 +4020,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsDebugLogsBody =>
-      'Guarda los registros de diagnóstico de OpenVitals en un archivo de texto. La exportación elimina u oculta identificadores, ubicaciones, fechas, URI, datos brutos de sensores y registros de otras apps antes de escribir.';
+      'Comparte o guarda los registros de diagnóstico de OpenVitals como archivo de texto. La exportación elimina u oculta identificadores, ubicaciones, fechas, URI, datos brutos de sensores y registros de otras apps antes de escribir.';
+
+  @override
+  String get settingsDebugLogsShare => 'Compartir registros';
+
+  @override
+  String get settingsDebugLogsShareChooserTitle =>
+      'Compartir registros de diagnóstico';
+
+  @override
+  String get settingsDebugLogsShareFailed =>
+      'No se pudieron compartir los registros de diagnóstico';
 
   @override
   String get settingsDebugLogsSave => 'Guardar registros';

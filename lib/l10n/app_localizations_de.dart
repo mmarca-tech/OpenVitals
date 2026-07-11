@@ -4014,7 +4014,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsDebugLogsBody =>
-      'Speichere OpenVitals-Diagnoseprotokolle als Textdatei. Der Export entfernt oder maskiert Kennungen, Orte, Daten, URIs, rohe Sensordaten und fremde App-Protokolle vor dem Schreiben.';
+      'Teile oder speichere OpenVitals-Diagnoseprotokolle als Textdatei. Der Export entfernt oder maskiert Kennungen, Orte, Daten, URIs, rohe Sensordaten und fremde App-Protokolle vor dem Schreiben.';
+
+  @override
+  String get settingsDebugLogsShare => 'Protokolle teilen';
+
+  @override
+  String get settingsDebugLogsShareChooserTitle => 'Diagnoseprotokolle teilen';
+
+  @override
+  String get settingsDebugLogsShareFailed =>
+      'Diagnoseprotokolle konnten nicht geteilt werden';
 
   @override
   String get settingsDebugLogsSave => 'Protokolle speichern';

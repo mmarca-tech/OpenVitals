@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/diagnostics/diagnostics_build_config.dart';
 import '../di/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../features/achievements/achievements_screen.dart';
@@ -299,11 +299,11 @@ List<RouteBase> _manualEntryRoutes() => [
 /// Nutrition, Recovery, Data import, Health Connect). The BLE Sensors and Data
 /// Import sections configure Phase-6 subsystems and render a "coming soon" body.
 List<RouteBase> _settingsSectionRoutes() => [
-      // The debug-diagnostics route is only registered in debug builds, matching
-      // the Kotlin `AppNavigationSettingsRoutes` guard on
+      // The debug-diagnostics route is only registered in diagnostics-enabled
+      // builds, matching the Kotlin `AppNavigationSettingsRoutes` guard on
       // BuildConfig.OPENVITALS_DIAGNOSTICS (the hub also hides its entry point).
       for (final section in SettingsSection.values)
-        if (kDebugMode || section != SettingsSection.debugDiagnostics)
+        if (kDiagnosticsEnabled || section != SettingsSection.debugDiagnostics)
           GoRoute(
             path: section.route,
             builder: (context, state) => section == SettingsSection.sensors

@@ -48,13 +48,14 @@ enum SettingsSection {
     summary: 'Sync, permissions and app lock',
     icon: Icons.health_and_safety_outlined,
   ),
-  // Debug-only section (Kotlin gates on BuildConfig.OPENVITALS_DIAGNOSTICS; the
-  // Flutter analogue is kDebugMode). The hub + router only surface this in
-  // debug builds — see SettingsScreen and app_router's _settingsSectionRoutes.
+  // Diagnostics-only section (Kotlin gates on BuildConfig.OPENVITALS_DIAGNOSTICS
+  // — debug OR ci OR nightly; the Flutter analogue is kDiagnosticsEnabled). The
+  // hub + router only surface this in diagnostics-enabled builds — see
+  // SettingsScreen and app_router's _settingsSectionRoutes.
   debugDiagnostics(
     route: AppRoutes.settingsDebugDiagnostics,
     title: 'Debug diagnostics',
-    summary: 'Save sanitized diagnostics logs for troubleshooting',
+    summary: 'Share or save sanitized diagnostics logs for troubleshooting',
     icon: Icons.bug_report_outlined,
   );
 

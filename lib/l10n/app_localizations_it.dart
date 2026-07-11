@@ -4024,7 +4024,17 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get settingsDebugLogsBody =>
-      'Salva le voci diagnostiche di OpenVitals in un file di testo. L\'esportazione rimuove o oscura identificatori, posizioni, date, URI, dati grezzi dei sensori e log di app non correlate prima di scrivere.';
+      'Condividi o salva le voci diagnostiche di OpenVitals come file di testo. L\'esportazione rimuove o oscura identificatori, posizioni, date, URI, dati grezzi dei sensori e log di app non correlate prima di scrivere.';
+
+  @override
+  String get settingsDebugLogsShare => 'Condividi log';
+
+  @override
+  String get settingsDebugLogsShareChooserTitle => 'Condividi log diagnostici';
+
+  @override
+  String get settingsDebugLogsShareFailed =>
+      'Impossibile condividere i log diagnostici';
 
   @override
   String get settingsDebugLogsSave => 'Salva log';

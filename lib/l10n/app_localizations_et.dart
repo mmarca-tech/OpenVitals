@@ -3982,7 +3982,17 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get settingsDebugLogsBody =>
-      'Salvesta OpenVitalsi diagnostikalogi kirjed tekstifaili. Eksport eemaldab või varjab identifikaatorid, asukohad, kuupäevad, URI-d, toored anduriandmed ja mitteseotud rakenduslogid enne kirjutamist.';
+      'Jaga või salvesta OpenVitalsi diagnostikalogi kirjed tekstifailina. Eksport eemaldab või varjab identifikaatorid, asukohad, kuupäevad, URI-d, toored anduriandmed ja mitteseotud rakenduslogid enne kirjutamist.';
+
+  @override
+  String get settingsDebugLogsShare => 'Jaga logisid';
+
+  @override
+  String get settingsDebugLogsShareChooserTitle => 'Jaga diagnostikalogisid';
+
+  @override
+  String get settingsDebugLogsShareFailed =>
+      'Diagnostikalogide jagamine ebaõnnestus';
 
   @override
   String get settingsDebugLogsSave => 'Salvesta logid';

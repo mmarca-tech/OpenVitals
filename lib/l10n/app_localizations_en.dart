@@ -3957,7 +3957,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDebugLogsBody =>
-      'Save OpenVitals diagnostics log entries to a text file. The export drops or redacts identifiers, locations, dates, URIs, raw sensor payloads, and unrelated app logs before writing.';
+      'Share or save OpenVitals diagnostics log entries as a text file. The export drops or redacts identifiers, locations, dates, URIs, raw sensor payloads, and unrelated app logs before writing.';
+
+  @override
+  String get settingsDebugLogsShare => 'Share logs';
+
+  @override
+  String get settingsDebugLogsShareChooserTitle => 'Share diagnostics logs';
+
+  @override
+  String get settingsDebugLogsShareFailed => 'Could not share diagnostics logs';
 
   @override
   String get settingsDebugLogsSave => 'Save logs';

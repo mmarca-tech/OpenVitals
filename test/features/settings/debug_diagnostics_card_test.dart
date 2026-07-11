@@ -19,12 +19,22 @@ void main() {
         buildNumber: '42',
       );
 
-  testWidgets('renders the title, body and save action', (tester) async {
+  testWidgets('renders the title, body and the share + save actions',
+      (tester) async {
     await tester.pumpWidget(harness(const DebugDiagnosticsCard()));
     await tester.pumpAndSettle();
 
     expect(find.text('Sanitized diagnostics logs'), findsOneWidget);
+    expect(find.text('Share logs'), findsOneWidget);
     expect(find.text('Save logs'), findsOneWidget);
+
+    // Kotlin puts Share above Save (top = 12.dp / top = 8.dp), with a share
+    // icon on the former and the download icon on the latter.
+    final shareY = tester.getTopLeft(find.text('Share logs')).dy;
+    final saveY = tester.getTopLeft(find.text('Save logs')).dy;
+    expect(shareY, lessThan(saveY));
+    expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.download_outlined), findsOneWidget);
   });
 
   testWidgets('save flow sanitizes the logcat and reports success',
@@ -75,6 +85,69 @@ void main() {
     expect(saveCalled, isFalse);
     expect(find.text('Could not save diagnostics logs'), findsOneWidget);
   });
-  // The card is only reachable in debug builds; keep the test aligned with the
-  // kDebugMode gate so it never runs against a release profile.
+
+  testWidgets('share flow sanitizes the logcat and reaches the share seam',
+      (tester) async {
+    String? sharedContent;
+    String? chooserTitle;
+    await tester.pumpWidget(harness(DebugDiagnosticsCard(
+      readLogcat: () async => const [
+        'I/OpenVitalsX: kept line',
+        'I/RandomTag: dropped tag',
+      ],
+      loadPackageInfo: () async => fakeInfo(),
+      shareLogsFile: (content, title) async {
+        sharedContent = content;
+        chooserTitle = title;
+      },
+    )));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Share logs'));
+    await tester.pumpAndSettle();
+
+    expect(chooserTitle, 'Share diagnostics logs');
+    expect(sharedContent, contains('package=tech.mmarca.openvitals'));
+    expect(sharedContent, contains('version=1.2.3 (42)'));
+    expect(sharedContent, contains('I/OpenVitalsX: kept line'));
+    expect(sharedContent, isNot(contains('I/RandomTag: dropped tag')));
+    // The share sheet is its own feedback — Kotlin shows no success Toast.
+    expect(find.text('Could not share diagnostics logs'), findsNothing);
+  });
+
+  testWidgets('share failure surfaces the failure snackbar', (tester) async {
+    await tester.pumpWidget(harness(DebugDiagnosticsCard(
+      readLogcat: () async => const ['I/OpenVitalsX: kept line'],
+      loadPackageInfo: () async => fakeInfo(),
+      shareLogsFile: (content, title) async =>
+          throw StateError('no share target'),
+    )));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Share logs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not share diagnostics logs'), findsOneWidget);
+  });
+
+  testWidgets('share degrades gracefully when the native channel is missing',
+      (tester) async {
+    var shareCalled = false;
+    await tester.pumpWidget(harness(DebugDiagnosticsCard(
+      readLogcat: () async => null,
+      loadPackageInfo: () async => fakeInfo(),
+      shareLogsFile: (content, title) async {
+        shareCalled = true;
+      },
+    )));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Share logs'));
+    await tester.pumpAndSettle();
+
+    expect(shareCalled, isFalse);
+    expect(find.text('Could not share diagnostics logs'), findsOneWidget);
+  });
+  // The card is only reachable in diagnostics-enabled builds; the gate itself is
+  // covered by test/core/diagnostics/diagnostics_build_config_test.dart.
 }

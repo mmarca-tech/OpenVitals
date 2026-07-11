@@ -7050,8 +7050,26 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDebugLogsBody.
   ///
   /// In en, this message translates to:
-  /// **'Save OpenVitals diagnostics log entries to a text file. The export drops or redacts identifiers, locations, dates, URIs, raw sensor payloads, and unrelated app logs before writing.'**
+  /// **'Share or save OpenVitals diagnostics log entries as a text file. The export drops or redacts identifiers, locations, dates, URIs, raw sensor payloads, and unrelated app logs before writing.'**
   String get settingsDebugLogsBody;
+
+  /// No description provided for @settingsDebugLogsShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share logs'**
+  String get settingsDebugLogsShare;
+
+  /// No description provided for @settingsDebugLogsShareChooserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share diagnostics logs'**
+  String get settingsDebugLogsShareChooserTitle;
+
+  /// No description provided for @settingsDebugLogsShareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not share diagnostics logs'**
+  String get settingsDebugLogsShareFailed;
 
   /// No description provided for @settingsDebugLogsSave.
   ///

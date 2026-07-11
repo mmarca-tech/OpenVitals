@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/diagnostics/diagnostics_build_config.dart';
 import '../../core/presentation/external_link.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/components/metric_card.dart';
@@ -26,11 +26,12 @@ class SettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
-            // The debug-diagnostics section is surfaced only in debug builds —
-            // the Kotlin hub filters out DEBUG_DIAGNOSTICS unless
-            // BuildConfig.OPENVITALS_DIAGNOSTICS; kDebugMode is its analogue.
+            // The debug-diagnostics section is surfaced only in
+            // diagnostics-enabled builds — the Kotlin hub filters out
+            // DEBUG_DIAGNOSTICS unless BuildConfig.OPENVITALS_DIAGNOSTICS
+            // (debug OR ci OR nightly), and kDiagnosticsEnabled is its analogue.
             for (final section in SettingsSection.values)
-              if (kDebugMode ||
+              if (kDiagnosticsEnabled ||
                   section != SettingsSection.debugDiagnostics)
                 Padding(
                   padding:
