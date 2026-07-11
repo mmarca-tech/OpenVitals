@@ -4404,7 +4404,7 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get settingsAppleHealthImportRoutesIncomplete =>
-      'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.';
+      'Tervisandmed imporditi, kuid mõned treeningmarsruudid jäid kättesaamatuks, kuna ZIP-fail lõppes ootamatult. Impordiaruandes on loetletud asjaomased tegevused, mida saab käsitsi taastada.';
 
   @override
   String settingsAppleHealthImportAnalysisResult(

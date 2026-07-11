@@ -2,6 +2,9 @@
 // every declared locale loads, translations actually differ between languages
 // (not just the English fallback), and placeholder messages interpolate.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,30 +53,46 @@ void main() {
   // omits must fall back to the English template message — NOT to a blank
   // string, and NOT to a build error.
   //
-  // `settingsAppleHealthImportRoutesIncomplete` is currently untranslated in all
-  // four locales (it is one of the three strings `flutter gen-l10n` reports as
-  // `"de": 3 untranslated message(s).`). It used to be back-filled with English
-  // INTO the ARBs by `tool/xml_to_arb.dart`, which made every catalog look 100%
-  // complete; now the key is simply absent and gen-l10n supplies the fallback.
+  // The sentinel below must be a key that is genuinely ABSENT from the locale ARBs.
+  // Translators can translate it at any time and silently invalidate this test's
+  // premise -- which is exactly what happened once already -- so the test verifies
+  // its own premise first and says so, instead of failing as a confusing
+  // "fallback broke".
   //
   // If a future Flutter changes `_generateBaseClassFile` so a missing message no
-  // longer falls back to the template, this test fails loudly instead of the app
+  // longer falls back to the template, this fails loudly instead of the app
   // silently shipping empty strings to every non-English user.
+  const sentinelKey = 'settingsAppleHealthImportProgressWithScanPercent';
+  String sentinel(AppLocalizations l) =>
+      l.settingsAppleHealthImportProgressWithScanPercent(1, 'p', 2, 3, 4, 5, 6);
+
   test('an untranslated key falls back to the English template message',
       () async {
     final en = await AppLocalizations.delegate.load(const Locale('en'));
 
     for (final code in <String>['de', 'es', 'it', 'et']) {
-      final l10n = await AppLocalizations.delegate.load(Locale(code));
+      final arb = jsonDecode(
+        await File('lib/l10n/app_$code.arb').readAsString(),
+      ) as Map<String, dynamic>;
 
       expect(
-        l10n.settingsAppleHealthImportRoutesIncomplete,
+        arb.containsKey(sentinelKey),
+        isFalse,
+        reason: '"$sentinelKey" has now been translated into $code, so it can no '
+            'longer prove the fallback. Point this test at a key that is still '
+            'untranslated (see the "N untranslated message(s)" lines from '
+            '`flutter gen-l10n`).',
+      );
+
+      final l10n = await AppLocalizations.delegate.load(Locale(code));
+      expect(
+        sentinel(l10n),
         isNotEmpty,
         reason: '$code fell back to a BLANK string, not the template',
       );
       expect(
-        l10n.settingsAppleHealthImportRoutesIncomplete,
-        en.settingsAppleHealthImportRoutesIncomplete,
+        sentinel(l10n),
+        sentinel(en),
         reason: '$code did not fall back to the English template message; '
             'gen-l10n fallback semantics have changed',
       );

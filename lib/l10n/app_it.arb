@@ -1258,6 +1258,7 @@
   "settingsAppleHealthImportNotificationText": "{arg0}. Scansionati {arg1}, importati {arg2}.",
   "settingsAppleHealthImportNotificationTextWithPercent": "{arg0}%. {arg1}. Selezionati {arg2}/{arg3}, importati {arg4}.",
   "settingsAppleHealthImportResult": "Importati {arg0}. Duplicati {arg1}. Non selezionati {arg2}. Non supportati {arg3}. Ignorati {arg4}. Falliti {arg5}.",
+  "settingsAppleHealthImportRoutesIncomplete": "Le cartelle cliniche sono state importate, ma alcuni percorsi di allenamento non erano disponibili perché il codice postale terminava in modo imprevisto. Il report di importazione elenca le attività interessate, che possono essere recuperate manualmente.",
   "settingsAppleHealthImportAnalysisResult": "Scansionati {arg0} elementi. Trovati {arg1} record compatibili. Non supportati {arg2}. Falliti {arg3}.",
   "settingsAppleHealthImportChooseCategories": "Scegli cosa scrivere in Health Connect.",
   "settingsAppleHealthImportCategoryCount": "{arg0} record",

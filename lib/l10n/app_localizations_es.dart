@@ -36,8 +36,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cdEditSavedDrinks => 'Editar bebidas guardadas';
 
   @override
-  String get cdDoneEditingSavedDrinks =>
-      'Terminar edición de bebidas guardadas';
+  String get cdDoneEditingSavedDrinks => 'Bebidas guardadas editadas';
 
   @override
   String get cdEditDrink => 'Editar bebida';
@@ -59,11 +58,11 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get cdEditManualEntryWidgets => 'Editar widgets de añadir entrada';
+  String get cdEditManualEntryWidgets => 'Editar y añadir widgets';
 
   @override
   String get cdFinishManualEntryEditing =>
-      'Terminar edición de widgets de añadir entrada';
+      'Terminar de editar y añadir widgets';
 
   @override
   String get cdEditRecordingDashboard => 'Editar panel de grabación';
@@ -73,44 +72,41 @@ class AppLocalizationsEs extends AppLocalizations {
       'Terminar edición del panel de grabación';
 
   @override
-  String get cdMoveWidgetUp => 'Mover widget arriba';
+  String get cdMoveWidgetUp => 'Subir el widget';
 
   @override
-  String get cdMoveWidgetDown => 'Mover widget abajo';
+  String get cdMoveWidgetDown => 'Bajar el widget';
 
   @override
-  String get cdEditMetricSections => 'Editar secciones de métrica';
+  String get cdEditMetricSections => 'Editar métricas';
 
   @override
-  String get cdFinishMetricSectionEditing =>
-      'Terminar edición de secciones de métrica';
+  String get cdFinishMetricSectionEditing => 'Terminar de editar las métricas';
 
   @override
-  String get cdMoveSectionUp => 'Mover sección arriba';
+  String get cdMoveSectionUp => 'Subir la sección';
 
   @override
-  String get cdMoveSectionDown => 'Mover sección abajo';
+  String get cdMoveSectionDown => 'Bajar la sección';
 
   @override
   String get cdRemoveWidget => 'Quitar widget';
 
   @override
-  String get cdDecreaseRecordingDashboardWidgetSize =>
-      'Hacer widget más pequeño';
+  String get cdDecreaseRecordingDashboardWidgetSize => 'Reducir el widget';
 
   @override
-  String get cdIncreaseRecordingDashboardWidgetSize =>
-      'Hacer widget más grande';
+  String get cdIncreaseRecordingDashboardWidgetSize => 'Ampliar el widget';
 
   @override
-  String get cdExitRecordingFocusMode => 'Salir del modo enfoque';
+  String get cdExitRecordingFocusMode => 'Salir del modo de concentración';
 
   @override
   String get cdToggleRecordingOutdoorMode =>
-      'Cambiar modo de legibilidad al aire libre';
+      'Activar/desactivar modo exteriores';
 
   @override
-  String get cdRecenterMap => 'Recentrar mapa';
+  String get cdRecenterMap => 'Volver a centrar el mapa';
 
   @override
   String get cdDeleteEntry => 'Eliminar entrada';
@@ -140,7 +136,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get actionAdd => 'Añadir';
 
   @override
-  String get actionAddCustom => 'Añadir personalizado';
+  String get actionAddCustom => 'Añadir a medida';
 
   @override
   String get actionSave => 'Guardar';
@@ -356,7 +352,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get screenSleepDetail => 'Detalle de sueño';
 
   @override
-  String get screenHeartVitals => 'Corazón y constantes';
+  String get screenHeartVitals => 'Corazón y signos vitales';
 
   @override
   String get screenStressTracking => 'Seguimiento de estrés';
@@ -439,7 +435,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get manualEntryWritePermissionTitle =>
-      'Permiso de escritura de hidratación';
+      'Acceso de escritura para hidratación';
 
   @override
   String get manualEntryActivityWritePermissionTitle =>
@@ -1547,10 +1543,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get metricBodyFat => 'Grasa corporal';
 
   @override
-  String get metricAvgHeartRate => 'Frecuencia cardiaca media';
+  String get metricAvgHeartRate => 'Frecuencia cardíaca promedio';
 
   @override
-  String get metricAverageHeartRate => 'Frecuencia cardiaca media';
+  String get metricAverageHeartRate => 'Frecuencia cardíaca normal';
 
   @override
   String get metricRestingHeartRate => 'Frecuencia en reposo';
@@ -1577,7 +1573,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get metricOxygenSaturation => 'Saturación de oxígeno';
 
   @override
-  String get metricVo2Max => 'VO2 máx.';
+  String get metricVo2Max => 'VO2 máx (consumo máximo de oxígeno)';
 
   @override
   String get metricMindfulness => 'Mindfulness';
@@ -1822,6 +1818,7 @@ class AppLocalizationsEs extends AppLocalizations {
       count,
       locale: localeName,
       other: '# actividades',
+      many: '# actividades',
       one: '# actividad',
     );
     return '$_temp0';
@@ -2178,7 +2175,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Desglose diario de frecuencia respiratoria';
 
   @override
-  String get sectionVo2MaxHistory => 'Historial de VO2 máx.';
+  String get sectionVo2MaxHistory => 'Historial de VO2 máximo';
 
   @override
   String get sectionDisplay => 'Visualización';
@@ -3692,7 +3689,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSensorsCapabilityCyclingCadence => 'Cadencia';
 
   @override
-  String get settingsSensorsCapabilityCyclingPower => 'Potencia';
+  String get settingsSensorsCapabilityCyclingPower =>
+      'Fuerza de tus piernas al pedalear';
 
   @override
   String get settingsSensorsCapabilityCyclingSpeed => 'Velocidad';
@@ -4031,7 +4029,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsDebugLogsShareFailed =>
-      'No se pudieron compartir los registros de diagnóstico';
+      'Error al compartir los registros de diagnóstico';
 
   @override
   String get settingsDebugLogsSave => 'Guardar registros';
@@ -4360,7 +4358,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Creando informe';
 
   @override
-  String get settingsAppleHealthImportProgressComplete => 'Completado';
+  String get settingsAppleHealthImportProgressComplete => 'Completo';
 
   @override
   String settingsAppleHealthImportProgress(String arg0, int arg1, int arg2) {
@@ -4448,7 +4446,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsAppleHealthImportRoutesIncomplete =>
-      'Health records were imported, but some workout routes were unavailable because the ZIP ended unexpectedly. The import report lists affected activities for manual recovery.';
+      'Se han importado los registros de salud, pero algunas rutas no estaban disponibles porque el código postal no era correcto. El informe de importación enumera las actividades afectadas para que se puedan recuperar manualmente.';
 
   @override
   String settingsAppleHealthImportAnalysisResult(
@@ -4678,7 +4676,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsOfflineMapsImportProgressCopying => 'Copiando mapa';
 
   @override
-  String get settingsOfflineMapsImportProgressComplete => 'Completado';
+  String get settingsOfflineMapsImportProgressComplete => 'Completo';
 
   @override
   String settingsOfflineMapsImportProgress(String arg0) {
@@ -5520,7 +5518,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get achievementsCategoryDailySteps => 'Pasos diarios';
 
   @override
-  String get achievementsCategoryLifetimeDistance => 'Distancia total';
+  String get achievementsCategoryLifetimeDistance => 'Distancia acumulada';
 
   @override
   String get achievementsCategoryDailyFloors => 'Pisos diarios';
@@ -5696,22 +5694,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bodyEnergyCalibrationManualZonesBody =>
-      'Límites inferiores opcionales en lpm para las zonas 1-5.';
+      'Zonas 1-5 o límite de frecuencia cardíaca (latidos por minuto).';
 
   @override
-  String get bodyEnergyCalibrationZone1 => 'Límite inferior de zona 1 (lpm)';
+  String get bodyEnergyCalibrationZone1 => 'Zone 1 lower bpm';
 
   @override
-  String get bodyEnergyCalibrationZone2 => 'Límite inferior de zona 2 (lpm)';
+  String get bodyEnergyCalibrationZone2 => 'Zone 2 lower bpm';
 
   @override
-  String get bodyEnergyCalibrationZone3 => 'Límite inferior de zona 3 (lpm)';
+  String get bodyEnergyCalibrationZone3 => 'Zone 3 lower bpm';
 
   @override
-  String get bodyEnergyCalibrationZone4 => 'Límite inferior de zona 4 (lpm)';
+  String get bodyEnergyCalibrationZone4 => 'Zone 4 lower bpm';
 
   @override
-  String get bodyEnergyCalibrationZone5 => 'Límite inferior de zona 5 (lpm)';
+  String get bodyEnergyCalibrationZone5 => 'Zone 5 lower bpm';
 
   @override
   String get bodyEnergyCalibrationUseAuto => 'Usar estimaciones automáticas';
@@ -5731,7 +5729,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bodyEnergyNotSetUp => 'No configurado';
 
   @override
-  String get bodyEnergyTimelineEstimated => 'Estimado por OpenVitals';
+  String get bodyEnergyTimelineEstimated => 'Valorada por OpenVitals';
 
   @override
   String get bodyEnergyTimelineCurrent => 'Actual';
@@ -5750,24 +5748,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bodyEnergyTimelineNoData =>
-      'No hay una línea temporal de energía corporal usable para este periodo.';
+      'No se dispone de un historial de la energía corporal utilizable para este período.';
 
   @override
-  String get bodyEnergyTimelineDayTitle => 'Línea temporal diaria';
+  String get bodyEnergyTimelineDayTitle => 'Cronología diaria';
 
   @override
   String get bodyEnergyTimelineLowConfidence =>
-      'Algunos tramos son estimados porque la calibración o los datos de Health Connect están incompletos.';
+      'Algunas categorías son estimaciones, ya que los datos de calibración o de Health Connect están incompletos.';
 
   @override
-  String get bodyEnergyWhyTitle => 'Qué la movió';
+  String get bodyEnergyWhyTitle => '¿Qué influyó en esto?';
 
   @override
   String get bodyEnergyWhyEmpty =>
-      'Aún no hubo un factor claro de carga o consumo que dominara este día.';
+      'Hasta el momento, ningún factor claro de carga o consumo ha predominado en este día.';
 
   @override
-  String get bodyEnergyInfluenceSleepRecovery => 'Recuperación por sueño';
+  String get bodyEnergyInfluenceSleepRecovery => 'Recuperación del sueño';
 
   @override
   String get bodyEnergyInfluenceQuietRest => 'Descanso tranquilo';
@@ -5779,7 +5777,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bodyEnergyInfluenceElevatedHr => 'Frecuencia cardiaca elevada';
 
   @override
-  String get bodyEnergyInfluenceRecoveryDebt => 'Deuda de recuperación';
+  String get bodyEnergyInfluenceRecoveryDebt => 'Cansancio acumulado';
 
   @override
   String get bodyEnergyInfluenceNoData => 'Sin datos';
@@ -5789,31 +5787,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bodyEnergyReasonSleepRecoveryDetail =>
-      'Los tramos de sueño cargaron la estimación desde la puntuación anterior.';
+      'Los periodos de sueño han incrementado la estimación con respecto al valor anterior.';
 
   @override
   String get bodyEnergyReasonQuietRestDetail =>
-      'La frecuencia baja estando despierto añadió una pequeña carga de recuperación.';
+      'Una frecuencia cardíaca baja durante la vigilia proporcionó un pequeño impulso a la recuperación.';
 
   @override
   String get bodyEnergyReasonExertionDetail =>
-      'La intensidad cardiaca o los entrenamientos registrados consumieron la estimación.';
+      'La intensidad de la frecuencia cardíaca o los entrenamientos registrados redujeron la estimación.';
 
   @override
   String get bodyEnergyReasonElevatedHrDetail =>
-      'La frecuencia despierto por encima del reposo añadió consumo por estrés.';
+      'La frecuencia cardíaca en estado de vigilia, por encima del nivel en reposo, supuso un desgaste adicional debido al estrés.';
 
   @override
   String get bodyEnergyReasonRecoveryDebtDetail =>
-      'Un esfuerzo reciente más duro mantuvo después un pequeño consumo activo.';
+      'El esfuerzo más intenso de hace poco ha provocado que siga habiendo una pequeña pérdida de líquido después.';
 
   @override
   String get bodyEnergyReasonNoDataDetail =>
-      'Health Connect no proporcionó señal suficiente para este tramo.';
+      'Health Connect no proporcionó señal suficiente para este rango.';
 
   @override
   String get bodyEnergyReasonSteadyDetail =>
-      'La estimación se mantuvo mayormente estable.';
+      'La estimación se mantuvo prácticamente estable.';
 
   @override
   String get bodyEnergyInputsTitle => 'Entradas usadas';
@@ -5836,10 +5834,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bodyEnergyInputRestingHr => 'Frecuencia cardiaca en reposo';
 
   @override
-  String get bodyEnergyInputHrBaseline => 'Base de frecuencia cardiaca';
+  String get bodyEnergyInputHrBaseline =>
+      'Frecuencia cardíaca basal (ritmo cardíaco en reposo)';
 
   @override
-  String get bodyEnergyInputHrv => 'Modificador de HRV';
+  String get bodyEnergyInputHrv => 'Variabilidad de la frecuencia cardíaca';
 
   @override
   String get bodyEnergyInputRespiratory => 'Modificador respiratorio';
@@ -5854,7 +5853,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bodyEnergyInputAvailable => 'Disponible';
 
   @override
-  String get bodyEnergyInputMissing => 'Falta';
+  String get bodyEnergyInputMissing => 'Ausente';
 
   @override
   String get bodyEnergyInputOptional => 'No presente';
@@ -5889,19 +5888,20 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bodyEnergyCalibrationModeManualZones => 'Zonas manuales';
 
   @override
-  String get bodyEnergyCalculationTitle => 'Cómo se estima la energía corporal';
+  String get bodyEnergyCalculationTitle =>
+      '¿Cómo se calcula la energía corporal?';
 
   @override
   String get bodyEnergyCalculationBody =>
-      'OpenVitals divide el día seleccionado en tramos cortos, empieza desde la puntuación anterior disponible cuando es posible, suma carga por sueño o descanso tranquilo y resta consumo por esfuerzo, frecuencia despierto elevada y deuda de recuperación tras esfuerzos más duros.';
+      'OpenVitals divide el día seleccionado en pequeños intervalos, parte de la puntuación disponible anterior cuando es posible, y a continuación suma la energía obtenida durante el sueño o el descanso tranquilo y resta la energía consumida por el esfuerzo físico, la frecuencia cardíaca elevada en estado de vigilia y la deuda de recuperación tras un esfuerzo más intenso.';
 
   @override
   String get bodyEnergyCalculationInputsBody =>
-      'La frecuencia cardiaca, frecuencia en reposo, zonas personales, sueño, entrenamientos, HRV y frecuencia respiratoria pueden mejorar la estimación. Las entradas ausentes hacen la estimación más conservadora y bajan la confianza.';
+      'La frecuencia cardíaca, la frecuencia cardíaca en reposo, las zonas personales, el sueño, los entrenamientos, la variabilidad de la frecuencia cardíaca (VFC) y la frecuencia respiratoria pueden mejorar la estimación. Si faltan datos, la estimación será más conservadora y el nivel de confianza será menor.';
 
   @override
   String get bodyEnergyCalculationLimitsBody =>
-      'Esta es una estimación de bienestar en el dispositivo, no una medición directa ni consejo médico. Las entradas y razones mostradas se exponen para que el método pueda revisarse y mejorarse.';
+      'Se trata de una estimación del bienestar realizada por el propio dispositivo, no de una medición directa ni de un consejo médico. Los datos introducidos y las razones que se muestran tienen como objetivo permitir revisar y mejorar el método.';
 
   @override
   String get metricBodyEnergy => 'Energía corporal';
@@ -5919,7 +5919,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get privacyPolicyBody3 =>
-      'OpenVitals no es un dispositivo médico y no diagnostica, trata, cura ni previene ninguna enfermedad o afección médica. No sustituye el asesoramiento, diagnóstico ni tratamiento de un profesional sanitario cualificado.';
+      'OpenVitals no es un dispositivo médico y no diagnostica, trata, cura ni previene ninguna enfermedad o afección médica. No sustituye el asesoramiento, el diagnóstico ni el tratamiento médicos proporcionados por un profesional sanitario cualificado.';
 
   @override
   String get linkCouldNotOpen => 'No se pudo abrir el enlace.';

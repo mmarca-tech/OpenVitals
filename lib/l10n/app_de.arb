@@ -1258,6 +1258,7 @@
   "settingsAppleHealthImportNotificationText": "{arg0}. {arg1} gelesen, {arg2} importiert.",
   "settingsAppleHealthImportNotificationTextWithPercent": "{arg0}%. {arg1}. Ausgewählt {arg2}/{arg3}, importiert {arg4}.",
   "settingsAppleHealthImportResult": "Importiert {arg0}. Duplikate {arg1}. Nicht ausgewählt {arg2}. Nicht unterstützt {arg3}. Übersprungen {arg4}. Fehlgeschlagen {arg5}.",
+  "settingsAppleHealthImportRoutesIncomplete": "Die Gesundheitsdaten wurden importiert, jedoch waren einige Trainingsrouten nicht verfügbar, da die Postleitzahl unerwartet endete. Im Importbericht sind die betroffenen Aktivitäten zur manuellen Wiederherstellung aufgeführt.",
   "settingsAppleHealthImportAnalysisResult": "{arg0} Elemente gelesen. {arg1} kompatible Datensätze gefunden. Nicht unterstützt {arg2}. Fehlgeschlagen {arg3}.",
   "settingsAppleHealthImportChooseCategories": "Wähle, was in Health Connect geschrieben wird.",
   "settingsAppleHealthImportCategoryCount": "{arg0} Datensätze",

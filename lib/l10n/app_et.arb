@@ -1258,6 +1258,7 @@
   "settingsAppleHealthImportNotificationText": "{arg0}. Skaneeritud {arg1}, imporditud {arg2}.",
   "settingsAppleHealthImportNotificationTextWithPercent": "{arg0}%. {arg1}. Valitud {arg2}/{arg3}, imporditud {arg4}.",
   "settingsAppleHealthImportResult": "Imporditud {arg0}. Duplikaate {arg1}. Valimata {arg2}. Toetamata {arg3}. Vahele jäetud {arg4}. Ebaõnnestus {arg5}.",
+  "settingsAppleHealthImportRoutesIncomplete": "Tervisandmed imporditi, kuid mõned treeningmarsruudid jäid kättesaamatuks, kuna ZIP-fail lõppes ootamatult. Impordiaruandes on loetletud asjaomased tegevused, mida saab käsitsi taastada.",
   "settingsAppleHealthImportAnalysisResult": "Skaneeritud {arg0} elementi. Leiti {arg1} ühilduvat kirjet. Toetamata {arg2}. Ebaõnnestus {arg3}.",
   "settingsAppleHealthImportChooseCategories": "Vali, mis kirjutatakse Health Connectisse.",
   "settingsAppleHealthImportCategoryCount": "{arg0} kirjet",
