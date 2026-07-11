@@ -244,6 +244,16 @@
             <intent-filter>
                 <action android:name="es.antonborri.home_widget.action.LAUNCH" />
             </intent-filter>
+            <!-- The metric widget's configuration activity IS this activity
+                 (@xml/home_metric_widget_info android:configure): the metric
+                 catalog and its formatting live in Dart, so the picker is a
+                 Flutter screen. The plugin reads the appWidgetId off this intent
+                 (`initiallyLaunchedFromHomeWidgetConfigure`), sets RESULT_CANCELED,
+                 and `finishHomeWidgetConfigure` completes with RESULT_OK. -->
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
 
             <!-- "Open with" / "Share" a route file (.gpx/.kml/.kmz/.fit) into the
                  activity-entry form. Mirrors the Kotlin manifest: one filter by
@@ -372,13 +382,24 @@
         </receiver>
 
         <!-- =====================================================================
-             Home-screen widgets (Glance). Read-only status widgets: Dart pushes a
-             snapshot into the shared `HomeWidgetPreferences` and the composables
-             render it. The three configurable widgets from the Kotlin source
-             (HomeMetricWidget, HomeQuickBeverageWidget,
-             HomeQuickBeverageOneTapWidget) additionally need a configuration
-             activity and are not wired up yet.
+             Home-screen widgets (Glance). Dart pushes a snapshot into the shared
+             `HomeWidgetPreferences` and the composables render it. The metric
+             widget is additionally configurable per instance — its configuration
+             activity is MainActivity (see the APPWIDGET_CONFIGURE filter above),
+             because the metric catalog lives in Dart. The two quick-beverage
+             widgets from the Kotlin source are not wired up yet.
              ===================================================================== -->
+        <receiver
+            android:name=".features.homewidgets.HomeMetricWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/home_metric_widget_info" />
+        </receiver>
+
         <receiver
             android:name=".features.homewidgets.HomeDailyReadinessWidgetReceiver"
             android:exported="true">

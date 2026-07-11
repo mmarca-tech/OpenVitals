@@ -293,4 +293,19 @@ class HomeWidgetService {
       client.readWidgetData(
         '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}selection_id',
       );
+
+  /// Records what [appWidgetId] was configured with, without pushing a snapshot.
+  ///
+  /// The configuration screen writes this *before* it loads any data, so that a
+  /// failed (or slow) load cannot lose the user's choice: the selection is the
+  /// only thing a later refresh needs to bring the tile up to date.
+  Future<void> saveSelectionId(
+    HomeWidgetId widget, {
+    required int appWidgetId,
+    required String selectionId,
+  }) =>
+      client.saveWidgetData(
+        '${homeWidgetKeyPrefix(widget, appWidgetId: appWidgetId)}selection_id',
+        selectionId,
+      );
 }

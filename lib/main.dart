@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'bootstrap/reminder_bootstrap.dart';
 import 'di/providers.dart';
+import 'features/homewidgets/home_widget_configure.dart';
 import 'features/homewidgets/home_widget_launch.dart';
 import 'features/imports/route_import_intent.dart';
 
@@ -34,6 +35,23 @@ Future<void> main() async {
       sharedPreferencesProvider.overrideWithValue(prefs),
     ],
   );
+
+  // A metric widget being placed (or reconfigured) launches this same activity
+  // with ACTION_APPWIDGET_CONFIGURE — MainActivity is the widget's
+  // `android:configure` target, because the metric catalog lives in Dart. It is a
+  // modal, single-purpose launch: show the picker and nothing else, and skip the
+  // reminder bootstrap, which belongs to a real app start.
+  final configureAppWidgetId =
+      await container.read(homeWidgetConfigureChannelProvider).pendingAppWidgetId();
+  if (configureAppWidgetId != null) {
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: HomeMetricWidgetConfigureApp(appWidgetId: configureAppWidgetId),
+      ),
+    );
+    return;
+  }
 
   runApp(
     UncontrolledProviderScope(

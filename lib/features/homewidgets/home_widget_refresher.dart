@@ -119,6 +119,35 @@ class HomeWidgetRefresher {
     }
   }
 
+  /// Configures one placed metric tile: records [metric] as [appWidgetId]'s
+  /// selection, then pushes its first snapshot (Kotlin
+  /// `HomeMetricWidgetConfigurationActivity.configure` +
+  /// `refreshConfiguredWidget`).
+  ///
+  /// The selection is written first and outside the guard: it is the handshake
+  /// [_pushMetricWidgets] reads back, so it must survive even when today's data
+  /// cannot be loaded — the tile then stays on its native "Select a metric" state
+  /// only until the next refresh, rather than forever.
+  Future<void> configureMetricInstance(
+    DashboardMetric metric, {
+    required int appWidgetId,
+  }) async {
+    await service.saveSelectionId(
+      HomeWidgetId.metric,
+      appWidgetId: appWidgetId,
+      selectionId: metric.storageName,
+    );
+    await _guard('metric widget $appWidgetId', () async {
+      final data = await loadDashboardDay(_todayQuery());
+      await service.pushSnapshot(
+        HomeWidgetId.metric,
+        buildMetricSnapshot(metric, data, unitFormatter, localizations),
+        appWidgetId: appWidgetId,
+        selectionId: metric.storageName,
+      );
+    });
+  }
+
   /// Today, with every metric — the widgets between them cover most of the
   /// catalog, and the readiness/body-energy snapshots need the baselines and
   /// weekly training signals.
