@@ -7,68 +7,51 @@ import '../../../data/prefs/preferences_repository.dart';
 import '../../../di/providers.dart';
 import '../../../domain/insights/daily_goals.dart';
 import '../../../domain/insights/daily_readiness.dart';
-import '../../../domain/model/dashboard_data.dart';
 import '../../../domain/model/dashboard_query.dart';
 import '../../../domain/model/refresh_mode.dart';
-import 'daily_readiness_display.dart';
+import 'daily_readiness_view_model.dart' show dailyReadinessMetrics;
+import 'training_readiness_display.dart';
 
-// The panel renders the precomputed display straight out of here.
-export 'daily_readiness_display.dart';
+// The screen renders the display and the factor-kind set straight out of here.
+export 'training_readiness_display.dart';
 
-part 'daily_readiness_view_model.freezed.dart';
+part 'training_readiness_details_view_model.freezed.dart';
 
-/// The metrics loaded for a Daily Readiness computation (Kotlin
-/// `DailyReadinessMetrics`).
-const Set<DashboardMetric> dailyReadinessMetrics = <DashboardMetric>{
-  DashboardMetric.sleep,
-  DashboardMetric.workout,
-  DashboardMetric.avgHeartRate,
-  DashboardMetric.restingHeartRate,
-  DashboardMetric.hrv,
-  DashboardMetric.bodyTemperature,
-  DashboardMetric.skinTemperature,
-  DashboardMetric.weeklyCardioLoad,
-  DashboardMetric.intensityMinutes,
-  DashboardMetric.hydration,
-  DashboardMetric.caloriesIn,
-  DashboardMetric.protein,
-  DashboardMetric.carbs,
-  DashboardMetric.fat,
-  DashboardMetric.mindfulness,
-};
-
-/// The Riverpod port of the Kotlin `DailyReadinessUiState`.
+/// The state of the training-readiness detail screen: the day it is showing, the
+/// loaded [DailyReadinessInsight], and the precomputed
+/// [TrainingReadinessDisplay] the cards render.
 @freezed
-abstract class DailyReadinessState with _$DailyReadinessState {
-  const DailyReadinessState._();
+abstract class TrainingReadinessDetailsState
+    with _$TrainingReadinessDetailsState {
+  const TrainingReadinessDetailsState._();
 
-  const factory DailyReadinessState({
+  const factory TrainingReadinessDetailsState({
     required LocalDate selectedDate,
     @Default(true) bool isLoading,
     ScreenError? error,
-    DashboardData? data,
     DailyReadinessInsight? insight,
-    DailyReadinessDisplay? display,
-  }) = _DailyReadinessState;
+    TrainingReadinessDisplay? display,
+  }) = _TrainingReadinessDetailsState;
 
   bool get canGoForward => selectedDate.isBefore(LocalDate.now());
 }
 
-/// The Riverpod port of the Kotlin `DailyReadinessViewModel`. A manual
-/// [Notifier] that loads a [DashboardData] for the selected day (via
-/// [LoadDashboardDayUseCase]) and derives the readiness insight with
-/// [calculateDailyReadiness]. A monotonic [_generation] guard drops stale loads.
-class DailyReadinessViewModel extends Notifier<DailyReadinessState> {
+/// The view-model behind the training-readiness detail. Loads the same
+/// [DashboardData] the daily-readiness screen does (via [LoadDashboardDayUseCase]
+/// over [dailyReadinessMetrics]) for an arbitrary day, derives the readiness
+/// insight with [calculateDailyReadiness], and precomputes the display.
+///
+/// Replaces the ad-hoc `FutureProvider.family` + `initState` the screen used to
+/// load through: day navigation, pull-to-refresh and the staleness guard now
+/// live where every other screen keeps them. A monotonic [_generation] guard
+/// drops a slow load that a newer day has overtaken.
+class TrainingReadinessDetailsViewModel
+    extends Notifier<TrainingReadinessDetailsState> {
   int _generation = 0;
 
   @override
-  DailyReadinessState build() {
-    final initial = DailyReadinessState(selectedDate: LocalDate.now());
-    Future.microtask(() {
-      if (ref.mounted) load(initial.selectedDate);
-    });
-    return initial;
-  }
+  TrainingReadinessDetailsState build() =>
+      TrainingReadinessDetailsState(selectedDate: LocalDate.now());
 
   Future<void> load(
     LocalDate date, {
@@ -87,7 +70,8 @@ class DailyReadinessViewModel extends Notifier<DailyReadinessState> {
     );
 
     // LoadDashboardDayUseCase still throws rather than returning a Result, so
-    // this is the one bridge the seam reversal cannot remove from here.
+    // this is the one bridge the seam reversal cannot remove from here (the
+    // sibling DailyReadinessViewModel has the same one).
     try {
       final data = await useCase(
         DashboardQuery(
@@ -102,9 +86,8 @@ class DailyReadinessViewModel extends Notifier<DailyReadinessState> {
       final insight = calculateDailyReadiness(data, goals: goals);
       state = state.copyWith(
         isLoading: false,
-        data: data,
         insight: insight,
-        display: buildDailyReadinessDisplay(insight),
+        display: buildTrainingReadinessDisplay(insight),
         error: null,
       );
     } catch (error) {
@@ -137,8 +120,8 @@ class DailyReadinessViewModel extends Notifier<DailyReadinessState> {
       );
 }
 
-/// The Daily Readiness state provider (manually declared, no codegen).
-final dailyReadinessProvider =
-    NotifierProvider<DailyReadinessViewModel, DailyReadinessState>(
-  DailyReadinessViewModel.new,
+/// The training-readiness detail state provider (manually declared, no codegen).
+final trainingReadinessDetailsProvider = NotifierProvider<
+    TrainingReadinessDetailsViewModel, TrainingReadinessDetailsState>(
+  TrainingReadinessDetailsViewModel.new,
 );
