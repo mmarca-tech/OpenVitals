@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.hardware.Sensor
@@ -64,6 +65,10 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var pendingPermissionResult: MethodChannel.Result? = null
+
+    /** Its own slot: a CoMaps grant and an activity-recognition grant can be
+     *  in flight at the same time, and they are answered by request code. */
+    private var pendingCoMapsPermissionResult: MethodChannel.Result? = null
 
     /** The route file the app was opened with, until Dart takes it. */
     private var pendingRouteImportUri: Uri? = null
@@ -147,6 +152,30 @@ class MainActivity : FlutterFragmentActivity() {
         // has already changed between plugin versions. So native hands Dart plain
         // typed values and Dart writes them back through the `SharedPreferences`
         // API, letting the plugin own its own encoding.
+        // CoMaps exposes a live-navigation ContentProvider (upstream PR #4588,
+        // merged 2026-07-01): `content://<comapsPackage>.provider.navigation/live`,
+        // read-protected by the *dangerous* permission
+        // `app.comaps.permission.READ_NAVIGATION_DATA`. Dart cannot touch a
+        // ContentResolver, a PackageManager or a runtime permission grant, so
+        // the whole platform surface lives here — and only the platform surface:
+        // this bridge classifies nothing. It reports what it found and hands the
+        // raw row up, because deciding what "not navigating" means is domain
+        // work, and domain work is testable in Dart.
+        MethodChannel(messenger, COMAPS_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "queryLive" -> result.success(queryCoMapsLive())
+                "hasPermission" -> result.success(hasCoMapsPermission())
+                "requestPermission" -> requestCoMapsPermission(result)
+                "canLaunch" -> result.success(coMapsLaunchPackage() != null)
+                "launchForPlanning" -> result.success(
+                    launchCoMapsForPlanning(
+                        call.argument<Double>("latitude"),
+                        call.argument<Double>("longitude"),
+                    ),
+                )
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(messenger, LEGACY_MIGRATION_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasLegacyData" -> result.success(hasLegacyData())
@@ -356,6 +385,170 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
+    // ── CoMaps live navigation ────────────────────────────────────────────
+
+    /**
+     * Queries CoMaps' live-navigation row.
+     *
+     * Returns a `status` plus, when navigating, the raw column values. The
+     * statuses are deliberately distinct: a missing app, a CoMaps build without
+     * the provider, and a provider we may not read are three different things to
+     * tell the user, and only one of them is worth offering a button for.
+     *
+     * Package visibility matters here. From Android 11 an app cannot see another
+     * package unless it declares it, so `AndroidManifest.xml` lists every known
+     * CoMaps package *and* every provider authority in `<queries>`. Without that
+     * the resolve below silently returns null and CoMaps looks uninstalled.
+     */
+    private fun queryCoMapsLive(): Map<String, Any?> {
+        val authority = coMapsProviderAuthority()
+            ?: return mapOf(
+                "status" to if (coMapsInstalledPackage() != null) {
+                    "providerUnavailable"
+                } else {
+                    "appUnavailable"
+                },
+            )
+        if (!hasCoMapsPermission()) return mapOf("status" to "permissionMissing")
+
+        return try {
+            contentResolver.query(
+                Uri.parse("content://$authority/live"),
+                COMAPS_LIVE_COLUMNS,
+                null,
+                null,
+                null,
+            ).use { cursor ->
+                when {
+                    cursor == null -> mapOf("status" to "providerUnavailable")
+                    // The provider answers an empty cursor when nobody is being
+                    // guided anywhere. That is not an error.
+                    !cursor.moveToFirst() -> mapOf("status" to "notNavigating")
+                    else -> mapOf(
+                        "status" to "active",
+                        "row" to COMAPS_LIVE_COLUMNS.associateWith { column ->
+                            cursor.coMapsValue(column)
+                        },
+                    )
+                }
+            }
+        } catch (error: SecurityException) {
+            // The grant can be revoked while we hold it.
+            mapOf("status" to "permissionMissing")
+        } catch (error: Exception) {
+            mapOf("status" to "error", "message" to error.message)
+        }
+    }
+
+    /**
+     * Column values arrive typed: the distances are *strings already formatted*
+     * by CoMaps against its own locale and units, the times are ints, the
+     * completion is a double. Read each as what it is, and let a column CoMaps
+     * did not send simply be absent.
+     */
+    private fun Cursor.coMapsValue(column: String): Any? {
+        val index = getColumnIndex(column)
+        if (index < 0 || isNull(index)) return null
+        return when (getType(index)) {
+            Cursor.FIELD_TYPE_INTEGER -> getLong(index)
+            Cursor.FIELD_TYPE_FLOAT -> getDouble(index)
+            else -> getString(index)
+        }
+    }
+
+    private fun hasCoMapsPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, COMAPS_PERMISSION) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun requestCoMapsPermission(result: MethodChannel.Result) {
+        if (hasCoMapsPermission()) {
+            result.success(true)
+            return
+        }
+        // The permission is defined by CoMaps, not by us: if CoMaps is not
+        // installed the permission does not exist, and asking for it shows the
+        // user nothing and returns denied forever.
+        if (coMapsInstalledPackage() == null) {
+            result.success(false)
+            return
+        }
+        if (pendingCoMapsPermissionResult != null) {
+            result.success(false)
+            return
+        }
+        pendingCoMapsPermissionResult = result
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(COMAPS_PERMISSION),
+            COMAPS_PERMISSION_REQUEST_CODE,
+        )
+    }
+
+    /**
+     * Hands CoMaps the map, centred on our latest fix when we have one, so the
+     * user can plan a route there. OpenVitals never plans or navigates: CoMaps
+     * owns the route, we own the recording.
+     */
+    private fun launchCoMapsForPlanning(latitude: Double?, longitude: Double?): Boolean {
+        val packageName = coMapsLaunchPackage() ?: return false
+        val intent = if (latitude != null && longitude != null) {
+            Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("cm://map?v=1&ll=$latitude,$longitude&n=OpenVitals")
+                setPackage(packageName)
+            }
+        } else {
+            packageManager.getLaunchIntentForPackage(packageName)
+        } ?: return false
+        return try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            true
+        } catch (error: Exception) {
+            false
+        }
+    }
+
+    private fun coMapsProviderAuthority(): String? =
+        KNOWN_COMAPS_PACKAGES
+            .map { packageName -> "$packageName.provider.navigation" }
+            .firstOrNull { authority -> resolveProviderAuthority(authority) }
+
+    private fun resolveProviderAuthority(authority: String): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.resolveContentProvider(
+                authority,
+                PackageManager.ComponentInfoFlags.of(0),
+            ) != null
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.resolveContentProvider(authority, 0) != null
+        }
+
+    private fun coMapsInstalledPackage(): String? =
+        KNOWN_COMAPS_PACKAGES.firstOrNull(::isPackageInstalled)
+
+    private fun coMapsLaunchPackage(): String? =
+        KNOWN_COMAPS_PACKAGES.firstOrNull { packageName ->
+            isPackageInstalled(packageName) &&
+                packageManager.getLaunchIntentForPackage(packageName) != null
+        }
+
+    private fun isPackageInstalled(packageName: String): Boolean =
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.PackageInfoFlags.of(0),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            true
+        } catch (error: PackageManager.NameNotFoundException) {
+            false
+        }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -366,6 +559,12 @@ class MainActivity : FlutterFragmentActivity() {
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             pendingPermissionResult?.success(granted)
             pendingPermissionResult = null
+        }
+        if (requestCode == COMAPS_PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingCoMapsPermissionResult?.success(granted)
+            pendingCoMapsPermissionResult = null
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
@@ -418,7 +617,45 @@ class MainActivity : FlutterFragmentActivity() {
         const val STEP_DETECTOR_CHANNEL = "tech.mmarca.openvitals/recording_sensors/step_detector"
         const val ROUTE_IMPORT_CHANNEL = "tech.mmarca.openvitals/route_import"
         const val LEGACY_MIGRATION_CHANNEL = "tech.mmarca.openvitals/legacy_migration"
+        const val COMAPS_CHANNEL = "tech.mmarca.openvitals/comaps_navigation"
         const val ACTIVITY_RECOGNITION_REQUEST_CODE = 4031
+        const val COMAPS_PERMISSION_REQUEST_CODE = 4032
+
+        /** Declared by CoMaps, protectionLevel="dangerous" — a runtime grant. */
+        const val COMAPS_PERMISSION = "app.comaps.permission.READ_NAVIGATION_DATA"
+
+        /**
+         * Every CoMaps flavour we know of. The authority is the package plus
+         * `.provider.navigation` (CoMaps builds it from its own applicationId),
+         * so one list drives both package detection and provider resolution.
+         */
+        val KNOWN_COMAPS_PACKAGES = listOf(
+            "app.comaps",
+            "app.comaps.fdroid",
+            "app.comaps.google",
+            "app.comaps.huawei",
+            "app.comaps.test",
+            "app.comaps.debug",
+            "app.comaps.fdroid.debug",
+            "app.comaps.google.debug",
+            "app.comaps.huawei.debug",
+        )
+
+        /** CoMaps' `NavigationContract.Live.Columns`, verbatim. */
+        val COMAPS_LIVE_COLUMNS = arrayOf(
+            "session_state",
+            "car_direction",
+            "pedestrian_direction",
+            "dist_to_turn",
+            "dist_to_target",
+            "dist_to_next_stop",
+            "total_time_seconds",
+            "time_to_next_stop",
+            "current_street",
+            "next_street",
+            "completion_percent",
+            "exit_num",
+        )
 
         /** Room database of the Kotlin app; drift reads the same file. */
         const val LEGACY_DATABASE_NAME = "openvitals.db"

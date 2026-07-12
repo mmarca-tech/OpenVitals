@@ -76,6 +76,13 @@ class ActivityRecordingPrefsStore extends PrefsStore {
       restTimerBellEnabled:
           prefs.getBool(_keyActivityRecordingRestTimerBellEnabled) ??
               ActivityRecordingPreferences.defaultRestTimerBellEnabled,
+      coMapsNavigationContextEnabled:
+          prefs.getBool(_keyActivityRecordingCoMapsEnabled) ??
+              ActivityRecordingPreferences
+                  .defaultCoMapsNavigationContextEnabled,
+      saveCoMapsNavigationContext:
+          prefs.getBool(_keyActivityRecordingCoMapsSave) ??
+              ActivityRecordingPreferences.defaultSaveCoMapsNavigationContext,
     ).normalized();
   }
 
@@ -134,6 +141,14 @@ class ActivityRecordingPrefsStore extends PrefsStore {
       _keyActivityRecordingRestTimerBellEnabled,
       normalized.restTimerBellEnabled,
     );
+    putBool(
+      _keyActivityRecordingCoMapsEnabled,
+      normalized.coMapsNavigationContextEnabled,
+    );
+    putBool(
+      _keyActivityRecordingCoMapsSave,
+      normalized.saveCoMapsNavigationContext,
+    );
   }
 
   ActivityRecordingDashboardLayout readDashboardLayout(String activityTypeId) {
@@ -186,6 +201,11 @@ class ActivityRecordingPrefsStore extends PrefsStore {
       'activity_recording_voice_lap_enabled';
   static const String _keyActivityRecordingRestTimerBellEnabled =
       'activity_recording_rest_timer_bell_enabled';
+  // The Kotlin keys, verbatim: a user updating in place keeps their choice.
+  static const String _keyActivityRecordingCoMapsEnabled =
+      'activity_recording_comaps_navigation_enabled';
+  static const String _keyActivityRecordingCoMapsSave =
+      'activity_recording_comaps_navigation_save';
   static const String _keyActivityRecordingDashboardLayoutPrefix =
       'activity_recording_dashboard_layout_';
   static const int _routeGapOff = 0;

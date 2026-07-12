@@ -1,3 +1,6 @@
+import '../data/source/comaps/comaps_navigation_source.dart';
+import '../data/repository/impl/comaps_navigation_repository_impl.dart';
+import '../data/repository/contract/comaps_navigation_repository.dart';
 import '../domain/model/vitals_models.dart';
 import '../domain/model/body_models.dart';
 import '../domain/model/ble_sensor_models.dart';
@@ -276,4 +279,17 @@ final managedHealthPermissionsProvider = Provider<Set<String>>(
 
 final mindfulnessAvailableProvider = Provider<bool>(
   (ref) => ref.watch(healthRepositoryProvider).isMindfulnessAvailable(),
+);
+
+// ── CoMaps live navigation ────────────────────────────────────────────────
+
+final coMapsNavigationSourceProvider = Provider<CoMapsNavigationSource>(
+  (ref) => const CoMapsNavigationSource(),
+);
+
+final coMapsNavigationRepositoryProvider = Provider<CoMapsNavigationRepository>(
+  (ref) => CoMapsNavigationRepositoryImpl(
+    ref.watch(coMapsNavigationSourceProvider),
+    ref.watch(sharedPreferencesProvider),
+  ),
 );

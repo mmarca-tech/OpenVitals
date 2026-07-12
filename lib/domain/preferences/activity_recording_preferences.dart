@@ -42,6 +42,18 @@ abstract class ActivityRecordingPreferences with _$ActivityRecordingPreferences 
     bool voiceLapAnnouncementsEnabled,
     @Default(ActivityRecordingPreferences.defaultRestTimerBellEnabled)
     bool restTimerBellEnabled,
+
+    /// Read CoMaps' live guidance during a phone GPS recording and show it.
+    /// Off by default: it is an integration with another app, and it asks for a
+    /// permission, so it is the user's to switch on.
+    @Default(ActivityRecordingPreferences.defaultCoMapsNavigationContextEnabled)
+    bool coMapsNavigationContextEnabled,
+
+    /// Keep the sampled guidance in the activity's history. Meaningless without
+    /// [coMapsNavigationContextEnabled], and gated on it in the UI. Never
+    /// exported to Health Connect.
+    @Default(ActivityRecordingPreferences.defaultSaveCoMapsNavigationContext)
+    bool saveCoMapsNavigationContext,
   }) = _ActivityRecordingPreferences;
 
   ActivityRecordingPreferences normalized() => copyWith(
@@ -109,6 +121,8 @@ abstract class ActivityRecordingPreferences with _$ActivityRecordingPreferences 
   static const bool defaultVoiceIdleAnnouncementsEnabled = true;
   static const bool defaultVoiceLapAnnouncementsEnabled = true;
   static const bool defaultRestTimerBellEnabled = true;
+  static const bool defaultCoMapsNavigationContextEnabled = false;
+  static const bool defaultSaveCoMapsNavigationContext = false;
   static const int defaultRouteGapMeters = 200;
   static const List<int> allowedGpsAccuracyMeters = [10, 30, 50, 100];
   static const List<int> allowedRouteGapMeters = [100, 200, 500];
