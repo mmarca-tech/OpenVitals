@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../domain/model/comaps_navigation.dart';
+import '../../../../di/providers.dart';
+import '../../../../core/result/result.dart';
 import '../../../../core/presentation/command_state.dart';
 import '../../../../core/presentation/screen_error.dart';
 import '../../../../domain/model/activity_entry_types.dart';
@@ -52,6 +55,12 @@ abstract class ActivityRecordingUiState with _$ActivityRecordingUiState {
     /// producing nothing.
     @Default(CommandState<ActivityRecordingSnapshot>.idle())
     CommandState<ActivityRecordingSnapshot> save,
+
+    /// What CoMaps is guiding the user through right now, if anything. Every
+    /// value of this — including all four unavailable ones — is a normal state:
+    /// the recording never depends on it.
+    @Default(CoMapsNavigationDisabled())
+    CoMapsNavigationState coMapsNavigation,
   }) = _ActivityRecordingUiState;
 
   /// The wall clock the durations are computed against, falling back to the
@@ -106,6 +115,20 @@ class ActivityRecordingViewModel extends Notifier<ActivityRecordingUiState> {
 
   Timer? _ticker;
 
+  /// CoMaps is polled, not subscribed to: a ContentProvider has no change feed,
+  /// so the only way to see a turn coming is to ask. Two seconds is the Kotlin
+  /// cadence — often enough that a turn instruction is not stale on screen,
+  /// rarely enough to be free next to a GPS fix arriving every second.
+  Timer? _coMapsPoll;
+  static const Duration _coMapsPollInterval = Duration(seconds: 2);
+
+  final CoMapsNavigationSampleRecorder _coMapsRecorder =
+      CoMapsNavigationSampleRecorder();
+
+  /// The session the banked samples belong to. When the recording restarts, the
+  /// samples of the last one are not ours to keep.
+  DateTime? _coMapsSessionStart;
+
   @override
   ActivityRecordingUiState build() {
     final service = _service;
@@ -114,6 +137,7 @@ class ActivityRecordingViewModel extends Notifier<ActivityRecordingUiState> {
       final recording = service.state.value;
       state = state.copyWith(recording: recording, now: DateTime.now());
       _syncTicker(recording);
+      _syncCoMapsPoll(recording);
     }
 
     service.state.addListener(listener);
@@ -121,12 +145,15 @@ class ActivityRecordingViewModel extends Notifier<ActivityRecordingUiState> {
       service.state.removeListener(listener);
       _ticker?.cancel();
       _ticker = null;
+      _coMapsPoll?.cancel();
+      _coMapsPoll = null;
     });
 
     final restored = service.state.value;
     // A recording restored from disk after process death is already running by
     // the time the screen asks for it, so its clock has to be ticking already.
     _syncTicker(restored);
+    _syncCoMapsPoll(restored, canPublish: false);
     return ActivityRecordingUiState(
       recording: restored,
       now: DateTime.now(),
@@ -147,6 +174,105 @@ class ActivityRecordingViewModel extends Notifier<ActivityRecordingUiState> {
       _ticker = null;
     }
   }
+
+  // ── CoMaps guidance ──────────────────────────────────────────────────────
+
+  /// Guidance is only read while a GPS route is actually being recorded, and
+  /// only when the user asked for it. A repetition session in a gym has nothing
+  /// to navigate, and a paused recording is not going anywhere.
+  bool _wantsCoMaps(ActivityRecordingState recording) {
+    // The cheap questions first: there is nothing to poll for a gym session or
+    // a stopped one, and no reason to reach for preferences to find that out.
+    if (!recording.isActive ||
+        recording.recordingKind != ActivityRecordingKind.gpsRoute) {
+      return false;
+    }
+    return ref
+        .read(preferencesRepositoryProvider)
+        .activityRecordingPreferences()
+        .coMapsNavigationContextEnabled;
+  }
+
+  /// [canPublish] is false while `build()` is still assembling the first state:
+  /// reading `state` there is reading a notifier that does not exist yet. The
+  /// initial state already says disabled, so there is nothing to publish anyway
+  /// — only timers to arrange.
+  void _syncCoMapsPoll(
+    ActivityRecordingState recording, {
+    bool canPublish = true,
+  }) {
+    if (!_wantsCoMaps(recording)) {
+      if (_coMapsPoll != null) {
+        _coMapsPoll!.cancel();
+        _coMapsPoll = null;
+      }
+      _coMapsRecorder.reset();
+      _coMapsSessionStart = null;
+      if (canPublish && state.coMapsNavigation is! CoMapsNavigationDisabled) {
+        state = state.copyWith(
+          coMapsNavigation: const CoMapsNavigationDisabled(),
+        );
+      }
+      return;
+    }
+
+    // A restarted recording does not inherit the last one's guidance.
+    final startTime = recording.startTime;
+    if (startTime != null && startTime != _coMapsSessionStart) {
+      _coMapsRecorder.reset();
+      _coMapsSessionStart = startTime;
+    }
+
+    if (_coMapsPoll == null) {
+      unawaited(_readCoMaps());
+      _coMapsPoll = Timer.periodic(
+        _coMapsPollInterval,
+        (_) => unawaited(_readCoMaps()),
+      );
+    }
+  }
+
+  Future<void> _readCoMaps() async {
+    final result =
+        await ref.read(coMapsNavigationRepositoryProvider).readLive();
+    if (!ref.mounted) return;
+    // The bridge itself failing is still only a guidance problem. It is shown
+    // where the guidance goes, and the recording carries on regardless.
+    final navigation = switch (result) {
+      Ok(:final value) => value,
+      Err(:final failure) => CoMapsNavigationError(failure.toString()),
+    };
+    state = state.copyWith(coMapsNavigation: navigation);
+
+    // Bank the reading only if the user wants it kept. The recorder decides
+    // whether this one is worth keeping; most are not.
+    if (navigation is CoMapsNavigationActive &&
+        ref.read(preferencesRepositoryProvider)
+            .activityRecordingPreferences()
+            .saveCoMapsNavigationContext) {
+      _coMapsRecorder.accept(navigation.snapshot);
+    }
+  }
+
+  /// Grants `app.comaps.permission.READ_NAVIGATION_DATA`, then reads again so
+  /// the panel updates without waiting for the next poll.
+  Future<void> requestCoMapsPermission() async {
+    await ref.read(coMapsNavigationRepositoryProvider).requestPermission();
+    if (!ref.mounted) return;
+    await _readCoMaps();
+  }
+
+  /// Hands the map to CoMaps so the user can plan a route on it.
+  Future<void> planInCoMaps({double? latitude, double? longitude}) async {
+    await ref.read(coMapsNavigationRepositoryProvider).launchForPlanning(
+          latitude: latitude,
+          longitude: longitude,
+        );
+  }
+
+  /// The guidance banked during this recording, for the activity about to be
+  /// saved. Empty unless the user asked for it to be kept.
+  List<CoMapsNavigationSnapshot> get coMapsSamples => _coMapsRecorder.samples;
 
   // ── Commands ─────────────────────────────────────────────────────────────
 
@@ -192,7 +318,12 @@ class ActivityRecordingViewModel extends Notifier<ActivityRecordingUiState> {
   void stopRecording() {
     final service = _service;
     state = state.copyWith(save: const CommandState.running());
-    final snapshot = service.finishRecording();
+    // Take the guidance BEFORE finishing: the moment the recording goes
+    // inactive the poll tears itself down and resets the recorder, and these
+    // samples are the only copy.
+    final coMapsSamples = _coMapsRecorder.samples;
+    final finished = service.finishRecording();
+    final snapshot = finished?.copyWith(coMapsNavigationSamples: coMapsSamples);
     final recording = service.state.value;
     state = state.copyWith(
       recording: recording,

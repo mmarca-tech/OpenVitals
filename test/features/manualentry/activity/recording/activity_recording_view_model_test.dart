@@ -1,3 +1,7 @@
+import 'package:openvitals/domain/model/comaps_navigation.dart';
+import 'package:openvitals/di/providers.dart';
+import 'package:openvitals/data/prefs/preferences_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +19,8 @@ import 'package:openvitals/features/manualentry/activity/recording/activity_reco
 /// here on purpose: this file pins the surface the widgets consume (elapsed
 /// time, focus mode, start/pause/resume/stop/discard), never the platform.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   final gpsType = defaultActivityEntryTypes.first;
 
   ActivityRecordingSnapshot recordedSnapshot({double distanceMeters = 5000}) =>
@@ -28,10 +34,23 @@ void main() {
         elevationGainedMeters: 0,
       );
 
+  /// The view-model reads the recording preferences to decide whether to poll
+  /// CoMaps at all, so the store has to exist even for tests that never mention
+  /// CoMaps. The preference is off by default, so it never polls.
+  late SharedPreferences prefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    prefs = await SharedPreferences.getInstance();
+  });
+
   ProviderContainer containerWith(_FakeRecordingService service) {
     final container = ProviderContainer(
       overrides: [
         activityRecordingControllerProvider.overrideWithValue(service),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        preferencesRepositoryProvider
+            .overrideWithValue(PreferencesRepository(prefs)),
       ],
     );
     addTearDown(container.dispose);
@@ -281,6 +300,62 @@ void main() {
           const Duration(minutes: 2));
     });
   });
+
+  group('CoMaps guidance', () {
+    // Guidance is polled, not subscribed to, and the rules about WHEN are the
+    // cost story: a gym session has nothing to navigate, a stopped recording is
+    // not going anywhere, and a user who never asked for the integration must
+    // never have their ContentResolver touched at all.
+    test('is not polled when the user has not asked for it', () async {
+      final service = _FakeRecordingService(startResult: true);
+      final container = containerWith(service);
+      container.listen(activityRecordingViewModelProvider, (_, _) {});
+
+      await container
+          .read(activityRecordingViewModelProvider.notifier)
+          .startRecording(gpsType, null);
+
+      expect(
+        container.read(activityRecordingViewModelProvider).coMapsNavigation,
+        isA<CoMapsNavigationDisabled>(),
+      );
+      expect(
+        container
+            .read(activityRecordingViewModelProvider.notifier)
+            .coMapsSamples,
+        isEmpty,
+      );
+    });
+
+    test('the guidance rides out on the snapshot, not the recorder', () async {
+      // The poll tears itself down the moment the recording goes inactive, and
+      // it resets the recorder when it does. If the form fetched the samples
+      // from the recorder at save time they would already be gone, so they are
+      // taken BEFORE the stop and travel on the snapshot — the same route the
+      // BLE samples take.
+      final service = _FakeRecordingService(
+        startResult: true,
+        snapshot: recordedSnapshot(),
+      );
+      final container = containerWith(service);
+      container.listen(activityRecordingViewModelProvider, (_, _) {});
+      final viewModel =
+          container.read(activityRecordingViewModelProvider.notifier);
+
+      await viewModel.startRecording(gpsType, null);
+      viewModel.stopRecording();
+
+      final save = container.read(activityRecordingViewModelProvider).save;
+      expect(save, isA<CommandSuccess<ActivityRecordingSnapshot>>());
+      expect(
+        (save as CommandSuccess<ActivityRecordingSnapshot>)
+            .value
+            .coMapsNavigationSamples,
+        isEmpty,
+      );
+    });
+  });
+
 }
 
 /// Stands in for the device-bound `ActivityRecordingService`: it publishes a

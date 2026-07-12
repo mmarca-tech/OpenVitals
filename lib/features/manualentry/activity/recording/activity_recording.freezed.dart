@@ -765,7 +765,11 @@ $ExerciseRoutePointCopyWith<$Res>? get latestUiPoint {
 /// @nodoc
 mixin _$ActivityRecordingSnapshot implements DiagnosticableTreeMixin {
 
- int get exerciseType; ActivityRecordingKind get recordingKind; String? get activityTypeId; DateTime get startTime; DateTime get endTime; List<ExerciseRoutePoint> get points; List<ActivityPauseInterval> get pauseIntervals; List<int> get routeBreakIndexes; List<ActivityRecordingLap> get manualLaps; List<ActivityRecordingMarker> get markers; double get distanceMeters; double get elevationGainedMeters; int get repetitionCount; List<ActivityRecordedRepetitionSet> get repetitionSets; BleRecordingSampleBuffer get bleSamples;
+ int get exerciseType; ActivityRecordingKind get recordingKind; String? get activityTypeId; DateTime get startTime; DateTime get endTime; List<ExerciseRoutePoint> get points; List<ActivityPauseInterval> get pauseIntervals; List<int> get routeBreakIndexes; List<ActivityRecordingLap> get manualLaps; List<ActivityRecordingMarker> get markers; double get distanceMeters; double get elevationGainedMeters; int get repetitionCount; List<ActivityRecordedRepetitionSet> get repetitionSets;/// The CoMaps guidance sampled during the run, if the user asked for it to
+/// be kept. It travels with the snapshot for the same reason the BLE samples
+/// do: the recording knows it, the form has to save it, and nothing in
+/// between should have to reach back into a stopped recorder for it.
+ List<CoMapsNavigationSnapshot> get coMapsNavigationSamples; BleRecordingSampleBuffer get bleSamples;
 /// Create a copy of ActivityRecordingSnapshot
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -777,21 +781,21 @@ $ActivityRecordingSnapshotCopyWith<ActivityRecordingSnapshot> get copyWith => _$
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'ActivityRecordingSnapshot'))
-    ..add(DiagnosticsProperty('exerciseType', exerciseType))..add(DiagnosticsProperty('recordingKind', recordingKind))..add(DiagnosticsProperty('activityTypeId', activityTypeId))..add(DiagnosticsProperty('startTime', startTime))..add(DiagnosticsProperty('endTime', endTime))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('pauseIntervals', pauseIntervals))..add(DiagnosticsProperty('routeBreakIndexes', routeBreakIndexes))..add(DiagnosticsProperty('manualLaps', manualLaps))..add(DiagnosticsProperty('markers', markers))..add(DiagnosticsProperty('distanceMeters', distanceMeters))..add(DiagnosticsProperty('elevationGainedMeters', elevationGainedMeters))..add(DiagnosticsProperty('repetitionCount', repetitionCount))..add(DiagnosticsProperty('repetitionSets', repetitionSets))..add(DiagnosticsProperty('bleSamples', bleSamples));
+    ..add(DiagnosticsProperty('exerciseType', exerciseType))..add(DiagnosticsProperty('recordingKind', recordingKind))..add(DiagnosticsProperty('activityTypeId', activityTypeId))..add(DiagnosticsProperty('startTime', startTime))..add(DiagnosticsProperty('endTime', endTime))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('pauseIntervals', pauseIntervals))..add(DiagnosticsProperty('routeBreakIndexes', routeBreakIndexes))..add(DiagnosticsProperty('manualLaps', manualLaps))..add(DiagnosticsProperty('markers', markers))..add(DiagnosticsProperty('distanceMeters', distanceMeters))..add(DiagnosticsProperty('elevationGainedMeters', elevationGainedMeters))..add(DiagnosticsProperty('repetitionCount', repetitionCount))..add(DiagnosticsProperty('repetitionSets', repetitionSets))..add(DiagnosticsProperty('coMapsNavigationSamples', coMapsNavigationSamples))..add(DiagnosticsProperty('bleSamples', bleSamples));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityRecordingSnapshot&&(identical(other.exerciseType, exerciseType) || other.exerciseType == exerciseType)&&(identical(other.recordingKind, recordingKind) || other.recordingKind == recordingKind)&&(identical(other.activityTypeId, activityTypeId) || other.activityTypeId == activityTypeId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&const DeepCollectionEquality().equals(other.points, points)&&const DeepCollectionEquality().equals(other.pauseIntervals, pauseIntervals)&&const DeepCollectionEquality().equals(other.routeBreakIndexes, routeBreakIndexes)&&const DeepCollectionEquality().equals(other.manualLaps, manualLaps)&&const DeepCollectionEquality().equals(other.markers, markers)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainedMeters, elevationGainedMeters) || other.elevationGainedMeters == elevationGainedMeters)&&(identical(other.repetitionCount, repetitionCount) || other.repetitionCount == repetitionCount)&&const DeepCollectionEquality().equals(other.repetitionSets, repetitionSets)&&(identical(other.bleSamples, bleSamples) || other.bleSamples == bleSamples));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityRecordingSnapshot&&(identical(other.exerciseType, exerciseType) || other.exerciseType == exerciseType)&&(identical(other.recordingKind, recordingKind) || other.recordingKind == recordingKind)&&(identical(other.activityTypeId, activityTypeId) || other.activityTypeId == activityTypeId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&const DeepCollectionEquality().equals(other.points, points)&&const DeepCollectionEquality().equals(other.pauseIntervals, pauseIntervals)&&const DeepCollectionEquality().equals(other.routeBreakIndexes, routeBreakIndexes)&&const DeepCollectionEquality().equals(other.manualLaps, manualLaps)&&const DeepCollectionEquality().equals(other.markers, markers)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainedMeters, elevationGainedMeters) || other.elevationGainedMeters == elevationGainedMeters)&&(identical(other.repetitionCount, repetitionCount) || other.repetitionCount == repetitionCount)&&const DeepCollectionEquality().equals(other.repetitionSets, repetitionSets)&&const DeepCollectionEquality().equals(other.coMapsNavigationSamples, coMapsNavigationSamples)&&(identical(other.bleSamples, bleSamples) || other.bleSamples == bleSamples));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,exerciseType,recordingKind,activityTypeId,startTime,endTime,const DeepCollectionEquality().hash(points),const DeepCollectionEquality().hash(pauseIntervals),const DeepCollectionEquality().hash(routeBreakIndexes),const DeepCollectionEquality().hash(manualLaps),const DeepCollectionEquality().hash(markers),distanceMeters,elevationGainedMeters,repetitionCount,const DeepCollectionEquality().hash(repetitionSets),bleSamples);
+int get hashCode => Object.hash(runtimeType,exerciseType,recordingKind,activityTypeId,startTime,endTime,const DeepCollectionEquality().hash(points),const DeepCollectionEquality().hash(pauseIntervals),const DeepCollectionEquality().hash(routeBreakIndexes),const DeepCollectionEquality().hash(manualLaps),const DeepCollectionEquality().hash(markers),distanceMeters,elevationGainedMeters,repetitionCount,const DeepCollectionEquality().hash(repetitionSets),const DeepCollectionEquality().hash(coMapsNavigationSamples),bleSamples);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'ActivityRecordingSnapshot(exerciseType: $exerciseType, recordingKind: $recordingKind, activityTypeId: $activityTypeId, startTime: $startTime, endTime: $endTime, points: $points, pauseIntervals: $pauseIntervals, routeBreakIndexes: $routeBreakIndexes, manualLaps: $manualLaps, markers: $markers, distanceMeters: $distanceMeters, elevationGainedMeters: $elevationGainedMeters, repetitionCount: $repetitionCount, repetitionSets: $repetitionSets, bleSamples: $bleSamples)';
+  return 'ActivityRecordingSnapshot(exerciseType: $exerciseType, recordingKind: $recordingKind, activityTypeId: $activityTypeId, startTime: $startTime, endTime: $endTime, points: $points, pauseIntervals: $pauseIntervals, routeBreakIndexes: $routeBreakIndexes, manualLaps: $manualLaps, markers: $markers, distanceMeters: $distanceMeters, elevationGainedMeters: $elevationGainedMeters, repetitionCount: $repetitionCount, repetitionSets: $repetitionSets, coMapsNavigationSamples: $coMapsNavigationSamples, bleSamples: $bleSamples)';
 }
 
 
@@ -802,7 +806,7 @@ abstract mixin class $ActivityRecordingSnapshotCopyWith<$Res>  {
   factory $ActivityRecordingSnapshotCopyWith(ActivityRecordingSnapshot value, $Res Function(ActivityRecordingSnapshot) _then) = _$ActivityRecordingSnapshotCopyWithImpl;
 @useResult
 $Res call({
- int exerciseType, ActivityRecordingKind recordingKind, String? activityTypeId, DateTime startTime, DateTime endTime, List<ExerciseRoutePoint> points, List<ActivityPauseInterval> pauseIntervals, List<int> routeBreakIndexes, List<ActivityRecordingLap> manualLaps, List<ActivityRecordingMarker> markers, double distanceMeters, double elevationGainedMeters, int repetitionCount, List<ActivityRecordedRepetitionSet> repetitionSets, BleRecordingSampleBuffer bleSamples
+ int exerciseType, ActivityRecordingKind recordingKind, String? activityTypeId, DateTime startTime, DateTime endTime, List<ExerciseRoutePoint> points, List<ActivityPauseInterval> pauseIntervals, List<int> routeBreakIndexes, List<ActivityRecordingLap> manualLaps, List<ActivityRecordingMarker> markers, double distanceMeters, double elevationGainedMeters, int repetitionCount, List<ActivityRecordedRepetitionSet> repetitionSets, List<CoMapsNavigationSnapshot> coMapsNavigationSamples, BleRecordingSampleBuffer bleSamples
 });
 
 
@@ -819,7 +823,7 @@ class _$ActivityRecordingSnapshotCopyWithImpl<$Res>
 
 /// Create a copy of ActivityRecordingSnapshot
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? exerciseType = null,Object? recordingKind = null,Object? activityTypeId = freezed,Object? startTime = null,Object? endTime = null,Object? points = null,Object? pauseIntervals = null,Object? routeBreakIndexes = null,Object? manualLaps = null,Object? markers = null,Object? distanceMeters = null,Object? elevationGainedMeters = null,Object? repetitionCount = null,Object? repetitionSets = null,Object? bleSamples = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? exerciseType = null,Object? recordingKind = null,Object? activityTypeId = freezed,Object? startTime = null,Object? endTime = null,Object? points = null,Object? pauseIntervals = null,Object? routeBreakIndexes = null,Object? manualLaps = null,Object? markers = null,Object? distanceMeters = null,Object? elevationGainedMeters = null,Object? repetitionCount = null,Object? repetitionSets = null,Object? coMapsNavigationSamples = null,Object? bleSamples = null,}) {
   return _then(_self.copyWith(
 exerciseType: null == exerciseType ? _self.exerciseType : exerciseType // ignore: cast_nullable_to_non_nullable
 as int,recordingKind: null == recordingKind ? _self.recordingKind : recordingKind // ignore: cast_nullable_to_non_nullable
@@ -835,7 +839,8 @@ as List<ActivityRecordingMarker>,distanceMeters: null == distanceMeters ? _self.
 as double,elevationGainedMeters: null == elevationGainedMeters ? _self.elevationGainedMeters : elevationGainedMeters // ignore: cast_nullable_to_non_nullable
 as double,repetitionCount: null == repetitionCount ? _self.repetitionCount : repetitionCount // ignore: cast_nullable_to_non_nullable
 as int,repetitionSets: null == repetitionSets ? _self.repetitionSets : repetitionSets // ignore: cast_nullable_to_non_nullable
-as List<ActivityRecordedRepetitionSet>,bleSamples: null == bleSamples ? _self.bleSamples : bleSamples // ignore: cast_nullable_to_non_nullable
+as List<ActivityRecordedRepetitionSet>,coMapsNavigationSamples: null == coMapsNavigationSamples ? _self.coMapsNavigationSamples : coMapsNavigationSamples // ignore: cast_nullable_to_non_nullable
+as List<CoMapsNavigationSnapshot>,bleSamples: null == bleSamples ? _self.bleSamples : bleSamples // ignore: cast_nullable_to_non_nullable
 as BleRecordingSampleBuffer,
   ));
 }
@@ -930,10 +935,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  BleRecordingSampleBuffer bleSamples)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  List<CoMapsNavigationSnapshot> coMapsNavigationSamples,  BleRecordingSampleBuffer bleSamples)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ActivityRecordingSnapshot() when $default != null:
-return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.bleSamples);case _:
+return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.coMapsNavigationSamples,_that.bleSamples);case _:
   return orElse();
 
 }
@@ -951,10 +956,10 @@ return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  BleRecordingSampleBuffer bleSamples)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  List<CoMapsNavigationSnapshot> coMapsNavigationSamples,  BleRecordingSampleBuffer bleSamples)  $default,) {final _that = this;
 switch (_that) {
 case _ActivityRecordingSnapshot():
-return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.bleSamples);case _:
+return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.coMapsNavigationSamples,_that.bleSamples);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -971,10 +976,10 @@ return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  BleRecordingSampleBuffer bleSamples)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int exerciseType,  ActivityRecordingKind recordingKind,  String? activityTypeId,  DateTime startTime,  DateTime endTime,  List<ExerciseRoutePoint> points,  List<ActivityPauseInterval> pauseIntervals,  List<int> routeBreakIndexes,  List<ActivityRecordingLap> manualLaps,  List<ActivityRecordingMarker> markers,  double distanceMeters,  double elevationGainedMeters,  int repetitionCount,  List<ActivityRecordedRepetitionSet> repetitionSets,  List<CoMapsNavigationSnapshot> coMapsNavigationSamples,  BleRecordingSampleBuffer bleSamples)?  $default,) {final _that = this;
 switch (_that) {
 case _ActivityRecordingSnapshot() when $default != null:
-return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.bleSamples);case _:
+return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_that.startTime,_that.endTime,_that.points,_that.pauseIntervals,_that.routeBreakIndexes,_that.manualLaps,_that.markers,_that.distanceMeters,_that.elevationGainedMeters,_that.repetitionCount,_that.repetitionSets,_that.coMapsNavigationSamples,_that.bleSamples);case _:
   return null;
 
 }
@@ -986,7 +991,7 @@ return $default(_that.exerciseType,_that.recordingKind,_that.activityTypeId,_tha
 
 
 class _ActivityRecordingSnapshot with DiagnosticableTreeMixin implements ActivityRecordingSnapshot {
-  const _ActivityRecordingSnapshot({required this.exerciseType, this.recordingKind = ActivityRecordingKind.gpsRoute, this.activityTypeId, required this.startTime, required this.endTime, required final  List<ExerciseRoutePoint> points, required final  List<ActivityPauseInterval> pauseIntervals, final  List<int> routeBreakIndexes = const <int>[], final  List<ActivityRecordingLap> manualLaps = const <ActivityRecordingLap>[], final  List<ActivityRecordingMarker> markers = const <ActivityRecordingMarker>[], required this.distanceMeters, required this.elevationGainedMeters, this.repetitionCount = 0, final  List<ActivityRecordedRepetitionSet> repetitionSets = const <ActivityRecordedRepetitionSet>[], this.bleSamples = const BleRecordingSampleBuffer()}): _points = points,_pauseIntervals = pauseIntervals,_routeBreakIndexes = routeBreakIndexes,_manualLaps = manualLaps,_markers = markers,_repetitionSets = repetitionSets;
+  const _ActivityRecordingSnapshot({required this.exerciseType, this.recordingKind = ActivityRecordingKind.gpsRoute, this.activityTypeId, required this.startTime, required this.endTime, required final  List<ExerciseRoutePoint> points, required final  List<ActivityPauseInterval> pauseIntervals, final  List<int> routeBreakIndexes = const <int>[], final  List<ActivityRecordingLap> manualLaps = const <ActivityRecordingLap>[], final  List<ActivityRecordingMarker> markers = const <ActivityRecordingMarker>[], required this.distanceMeters, required this.elevationGainedMeters, this.repetitionCount = 0, final  List<ActivityRecordedRepetitionSet> repetitionSets = const <ActivityRecordedRepetitionSet>[], final  List<CoMapsNavigationSnapshot> coMapsNavigationSamples = const <CoMapsNavigationSnapshot>[], this.bleSamples = const BleRecordingSampleBuffer()}): _points = points,_pauseIntervals = pauseIntervals,_routeBreakIndexes = routeBreakIndexes,_manualLaps = manualLaps,_markers = markers,_repetitionSets = repetitionSets,_coMapsNavigationSamples = coMapsNavigationSamples;
   
 
 @override final  int exerciseType;
@@ -1039,6 +1044,21 @@ class _ActivityRecordingSnapshot with DiagnosticableTreeMixin implements Activit
   return EqualUnmodifiableListView(_repetitionSets);
 }
 
+/// The CoMaps guidance sampled during the run, if the user asked for it to
+/// be kept. It travels with the snapshot for the same reason the BLE samples
+/// do: the recording knows it, the form has to save it, and nothing in
+/// between should have to reach back into a stopped recorder for it.
+ final  List<CoMapsNavigationSnapshot> _coMapsNavigationSamples;
+/// The CoMaps guidance sampled during the run, if the user asked for it to
+/// be kept. It travels with the snapshot for the same reason the BLE samples
+/// do: the recording knows it, the form has to save it, and nothing in
+/// between should have to reach back into a stopped recorder for it.
+@override@JsonKey() List<CoMapsNavigationSnapshot> get coMapsNavigationSamples {
+  if (_coMapsNavigationSamples is EqualUnmodifiableListView) return _coMapsNavigationSamples;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_coMapsNavigationSamples);
+}
+
 @override@JsonKey() final  BleRecordingSampleBuffer bleSamples;
 
 /// Create a copy of ActivityRecordingSnapshot
@@ -1052,21 +1072,21 @@ _$ActivityRecordingSnapshotCopyWith<_ActivityRecordingSnapshot> get copyWith => 
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'ActivityRecordingSnapshot'))
-    ..add(DiagnosticsProperty('exerciseType', exerciseType))..add(DiagnosticsProperty('recordingKind', recordingKind))..add(DiagnosticsProperty('activityTypeId', activityTypeId))..add(DiagnosticsProperty('startTime', startTime))..add(DiagnosticsProperty('endTime', endTime))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('pauseIntervals', pauseIntervals))..add(DiagnosticsProperty('routeBreakIndexes', routeBreakIndexes))..add(DiagnosticsProperty('manualLaps', manualLaps))..add(DiagnosticsProperty('markers', markers))..add(DiagnosticsProperty('distanceMeters', distanceMeters))..add(DiagnosticsProperty('elevationGainedMeters', elevationGainedMeters))..add(DiagnosticsProperty('repetitionCount', repetitionCount))..add(DiagnosticsProperty('repetitionSets', repetitionSets))..add(DiagnosticsProperty('bleSamples', bleSamples));
+    ..add(DiagnosticsProperty('exerciseType', exerciseType))..add(DiagnosticsProperty('recordingKind', recordingKind))..add(DiagnosticsProperty('activityTypeId', activityTypeId))..add(DiagnosticsProperty('startTime', startTime))..add(DiagnosticsProperty('endTime', endTime))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('pauseIntervals', pauseIntervals))..add(DiagnosticsProperty('routeBreakIndexes', routeBreakIndexes))..add(DiagnosticsProperty('manualLaps', manualLaps))..add(DiagnosticsProperty('markers', markers))..add(DiagnosticsProperty('distanceMeters', distanceMeters))..add(DiagnosticsProperty('elevationGainedMeters', elevationGainedMeters))..add(DiagnosticsProperty('repetitionCount', repetitionCount))..add(DiagnosticsProperty('repetitionSets', repetitionSets))..add(DiagnosticsProperty('coMapsNavigationSamples', coMapsNavigationSamples))..add(DiagnosticsProperty('bleSamples', bleSamples));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityRecordingSnapshot&&(identical(other.exerciseType, exerciseType) || other.exerciseType == exerciseType)&&(identical(other.recordingKind, recordingKind) || other.recordingKind == recordingKind)&&(identical(other.activityTypeId, activityTypeId) || other.activityTypeId == activityTypeId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&const DeepCollectionEquality().equals(other._points, _points)&&const DeepCollectionEquality().equals(other._pauseIntervals, _pauseIntervals)&&const DeepCollectionEquality().equals(other._routeBreakIndexes, _routeBreakIndexes)&&const DeepCollectionEquality().equals(other._manualLaps, _manualLaps)&&const DeepCollectionEquality().equals(other._markers, _markers)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainedMeters, elevationGainedMeters) || other.elevationGainedMeters == elevationGainedMeters)&&(identical(other.repetitionCount, repetitionCount) || other.repetitionCount == repetitionCount)&&const DeepCollectionEquality().equals(other._repetitionSets, _repetitionSets)&&(identical(other.bleSamples, bleSamples) || other.bleSamples == bleSamples));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityRecordingSnapshot&&(identical(other.exerciseType, exerciseType) || other.exerciseType == exerciseType)&&(identical(other.recordingKind, recordingKind) || other.recordingKind == recordingKind)&&(identical(other.activityTypeId, activityTypeId) || other.activityTypeId == activityTypeId)&&(identical(other.startTime, startTime) || other.startTime == startTime)&&(identical(other.endTime, endTime) || other.endTime == endTime)&&const DeepCollectionEquality().equals(other._points, _points)&&const DeepCollectionEquality().equals(other._pauseIntervals, _pauseIntervals)&&const DeepCollectionEquality().equals(other._routeBreakIndexes, _routeBreakIndexes)&&const DeepCollectionEquality().equals(other._manualLaps, _manualLaps)&&const DeepCollectionEquality().equals(other._markers, _markers)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainedMeters, elevationGainedMeters) || other.elevationGainedMeters == elevationGainedMeters)&&(identical(other.repetitionCount, repetitionCount) || other.repetitionCount == repetitionCount)&&const DeepCollectionEquality().equals(other._repetitionSets, _repetitionSets)&&const DeepCollectionEquality().equals(other._coMapsNavigationSamples, _coMapsNavigationSamples)&&(identical(other.bleSamples, bleSamples) || other.bleSamples == bleSamples));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,exerciseType,recordingKind,activityTypeId,startTime,endTime,const DeepCollectionEquality().hash(_points),const DeepCollectionEquality().hash(_pauseIntervals),const DeepCollectionEquality().hash(_routeBreakIndexes),const DeepCollectionEquality().hash(_manualLaps),const DeepCollectionEquality().hash(_markers),distanceMeters,elevationGainedMeters,repetitionCount,const DeepCollectionEquality().hash(_repetitionSets),bleSamples);
+int get hashCode => Object.hash(runtimeType,exerciseType,recordingKind,activityTypeId,startTime,endTime,const DeepCollectionEquality().hash(_points),const DeepCollectionEquality().hash(_pauseIntervals),const DeepCollectionEquality().hash(_routeBreakIndexes),const DeepCollectionEquality().hash(_manualLaps),const DeepCollectionEquality().hash(_markers),distanceMeters,elevationGainedMeters,repetitionCount,const DeepCollectionEquality().hash(_repetitionSets),const DeepCollectionEquality().hash(_coMapsNavigationSamples),bleSamples);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'ActivityRecordingSnapshot(exerciseType: $exerciseType, recordingKind: $recordingKind, activityTypeId: $activityTypeId, startTime: $startTime, endTime: $endTime, points: $points, pauseIntervals: $pauseIntervals, routeBreakIndexes: $routeBreakIndexes, manualLaps: $manualLaps, markers: $markers, distanceMeters: $distanceMeters, elevationGainedMeters: $elevationGainedMeters, repetitionCount: $repetitionCount, repetitionSets: $repetitionSets, bleSamples: $bleSamples)';
+  return 'ActivityRecordingSnapshot(exerciseType: $exerciseType, recordingKind: $recordingKind, activityTypeId: $activityTypeId, startTime: $startTime, endTime: $endTime, points: $points, pauseIntervals: $pauseIntervals, routeBreakIndexes: $routeBreakIndexes, manualLaps: $manualLaps, markers: $markers, distanceMeters: $distanceMeters, elevationGainedMeters: $elevationGainedMeters, repetitionCount: $repetitionCount, repetitionSets: $repetitionSets, coMapsNavigationSamples: $coMapsNavigationSamples, bleSamples: $bleSamples)';
 }
 
 
@@ -1077,7 +1097,7 @@ abstract mixin class _$ActivityRecordingSnapshotCopyWith<$Res> implements $Activ
   factory _$ActivityRecordingSnapshotCopyWith(_ActivityRecordingSnapshot value, $Res Function(_ActivityRecordingSnapshot) _then) = __$ActivityRecordingSnapshotCopyWithImpl;
 @override @useResult
 $Res call({
- int exerciseType, ActivityRecordingKind recordingKind, String? activityTypeId, DateTime startTime, DateTime endTime, List<ExerciseRoutePoint> points, List<ActivityPauseInterval> pauseIntervals, List<int> routeBreakIndexes, List<ActivityRecordingLap> manualLaps, List<ActivityRecordingMarker> markers, double distanceMeters, double elevationGainedMeters, int repetitionCount, List<ActivityRecordedRepetitionSet> repetitionSets, BleRecordingSampleBuffer bleSamples
+ int exerciseType, ActivityRecordingKind recordingKind, String? activityTypeId, DateTime startTime, DateTime endTime, List<ExerciseRoutePoint> points, List<ActivityPauseInterval> pauseIntervals, List<int> routeBreakIndexes, List<ActivityRecordingLap> manualLaps, List<ActivityRecordingMarker> markers, double distanceMeters, double elevationGainedMeters, int repetitionCount, List<ActivityRecordedRepetitionSet> repetitionSets, List<CoMapsNavigationSnapshot> coMapsNavigationSamples, BleRecordingSampleBuffer bleSamples
 });
 
 
@@ -1094,7 +1114,7 @@ class __$ActivityRecordingSnapshotCopyWithImpl<$Res>
 
 /// Create a copy of ActivityRecordingSnapshot
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? exerciseType = null,Object? recordingKind = null,Object? activityTypeId = freezed,Object? startTime = null,Object? endTime = null,Object? points = null,Object? pauseIntervals = null,Object? routeBreakIndexes = null,Object? manualLaps = null,Object? markers = null,Object? distanceMeters = null,Object? elevationGainedMeters = null,Object? repetitionCount = null,Object? repetitionSets = null,Object? bleSamples = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? exerciseType = null,Object? recordingKind = null,Object? activityTypeId = freezed,Object? startTime = null,Object? endTime = null,Object? points = null,Object? pauseIntervals = null,Object? routeBreakIndexes = null,Object? manualLaps = null,Object? markers = null,Object? distanceMeters = null,Object? elevationGainedMeters = null,Object? repetitionCount = null,Object? repetitionSets = null,Object? coMapsNavigationSamples = null,Object? bleSamples = null,}) {
   return _then(_ActivityRecordingSnapshot(
 exerciseType: null == exerciseType ? _self.exerciseType : exerciseType // ignore: cast_nullable_to_non_nullable
 as int,recordingKind: null == recordingKind ? _self.recordingKind : recordingKind // ignore: cast_nullable_to_non_nullable
@@ -1110,7 +1130,8 @@ as List<ActivityRecordingMarker>,distanceMeters: null == distanceMeters ? _self.
 as double,elevationGainedMeters: null == elevationGainedMeters ? _self.elevationGainedMeters : elevationGainedMeters // ignore: cast_nullable_to_non_nullable
 as double,repetitionCount: null == repetitionCount ? _self.repetitionCount : repetitionCount // ignore: cast_nullable_to_non_nullable
 as int,repetitionSets: null == repetitionSets ? _self._repetitionSets : repetitionSets // ignore: cast_nullable_to_non_nullable
-as List<ActivityRecordedRepetitionSet>,bleSamples: null == bleSamples ? _self.bleSamples : bleSamples // ignore: cast_nullable_to_non_nullable
+as List<ActivityRecordedRepetitionSet>,coMapsNavigationSamples: null == coMapsNavigationSamples ? _self._coMapsNavigationSamples : coMapsNavigationSamples // ignore: cast_nullable_to_non_nullable
+as List<CoMapsNavigationSnapshot>,bleSamples: null == bleSamples ? _self.bleSamples : bleSamples // ignore: cast_nullable_to_non_nullable
 as BleRecordingSampleBuffer,
   ));
 }

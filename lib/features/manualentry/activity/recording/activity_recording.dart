@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../domain/model/comaps_navigation.dart';
 import '../../../../domain/model/activity_models.dart';
 import '../../../../domain/model/ble_sensor_models.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
@@ -298,6 +299,13 @@ abstract class ActivityRecordingSnapshot with _$ActivityRecordingSnapshot {
     @Default(0) int repetitionCount,
     @Default(<ActivityRecordedRepetitionSet>[])
     List<ActivityRecordedRepetitionSet> repetitionSets,
+
+    /// The CoMaps guidance sampled during the run, if the user asked for it to
+    /// be kept. It travels with the snapshot for the same reason the BLE samples
+    /// do: the recording knows it, the form has to save it, and nothing in
+    /// between should have to reach back into a stopped recorder for it.
+    @Default(<CoMapsNavigationSnapshot>[])
+    List<CoMapsNavigationSnapshot> coMapsNavigationSamples,
     @Default(BleRecordingSampleBuffer()) BleRecordingSampleBuffer bleSamples,
   }) = _ActivityRecordingSnapshot;
 }

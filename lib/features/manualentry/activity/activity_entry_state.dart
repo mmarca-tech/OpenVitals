@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../domain/model/comaps_navigation.dart';
 import '../../../core/presentation/command_state.dart';
 import '../../../core/presentation/screen_error.dart';
 import '../../../domain/model/activity_models.dart';
@@ -204,6 +205,11 @@ abstract class ActivityEntryUiState with _$ActivityEntryUiState {
     @Default(<ExerciseLapData>[]) List<ExerciseLapData> recordedLaps,
     @Default(<ActivityRecordingMarker>[])
     List<ActivityRecordingMarker> recordedMarkers,
+
+    /// CoMaps guidance sampled during the recording this form is a draft of.
+    /// Saved as app-local activity history, never to Health Connect.
+    @Default(<CoMapsNavigationSnapshot>[])
+    List<CoMapsNavigationSnapshot> recordedCoMapsNavigationSamples,
     @Default(<String>{}) Set<String> writePermissions,
     @Default(false) bool canWrite,
     @Default(true) bool isCheckingPermission,

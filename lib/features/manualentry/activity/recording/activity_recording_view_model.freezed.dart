@@ -27,7 +27,10 @@ mixin _$ActivityRecordingUiState {
  CommandState<void> get start;/// Stopping a recording hands back the snapshot that becomes the entry
 /// form's draft. A stop with no active session fails rather than silently
 /// producing nothing.
- CommandState<ActivityRecordingSnapshot> get save;
+ CommandState<ActivityRecordingSnapshot> get save;/// What CoMaps is guiding the user through right now, if anything. Every
+/// value of this — including all four unavailable ones — is a normal state:
+/// the recording never depends on it.
+ CoMapsNavigationState get coMapsNavigation;
 /// Create a copy of ActivityRecordingUiState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,16 +41,16 @@ $ActivityRecordingUiStateCopyWith<ActivityRecordingUiState> get copyWith => _$Ac
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityRecordingUiState&&(identical(other.recording, recording) || other.recording == recording)&&(identical(other.now, now) || other.now == now)&&(identical(other.isFocusMode, isFocusMode) || other.isFocusMode == isFocusMode)&&(identical(other.start, start) || other.start == start)&&(identical(other.save, save) || other.save == save));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActivityRecordingUiState&&(identical(other.recording, recording) || other.recording == recording)&&(identical(other.now, now) || other.now == now)&&(identical(other.isFocusMode, isFocusMode) || other.isFocusMode == isFocusMode)&&(identical(other.start, start) || other.start == start)&&(identical(other.save, save) || other.save == save)&&(identical(other.coMapsNavigation, coMapsNavigation) || other.coMapsNavigation == coMapsNavigation));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,recording,now,isFocusMode,start,save);
+int get hashCode => Object.hash(runtimeType,recording,now,isFocusMode,start,save,coMapsNavigation);
 
 @override
 String toString() {
-  return 'ActivityRecordingUiState(recording: $recording, now: $now, isFocusMode: $isFocusMode, start: $start, save: $save)';
+  return 'ActivityRecordingUiState(recording: $recording, now: $now, isFocusMode: $isFocusMode, start: $start, save: $save, coMapsNavigation: $coMapsNavigation)';
 }
 
 
@@ -58,7 +61,7 @@ abstract mixin class $ActivityRecordingUiStateCopyWith<$Res>  {
   factory $ActivityRecordingUiStateCopyWith(ActivityRecordingUiState value, $Res Function(ActivityRecordingUiState) _then) = _$ActivityRecordingUiStateCopyWithImpl;
 @useResult
 $Res call({
- ActivityRecordingState recording, DateTime? now, bool isFocusMode, CommandState<void> start, CommandState<ActivityRecordingSnapshot> save
+ ActivityRecordingState recording, DateTime? now, bool isFocusMode, CommandState<void> start, CommandState<ActivityRecordingSnapshot> save, CoMapsNavigationState coMapsNavigation
 });
 
 
@@ -75,14 +78,15 @@ class _$ActivityRecordingUiStateCopyWithImpl<$Res>
 
 /// Create a copy of ActivityRecordingUiState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? recording = null,Object? now = freezed,Object? isFocusMode = null,Object? start = null,Object? save = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? recording = null,Object? now = freezed,Object? isFocusMode = null,Object? start = null,Object? save = null,Object? coMapsNavigation = null,}) {
   return _then(_self.copyWith(
 recording: null == recording ? _self.recording : recording // ignore: cast_nullable_to_non_nullable
 as ActivityRecordingState,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
 as DateTime?,isFocusMode: null == isFocusMode ? _self.isFocusMode : isFocusMode // ignore: cast_nullable_to_non_nullable
 as bool,start: null == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
 as CommandState<void>,save: null == save ? _self.save : save // ignore: cast_nullable_to_non_nullable
-as CommandState<ActivityRecordingSnapshot>,
+as CommandState<ActivityRecordingSnapshot>,coMapsNavigation: null == coMapsNavigation ? _self.coMapsNavigation : coMapsNavigation // ignore: cast_nullable_to_non_nullable
+as CoMapsNavigationState,
   ));
 }
 /// Create a copy of ActivityRecordingUiState
@@ -194,10 +198,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save,  CoMapsNavigationState coMapsNavigation)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ActivityRecordingUiState() when $default != null:
-return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save);case _:
+return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save,_that.coMapsNavigation);case _:
   return orElse();
 
 }
@@ -215,10 +219,10 @@ return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save,  CoMapsNavigationState coMapsNavigation)  $default,) {final _that = this;
 switch (_that) {
 case _ActivityRecordingUiState():
-return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save);case _:
+return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save,_that.coMapsNavigation);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -235,10 +239,10 @@ return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ActivityRecordingState recording,  DateTime? now,  bool isFocusMode,  CommandState<void> start,  CommandState<ActivityRecordingSnapshot> save,  CoMapsNavigationState coMapsNavigation)?  $default,) {final _that = this;
 switch (_that) {
 case _ActivityRecordingUiState() when $default != null:
-return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save);case _:
+return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.save,_that.coMapsNavigation);case _:
   return null;
 
 }
@@ -250,7 +254,7 @@ return $default(_that.recording,_that.now,_that.isFocusMode,_that.start,_that.sa
 
 
 class _ActivityRecordingUiState extends ActivityRecordingUiState {
-  const _ActivityRecordingUiState({this.recording = const ActivityRecordingState(), this.now, this.isFocusMode = false, this.start = const CommandState<void>.idle(), this.save = const CommandState<ActivityRecordingSnapshot>.idle()}): super._();
+  const _ActivityRecordingUiState({this.recording = const ActivityRecordingState(), this.now, this.isFocusMode = false, this.start = const CommandState<void>.idle(), this.save = const CommandState<ActivityRecordingSnapshot>.idle(), this.coMapsNavigation = const CoMapsNavigationDisabled()}): super._();
   
 
 /// The last state published by the recording service.
@@ -271,6 +275,10 @@ class _ActivityRecordingUiState extends ActivityRecordingUiState {
 /// form's draft. A stop with no active session fails rather than silently
 /// producing nothing.
 @override@JsonKey() final  CommandState<ActivityRecordingSnapshot> save;
+/// What CoMaps is guiding the user through right now, if anything. Every
+/// value of this — including all four unavailable ones — is a normal state:
+/// the recording never depends on it.
+@override@JsonKey() final  CoMapsNavigationState coMapsNavigation;
 
 /// Create a copy of ActivityRecordingUiState
 /// with the given fields replaced by the non-null parameter values.
@@ -282,16 +290,16 @@ _$ActivityRecordingUiStateCopyWith<_ActivityRecordingUiState> get copyWith => __
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityRecordingUiState&&(identical(other.recording, recording) || other.recording == recording)&&(identical(other.now, now) || other.now == now)&&(identical(other.isFocusMode, isFocusMode) || other.isFocusMode == isFocusMode)&&(identical(other.start, start) || other.start == start)&&(identical(other.save, save) || other.save == save));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActivityRecordingUiState&&(identical(other.recording, recording) || other.recording == recording)&&(identical(other.now, now) || other.now == now)&&(identical(other.isFocusMode, isFocusMode) || other.isFocusMode == isFocusMode)&&(identical(other.start, start) || other.start == start)&&(identical(other.save, save) || other.save == save)&&(identical(other.coMapsNavigation, coMapsNavigation) || other.coMapsNavigation == coMapsNavigation));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,recording,now,isFocusMode,start,save);
+int get hashCode => Object.hash(runtimeType,recording,now,isFocusMode,start,save,coMapsNavigation);
 
 @override
 String toString() {
-  return 'ActivityRecordingUiState(recording: $recording, now: $now, isFocusMode: $isFocusMode, start: $start, save: $save)';
+  return 'ActivityRecordingUiState(recording: $recording, now: $now, isFocusMode: $isFocusMode, start: $start, save: $save, coMapsNavigation: $coMapsNavigation)';
 }
 
 
@@ -302,7 +310,7 @@ abstract mixin class _$ActivityRecordingUiStateCopyWith<$Res> implements $Activi
   factory _$ActivityRecordingUiStateCopyWith(_ActivityRecordingUiState value, $Res Function(_ActivityRecordingUiState) _then) = __$ActivityRecordingUiStateCopyWithImpl;
 @override @useResult
 $Res call({
- ActivityRecordingState recording, DateTime? now, bool isFocusMode, CommandState<void> start, CommandState<ActivityRecordingSnapshot> save
+ ActivityRecordingState recording, DateTime? now, bool isFocusMode, CommandState<void> start, CommandState<ActivityRecordingSnapshot> save, CoMapsNavigationState coMapsNavigation
 });
 
 
@@ -319,14 +327,15 @@ class __$ActivityRecordingUiStateCopyWithImpl<$Res>
 
 /// Create a copy of ActivityRecordingUiState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? recording = null,Object? now = freezed,Object? isFocusMode = null,Object? start = null,Object? save = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? recording = null,Object? now = freezed,Object? isFocusMode = null,Object? start = null,Object? save = null,Object? coMapsNavigation = null,}) {
   return _then(_ActivityRecordingUiState(
 recording: null == recording ? _self.recording : recording // ignore: cast_nullable_to_non_nullable
 as ActivityRecordingState,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
 as DateTime?,isFocusMode: null == isFocusMode ? _self.isFocusMode : isFocusMode // ignore: cast_nullable_to_non_nullable
 as bool,start: null == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
 as CommandState<void>,save: null == save ? _self.save : save // ignore: cast_nullable_to_non_nullable
-as CommandState<ActivityRecordingSnapshot>,
+as CommandState<ActivityRecordingSnapshot>,coMapsNavigation: null == coMapsNavigation ? _self.coMapsNavigation : coMapsNavigation // ignore: cast_nullable_to_non_nullable
+as CoMapsNavigationState,
   ));
 }
 

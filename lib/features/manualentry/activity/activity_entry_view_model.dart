@@ -252,6 +252,9 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
           retainedRoute == null ? const [] : current.recordedPauseIntervals,
       recordedLaps: retainedRoute == null ? const [] : current.recordedLaps,
       recordedMarkers: retainedRoute == null ? const [] : current.recordedMarkers,
+      recordedCoMapsNavigationSamples: retainedRoute == null
+          ? const []
+          : current.recordedCoMapsNavigationSamples,
       mode: retainedRoute == null &&
               current.mode == ActivityEntryFormMode.routeImport
           ? ActivityEntryFormMode.manual
@@ -274,6 +277,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
       recordedPauseIntervals: const [],
       recordedLaps: const [],
       recordedMarkers: const [],
+      recordedCoMapsNavigationSamples: const [],
       isRecordingDraft: false,
       entryError: null,
       detailError: null,
@@ -589,6 +593,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
       recordedPauseIntervals: const [],
       recordedLaps: const [],
       recordedMarkers: const [],
+      recordedCoMapsNavigationSamples: const [],
       routeImport: const CommandState.idle(),
       entryError: null,
       detailError: null,
@@ -770,6 +775,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
       recordedPauseIntervals: const [],
       recordedLaps: const [],
       recordedMarkers: const [],
+      recordedCoMapsNavigationSamples: const [],
       isRecordingDraft: false,
       distanceText: '',
       elevationText: '',
@@ -805,6 +811,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
       recordedPauseIntervals: const [],
       recordedLaps: const [],
       recordedMarkers: const [],
+      recordedCoMapsNavigationSamples: const [],
       isRecordingDraft: false,
       distanceText: '',
       elevationText: '',
@@ -839,6 +846,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
       recordedPauseIntervals: const [],
       recordedLaps: const [],
       recordedMarkers: const [],
+      recordedCoMapsNavigationSamples: const [],
       isRecordingDraft: false,
       startDateText: isoLocalDate(now),
       startTimeText: timeFormatterText(now),
@@ -933,6 +941,7 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
                 : '',
         isRecordingDraft: true,
         recordedBleSamples: snapshot.bleSamples,
+        recordedCoMapsNavigationSamples: snapshot.coMapsNavigationSamples,
       ));
     } else {
       _applyRecordingWithoutRoute(snapshot);
@@ -1087,6 +1096,15 @@ class ActivityEntryViewModel extends Notifier<ActivityEntryUiState> {
         }
       }
       _markerRepository.setMarkersForActivity(savedActivityId, markersToSave);
+      // App-local history, hung off the saved activity. A failure to keep the
+      // guidance must never fail the activity that was already written — the
+      // workout is the thing the user cares about.
+      final coMapsSamples = state.recordedCoMapsNavigationSamples;
+      if (coMapsSamples.isNotEmpty) {
+        await ref
+            .read(coMapsNavigationRepositoryProvider)
+            .saveSamples(savedActivityId, coMapsSamples);
+      }
       _recordingDraftStore.clear();
       if (wasRecordingDraft) {
         _rememberLastActivityType(request.exerciseType);
