@@ -1780,5 +1780,37 @@
                 "example": "0.25"
             }
         }
-    }
+    },
+  "activityEntryRecordingPlanCoMaps": "Planificar en CoMaps",
+  "activityEntryRecordingCoMapsTitle": "Guía de CoMaps",
+  "activityEntryRecordingCoMapsPermissionMissing": "Falta el permiso para datos de navegación de CoMaps. La grabación continuará sin contexto de guía.",
+  "activityEntryRecordingCoMapsPermissionAction": "Permitir guía de CoMaps",
+  "activityEntryRecordingCoMapsAppUnavailable": "CoMaps no está instalado. La grabación continuará normalmente.",
+  "activityEntryRecordingCoMapsProviderUnavailable": "Esta versión de CoMaps no expone datos de navegación en vivo. La grabación continuará normalmente.",
+  "activityEntryRecordingCoMapsNotNavigating": "CoMaps está disponible, pero no está navegando activamente.",
+  "activityEntryRecordingCoMapsError": "La guía de CoMaps no está disponible temporalmente. La grabación continuará normalmente.",
+  "activityEntryRecordingCoMapsNextTurn": "Siguiente",
+  "activityEntryRecordingCoMapsCurrentStreet": "Actual",
+  "activityEntryRecordingCoMapsCurrentStreetUnknown": "Calle actual no disponible",
+  "activityEntryRecordingCoMapsDestination": "Destino",
+  "activityEntryRecordingCoMapsDestinationWithDistance": "Destino {distance}",
+  "activityEntryRecordingCoMapsDestinationUnknown": "Distancia al destino no disponible",
+  "activityEntryRecordingCoMapsState": "Estado",
+  "activityEntryRecordingCoMapsProgress": "Progreso",
+  "activityEntryRecordingCoMapsTimeToNextStop": "Tiempo hasta la siguiente parada",
+  "activityEntryRecordingCoMapsRouteTime": "Tiempo de ruta",
+  "activityEntryRecordingCoMapsNextStopWithTime": "Siguiente parada {time}",
+  "activityEntryRecordingCoMapsRouteTimeWithDuration": "Ruta {duration}",
+  "activityEntryRecordingCoMapsUnavailableShort": "No disponible",
+  "activityEntryRecordingCoMapsCompletion": "{percent}% completado",
+  "activityEntryRecordingCoMapsExit": "Salida {exit}",
+  "activityDetailTabNavigation": "Navegación",
+  "activityDetailNoNavigationContext": "No se guardó contexto de navegación para esta actividad.",
+  "activityDetailNavigationToTurn": "{distance} hasta el giro",
+  "activityDetailNavigationToDestination": "{distance} hasta el destino",
+  "activityDetailNavigationToNextStop": "{distance} hasta la siguiente parada",
+  "settingsActivityRecordingCoMapsTitle": "Guía de navegación de CoMaps",
+  "settingsActivityRecordingCoMapsBody": "Mostrar indicaciones de giro en vivo de CoMaps durante la grabación GPS del teléfono cuando CoMaps esté navegando.",
+  "settingsActivityRecordingCoMapsSaveTitle": "Guardar guía de CoMaps con la actividad",
+  "settingsActivityRecordingCoMapsSaveBody": "Conservar calles, giros, distancias, estado y progreso muestreados en el historial de actividades de OpenVitals."
 }

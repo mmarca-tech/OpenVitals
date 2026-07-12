@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/presentation/unit_formatter.dart';
 import '../../../../domain/model/activity_models.dart';
+import '../../../../domain/model/comaps_navigation.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
 import '../../../../domain/preferences/unit_system.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -12,6 +13,7 @@ import 'activity_recording_dashboard.dart';
 import 'activity_recording_sensor_ui.dart';
 import 'activity_recording_splits.dart';
 import 'activity_recording_splits_ui.dart';
+import 'comaps_navigation_card.dart';
 
 /// Port of the Kotlin `ActivityRecordingGpsTabs.kt`.
 
@@ -44,6 +46,8 @@ class GpsRecordingTabs extends StatefulWidget {
     required this.unitFormatter,
     required this.isEditingDashboard,
     required this.onUpdateDashboardLayout,
+    this.coMapsNavigation = const CoMapsNavigationDisabled(),
+    this.onRequestCoMapsPermission,
   });
 
   final ActivityRecordingState state;
@@ -54,6 +58,11 @@ class GpsRecordingTabs extends StatefulWidget {
   final UnitFormatter unitFormatter;
   final bool isEditingDashboard;
   final ValueChanged<ActivityRecordingDashboardLayout> onUpdateDashboardLayout;
+
+  /// What CoMaps is guiding the user through, if anything. Disabled — the
+  /// default — renders nothing at all.
+  final CoMapsNavigationState coMapsNavigation;
+  final VoidCallback? onRequestCoMapsPermission;
 
   @override
   State<GpsRecordingTabs> createState() => _GpsRecordingTabsState();
@@ -102,21 +111,52 @@ class _GpsRecordingTabsState extends State<GpsRecordingTabs> {
       );
     }
 
+    // Active guidance belongs on the map as an overlay, not as a panel above a
+    // map that is already showing the same turn — so the panel stands down for
+    // that one combination, and only for it. Every other state is a line of
+    // text that says the recording carries on, and it is worth the same room on
+    // every tab.
+    final navigation = widget.coMapsNavigation;
+    final guidedSnapshot =
+        navigation is CoMapsNavigationActive ? navigation.snapshot : null;
+    final isMapTab = _selectedTab == ActivityRecordingTab.map;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 16,
       children: [
+        // Disabled is filtered out here as well as inside the panel, because a
+        // shrunk child still costs this Column a 16dp gap.
+        if (navigation is! CoMapsNavigationDisabled &&
+            !(guidedSnapshot != null && isMapTab))
+          CoMapsGuidancePanel(
+            state: navigation,
+            onRequestPermission: widget.onRequestCoMapsPermission ?? () {},
+          ),
         ActivityRecordingTabRow(
           selectedTab: _selectedTab,
           onSelect: (tab) => setState(() => _selectedTab = tab),
         ),
         switch (_selectedTab) {
           ActivityRecordingTab.map => Expanded(
-              child: RouteMapView(
-                points: state.points,
-                routeBreakIndexes: state.routeBreakIndexes,
-                currentPoint: state.latestUiPoint ?? widget.preStartPoint,
-                showRecenterControl: true,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: RouteMapView(
+                      points: state.points,
+                      routeBreakIndexes: state.routeBreakIndexes,
+                      currentPoint: state.latestUiPoint ?? widget.preStartPoint,
+                      showRecenterControl: true,
+                    ),
+                  ),
+                  if (guidedSnapshot != null)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      right: 12,
+                      child: CoMapsMapGuidanceOverlay(snapshot: guidedSnapshot),
+                    ),
+                ],
               ),
             ),
           ActivityRecordingTab.stats => _statsTab(isEditing: false),

@@ -1,3 +1,4 @@
+import '../core/result/result.dart';
 import '../data/source/comaps/comaps_navigation_source.dart';
 import '../data/repository/impl/comaps_navigation_repository_impl.dart';
 import '../data/repository/contract/comaps_navigation_repository.dart';
@@ -293,3 +294,15 @@ final coMapsNavigationRepositoryProvider = Provider<CoMapsNavigationRepository>(
     ref.watch(sharedPreferencesProvider),
   ),
 );
+
+/// Whether there is a CoMaps to hand the map to. False while the answer is
+/// still in flight and false when the query fails, so the "Plan in CoMaps"
+/// button appears once, when it is real, rather than flickering in and out.
+final coMapsCanLaunchProvider = FutureProvider<bool>((ref) async {
+  final result =
+      await ref.watch(coMapsNavigationRepositoryProvider).canLaunchCoMaps();
+  return switch (result) {
+    Ok(:final value) => value,
+    Err() => false,
+  };
+});

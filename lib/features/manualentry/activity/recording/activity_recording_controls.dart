@@ -159,6 +159,7 @@ class GpsRecordingControls extends StatelessWidget {
     required this.onAddLap,
     required this.onAddMarker,
     required this.onChooseSource,
+    this.onPlanWithCoMaps,
   });
 
   final ActivityRecordingState state;
@@ -172,33 +173,53 @@ class GpsRecordingControls extends StatelessWidget {
   final VoidCallback onAddMarker;
   final VoidCallback onChooseSource;
 
+  /// Hands the route-planning job to CoMaps, centred on the pre-start fix. Null
+  /// — and then absent — when CoMaps cannot be launched at all: an app that is
+  /// not installed is not a button.
+  final VoidCallback? onPlanWithCoMaps;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
     if (state.status == ActivityRecordingStatus.idle) {
+      final planWithCoMaps = onPlanWithCoMaps;
       return OpenVitalsSurface(
         contentPadding: const EdgeInsets.all(8),
         borderRadius: const BorderRadius.all(Radius.circular(16)),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 8,
           children: [
-            Expanded(
-              child: SizedBox(
-                height: _buttonHeight,
-                child: FilledButton.icon(
-                  onPressed: canStartRecording ? onStartRecording : null,
-                  icon: const Icon(Icons.play_arrow, size: 18),
-                  label: Text(l10n.actionStart),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: _buttonHeight,
+                    child: FilledButton.icon(
+                      onPressed: canStartRecording ? onStartRecording : null,
+                      icon: const Icon(Icons.play_arrow, size: 18),
+                      label: Text(l10n.actionStart),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ControlButton(
+                    onPressed: onChooseSource,
+                    label: l10n.actionCancel,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ControlButton(
-                onPressed: onChooseSource,
-                label: l10n.actionCancel,
+            // The route is CoMaps' business, and this is the moment to hand it
+            // over: the activity is prepared, nothing is recording yet.
+            if (planWithCoMaps != null)
+              _ControlButton(
+                onPressed: planWithCoMaps,
+                icon: Icons.map_outlined,
+                label: l10n.activityEntryRecordingPlanCoMaps,
               ),
-            ),
           ],
         ),
       );

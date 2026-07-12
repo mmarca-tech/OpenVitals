@@ -16,6 +16,7 @@ import '../application/activity_detail_display.dart';
 import '../application/activity_detail_view_model.dart';
 import 'activity_heart_rate_chart_card.dart';
 import 'activity_metric_relevance.dart';
+import 'activity_navigation_card.dart';
 import 'activity_session_metric_chart_cards.dart';
 import 'activity_splits_card.dart';
 import 'exercise_labels.dart';
@@ -76,6 +77,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     if (workout == null || display == null) {
       return const ErrorMessage('Activity not found.');
     }
+    final hasRoute = workout.route.status == ExerciseRouteStatus.data &&
+        workout.route.points.isNotEmpty;
 
     return RefreshIndicator(
       onRefresh: ref.read(_provider.notifier).refresh,
@@ -133,12 +136,18 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               ),
             ),
           sectionPadded(_SessionDetailsCard(workout: workout)),
-          if (workout.route.status == ExerciseRouteStatus.data &&
-              workout.route.points.isNotEmpty)
+          if (hasRoute)
             sectionPadded(_RouteMapCard(
               route: workout.route,
               distanceMeters: display.routeDistanceMeters,
             )),
+          // Guidance belongs to a route: an activity with no route was never
+          // navigated anywhere, so it gets no Navigation section at all. A GPS
+          // activity that was simply recorded without CoMaps guiding gets the
+          // section's empty state, which is the honest answer to "was I being
+          // navigated?".
+          if (hasRoute || state.navigationRows.isNotEmpty)
+            sectionPadded(ActivityNavigationCard(rows: state.navigationRows)),
           const SizedBox(height: 16),
         ],
       ),

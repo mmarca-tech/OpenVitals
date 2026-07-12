@@ -62,12 +62,18 @@ class SettingsSwitchRow extends StatelessWidget {
     required this.body,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String title;
   final String body;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// A switch that depends on another one is shown, dimmed and dead, rather
+  /// than hidden — Kotlin's `SettingsSwitchRow(enabled = ...)`. Hiding it would
+  /// make the setting it belongs to look like it does not exist.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +84,14 @@ class SettingsSwitchRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: theme.textTheme.bodyLarge),
+              Text(
+                title,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: enabled
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 2),
               Text(
                 body,
@@ -89,7 +102,7 @@ class SettingsSwitchRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Switch(value: value, onChanged: onChanged),
+        Switch(value: value, onChanged: enabled ? onChanged : null),
       ],
     );
   }

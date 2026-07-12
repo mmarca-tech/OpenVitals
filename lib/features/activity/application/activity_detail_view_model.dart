@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -7,8 +10,10 @@ import '../../../di/providers.dart';
 import '../../../domain/insights/activity_splits.dart';
 import '../../../domain/model/activity_models.dart';
 import '../../../domain/model/heart_models.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../state/app_providers.dart';
 import 'activity_detail_display.dart';
+import 'activity_navigation_display.dart';
 
 part 'activity_detail_view_model.freezed.dart';
 
@@ -29,6 +34,12 @@ abstract class ActivityDetailState with _$ActivityDetailState {
     List<ActivityCadenceSample> cadenceSamples,
     @Default(ActivitySplits.none()) ActivitySplits splits,
     ActivityDetailDisplay? display,
+
+    /// The CoMaps guidance saved while this activity was recorded, already
+    /// turned into the lines the Navigation section prints. Empty for every
+    /// activity that was not recorded with CoMaps guiding — which is most.
+    @Default(<ActivityNavigationRow>[])
+    List<ActivityNavigationRow> navigationRows,
   }) = _ActivityDetailState;
 }
 
@@ -94,6 +105,11 @@ class ActivityDetailViewModel extends Notifier<ActivityDetailState> {
           speedSamples: value.speedSamples,
           splitDistanceMeters: splitDistanceMeters,
         );
+        // App-local history, so it is fetched separately from the workout: the
+        // use case reassembles what Health Connect knows, and Health Connect has
+        // never heard of CoMaps.
+        final navigationRows = await _loadNavigationRows();
+        if (!ref.mounted || generation != _generation) return;
         state = ActivityDetailState(
           isLoading: false,
           workout: value.workout,
@@ -106,12 +122,41 @@ class ActivityDetailViewModel extends Notifier<ActivityDetailState> {
             cadenceSamples: value.cadenceSamples,
             splits: splits,
           ),
+          navigationRows: navigationRows,
         );
       case Err(:final failure):
         state = ActivityDetailState(
           isLoading: false,
           error: failure.toScreenError(fallback: 'Unable to load activity.'),
         );
+    }
+  }
+
+  /// The saved CoMaps guidance, as rows. A failure here is NOT a failure of the
+  /// screen: the activity is the point, the guidance was a bonus while it was
+  /// recorded, and its absence reads exactly like never having had any.
+  Future<List<ActivityNavigationRow>> _loadNavigationRows() async {
+    final result = await ref
+        .read(coMapsNavigationRepositoryProvider)
+        .loadSamples(activityId);
+    return switch (result) {
+      Ok(:final value) => buildActivityNavigationRows(value, _localizations()),
+      Err() => const <ActivityNavigationRow>[],
+    };
+  }
+
+  /// The localizations the row builder needs, resolved without a
+  /// `BuildContext` — the rows are derived here, off the widget tree. Mirrors
+  /// the dashboard view-model's choice: the selected language, or the platform
+  /// locale when it is `system`.
+  AppLocalizations _localizations() {
+    final tag = ref.read(appLanguageProvider).languageTag;
+    final locale =
+        tag != null ? Locale(tag) : PlatformDispatcher.instance.locale;
+    try {
+      return lookupAppLocalizations(locale);
+    } on FlutterError {
+      return lookupAppLocalizations(const Locale('en'));
     }
   }
 }

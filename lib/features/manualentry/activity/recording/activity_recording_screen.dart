@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../core/presentation/unit_formatter.dart';
 import '../../../../domain/model/activity_models.dart';
+import '../../../../domain/model/comaps_navigation.dart';
 import '../../../../domain/preferences/activity_recording_dashboard_layout.dart';
 import '../../../../domain/preferences/app_theme_mode.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -42,6 +43,9 @@ class ActivityRecordingScreen extends ConsumerStatefulWidget {
     required this.isFocusMode,
     required this.onFocusModeChanged,
     this.appThemeMode = AppThemeMode.system,
+    this.coMapsNavigation = const CoMapsNavigationDisabled(),
+    this.onRequestCoMapsPermission,
+    this.onPlanWithCoMaps,
   });
 
   final ActivityRecordingState state;
@@ -70,6 +74,15 @@ class ActivityRecordingScreen extends ConsumerStatefulWidget {
   /// Kotlin threads `appThemeMode` in so the outdoor theme can decide between
   /// its light and dark high-contrast schemes.
   final AppThemeMode appThemeMode;
+
+  /// What CoMaps is guiding the user through, if anything — polled by the
+  /// recording view-model, and only while a GPS route is actually recording.
+  final CoMapsNavigationState coMapsNavigation;
+  final VoidCallback? onRequestCoMapsPermission;
+
+  /// Opens CoMaps on the pre-start fix so the user can plan a route there.
+  /// Null when no CoMaps can be launched, which is what hides the button.
+  final ValueChanged<ExerciseRoutePoint?>? onPlanWithCoMaps;
 
   @override
   ConsumerState<ActivityRecordingScreen> createState() =>
@@ -371,17 +384,22 @@ class _ActivityRecordingScreenState
             const PreRecordingGpsFixState()
         : const PreRecordingGpsFixState();
 
+    final planWithCoMaps = widget.onPlanWithCoMaps;
+    final preStartPoint = _toRoutePoint(idleFix.latestPreciseFix);
+
     return [
       Expanded(
         child: GpsRecordingTabs(
           state: widget.state,
-          preStartPoint: _toRoutePoint(idleFix.latestPreciseFix),
+          preStartPoint: preStartPoint,
           totalTime: totalTime,
           movingTime: movingTime,
           now: _now,
           unitFormatter: widget.unitFormatter,
           isEditingDashboard: _isEditingDashboard,
           onUpdateDashboardLayout: widget.onUpdateDashboardLayout,
+          coMapsNavigation: widget.coMapsNavigation,
+          onRequestCoMapsPermission: widget.onRequestCoMapsPermission,
         ),
       ),
       GpsRecordingControls(
@@ -395,6 +413,10 @@ class _ActivityRecordingScreenState
         onAddLap: widget.onAddLap,
         onAddMarker: widget.onAddMarker,
         onChooseSource: widget.onChooseSource,
+        // CoMaps is handed the last fix we have, and is perfectly happy without
+        // one — it opens where the user left it.
+        onPlanWithCoMaps:
+            planWithCoMaps == null ? null : () => planWithCoMaps(preStartPoint),
       ),
       _GpsRecordingOverflowContent(
         state: widget.state,

@@ -8,10 +8,11 @@ import 'settings_controls.dart';
 
 /// Live GPS/recording tuning card, a 1:1 port of the Kotlin
 /// `ActivityRecordingPreferencesCard` (`SettingsCards.kt`). Renders the two
-/// intro lines plus fourteen sub-controls (switches + segmented choices), each
+/// intro lines plus sixteen sub-controls (switches + segmented choices), each
 /// persisting through [ActivityRecordingPreferencesProvider]. The idle-timeout
-/// choice is gated on auto-idle, and the voice time/distance choices on voice
-/// announcements, matching Kotlin's `enabled` wiring.
+/// choice is gated on auto-idle, the voice time/distance choices on voice
+/// announcements, and saving CoMaps guidance on reading it at all, matching
+/// Kotlin's `enabled` wiring.
 class ActivityRecordingPreferencesCard extends ConsumerWidget {
   const ActivityRecordingPreferencesCard({super.key});
 
@@ -105,6 +106,29 @@ class ActivityRecordingPreferencesCard extends ConsumerWidget {
           value: prefs.restTimerBellEnabled,
           onChanged: (enabled) =>
               notifier.update(prefs.copyWith(restTimerBellEnabled: enabled)),
+        ),
+        // CoMaps guidance, and then whether to keep it. Switching the feature ON
+        // opts into keeping it too (Kotlin does the same): a user who wants the
+        // guidance on their screen wants it in their history, and the second
+        // switch is there to say otherwise.
+        SettingsSwitchRow(
+          title: l10n.settingsActivityRecordingCoMapsTitle,
+          body: l10n.settingsActivityRecordingCoMapsBody,
+          value: prefs.coMapsNavigationContextEnabled,
+          onChanged: (enabled) => notifier.update(
+            prefs.copyWith(
+              coMapsNavigationContextEnabled: enabled,
+              saveCoMapsNavigationContext: enabled,
+            ),
+          ),
+        ),
+        SettingsSwitchRow(
+          title: l10n.settingsActivityRecordingCoMapsSaveTitle,
+          body: l10n.settingsActivityRecordingCoMapsSaveBody,
+          value: prefs.saveCoMapsNavigationContext,
+          enabled: prefs.coMapsNavigationContextEnabled,
+          onChanged: (enabled) => notifier
+              .update(prefs.copyWith(saveCoMapsNavigationContext: enabled)),
         ),
         SettingsSwitchRow(
           title: l10n.settingsActivityRecordingVoiceTitle,

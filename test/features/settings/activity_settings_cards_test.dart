@@ -35,6 +35,11 @@ Future<(Widget, SharedPreferences)> _bootstrapWith(
   );
 }
 
+/// Switch order in the card: screen-on, auto-idle, barometer, rest bell, then
+/// the two CoMaps ones, then the three voice ones.
+const int _coMapsSwitchIndex = 4;
+const int _coMapsSaveSwitchIndex = 5;
+
 void main() {
   group('ActivityRecordingPreferencesCard', () {
     testWidgets('renders the intro and all sub-controls', (tester) async {
@@ -135,6 +140,52 @@ void main() {
       await tester.tap(option, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(repo.activityRecordingPreferences().autoIdleTimeoutSeconds, 10);
+    });
+
+    testWidgets('CoMaps guidance is off, and saving it is dead until it is on',
+        (tester) async {
+      final (widget, prefs) =
+          await _bootstrap(const ActivityRecordingPreferencesCard());
+      await tester.pumpWidget(widget);
+      await tester.pumpAndSettle();
+
+      final repo = PreferencesRepository(prefs);
+      expect(repo.activityRecordingPreferences().coMapsNavigationContextEnabled,
+          isFalse);
+      expect(repo.activityRecordingPreferences().saveCoMapsNavigationContext,
+          isFalse);
+
+      expect(find.text('CoMaps navigation guidance'), findsOneWidget);
+      expect(find.text('Save CoMaps guidance with activity'), findsOneWidget);
+
+      // The second switch exists but does nothing: there is no guidance to save
+      // while the first one is off.
+      Switch saveSwitch() => tester.widget<Switch>(
+            find.byType(Switch).at(_coMapsSaveSwitchIndex),
+          );
+      expect(saveSwitch().onChanged, isNull);
+
+      final coMapsSwitch = find.byType(Switch).at(_coMapsSwitchIndex);
+      await tester.ensureVisible(coMapsSwitch);
+      await tester.tap(coMapsSwitch);
+      await tester.pumpAndSettle();
+
+      // Switching the feature on opts into keeping it, as Kotlin does.
+      expect(repo.activityRecordingPreferences().coMapsNavigationContextEnabled,
+          isTrue);
+      expect(repo.activityRecordingPreferences().saveCoMapsNavigationContext,
+          isTrue);
+      expect(saveSwitch().onChanged, isNotNull);
+
+      // And now it can be said otherwise: read the guidance, keep none of it.
+      final saveToggle = find.byType(Switch).at(_coMapsSaveSwitchIndex);
+      await tester.ensureVisible(saveToggle);
+      await tester.tap(saveToggle);
+      await tester.pumpAndSettle();
+      expect(repo.activityRecordingPreferences().coMapsNavigationContextEnabled,
+          isTrue);
+      expect(repo.activityRecordingPreferences().saveCoMapsNavigationContext,
+          isFalse);
     });
   });
 

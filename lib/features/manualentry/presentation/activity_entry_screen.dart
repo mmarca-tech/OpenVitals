@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/presentation/command_state.dart';
 import '../../../core/presentation/unit_formatter.dart';
 import '../../../core/result/result.dart';
 import '../../../di/providers.dart';
+import '../../../domain/model/comaps_navigation.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../navigation/app_routes.dart';
 import '../../../state/app_providers.dart';
@@ -188,6 +191,7 @@ class _ActivityEntryScreenState extends ConsumerState<ActivityEntryScreen>
       viewModel: _viewModel,
       state: state,
       recordingState: recording.recording,
+      coMapsNavigation: recording.coMapsNavigation,
       unitFormatter: formatter,
       isFocusMode: recording.isFocusMode,
       onFocusModeChanged: recordingViewModel.setFocusMode,
@@ -327,6 +331,7 @@ class _ActivityEntryRecordingContent extends ConsumerWidget {
     required this.viewModel,
     required this.state,
     required this.recordingState,
+    required this.coMapsNavigation,
     required this.unitFormatter,
     required this.isFocusMode,
     required this.onFocusModeChanged,
@@ -338,6 +343,10 @@ class _ActivityEntryRecordingContent extends ConsumerWidget {
   final ActivityEntryViewModel viewModel;
   final ActivityEntryUiState state;
   final ActivityRecordingState recordingState;
+
+  /// Read from the recording view-model by the host, which already watches it
+  /// for the app bar's sake.
+  final CoMapsNavigationState coMapsNavigation;
   final UnitFormatter unitFormatter;
   final bool isFocusMode;
   final ValueChanged<bool> onFocusModeChanged;
@@ -389,11 +398,28 @@ class _ActivityEntryRecordingContent extends ConsumerWidget {
       );
     }
 
+    final recordingViewModel =
+        ref.read(activityRecordingViewModelProvider.notifier);
+    // CoMaps plans; OpenVitals records. The button only exists when there is a
+    // CoMaps to plan in.
+    final canPlanInCoMaps = ref.watch(coMapsCanLaunchProvider).value ?? false;
+
     return ActivityRecordingScreen(
       state: recordingState,
       unitFormatter: unitFormatter,
       isFocusMode: isFocusMode,
       onFocusModeChanged: onFocusModeChanged,
+      coMapsNavigation: coMapsNavigation,
+      onRequestCoMapsPermission: () =>
+          unawaited(recordingViewModel.requestCoMapsPermission()),
+      onPlanWithCoMaps: canPlanInCoMaps
+          ? (point) => unawaited(
+                recordingViewModel.planInCoMaps(
+                  latitude: point?.latitude,
+                  longitude: point?.longitude,
+                ),
+              )
+          : null,
       onStartRecording: (initialFix) =>
           viewModel.startGpsRecording(initialFix: initialFix),
       onPauseRecording: viewModel.pauseGpsRecording,

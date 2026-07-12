@@ -3386,5 +3386,109 @@
         "example": "0.25"
       }
     }
-  }
+  },
+  "activityEntryRecordingPlanCoMaps": "Plan in CoMaps",
+  "activityEntryRecordingCoMapsTitle": "CoMaps guidance",
+  "activityEntryRecordingCoMapsPermissionMissing": "CoMaps navigation data permission is missing. Recording will continue without guidance context.",
+  "activityEntryRecordingCoMapsPermissionAction": "Allow CoMaps guidance",
+  "activityEntryRecordingCoMapsAppUnavailable": "CoMaps is not installed. Recording will continue normally.",
+  "activityEntryRecordingCoMapsProviderUnavailable": "This CoMaps build does not expose live navigation data. Recording will continue normally.",
+  "activityEntryRecordingCoMapsNotNavigating": "CoMaps is available but not actively navigating.",
+  "activityEntryRecordingCoMapsError": "CoMaps guidance is temporarily unavailable. Recording will continue normally.",
+  "activityEntryRecordingCoMapsNextTurn": "Next",
+  "activityEntryRecordingCoMapsCurrentStreet": "Current",
+  "activityEntryRecordingCoMapsCurrentStreetUnknown": "Current street unavailable",
+  "activityEntryRecordingCoMapsDestination": "Destination",
+  "activityEntryRecordingCoMapsDestinationWithDistance": "Destination {distance}",
+  "@activityEntryRecordingCoMapsDestinationWithDistance": {
+    "description": "The remaining distance to the CoMaps destination, already formatted by CoMaps.",
+    "placeholders": {
+      "distance": {
+        "type": "String",
+        "example": "1.2 km"
+      }
+    }
+  },
+  "activityEntryRecordingCoMapsDestinationUnknown": "Destination distance unavailable",
+  "activityEntryRecordingCoMapsState": "State",
+  "activityEntryRecordingCoMapsProgress": "Progress",
+  "activityEntryRecordingCoMapsTimeToNextStop": "Time to next stop",
+  "activityEntryRecordingCoMapsRouteTime": "Route time",
+  "activityEntryRecordingCoMapsNextStopWithTime": "Next stop {time}",
+  "@activityEntryRecordingCoMapsNextStopWithTime": {
+    "description": "Time left until the next stop on the CoMaps route.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "4:20"
+      }
+    }
+  },
+  "activityEntryRecordingCoMapsRouteTimeWithDuration": "Route {duration}",
+  "@activityEntryRecordingCoMapsRouteTimeWithDuration": {
+    "description": "Total time left on the CoMaps route.",
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "42:07"
+      }
+    }
+  },
+  "activityEntryRecordingCoMapsUnavailableShort": "Unavailable",
+  "activityEntryRecordingCoMapsCompletion": "{percent}% complete",
+  "@activityEntryRecordingCoMapsCompletion": {
+    "description": "How much of the CoMaps route is behind the user, as a whole percentage.",
+    "placeholders": {
+      "percent": {
+        "type": "String",
+        "example": "63"
+      }
+    }
+  },
+  "activityEntryRecordingCoMapsExit": "Exit {exit}",
+  "@activityEntryRecordingCoMapsExit": {
+    "description": "The numbered exit CoMaps says to take, on a roundabout or a motorway.",
+    "placeholders": {
+      "exit": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "activityDetailTabNavigation": "Navigation",
+  "activityDetailNoNavigationContext": "No saved navigation context",
+  "activityDetailNavigationToTurn": "{distance} to turn",
+  "@activityDetailNavigationToTurn": {
+    "description": "One saved guidance sample: how far the turn was when it was taken.",
+    "placeholders": {
+      "distance": {
+        "type": "String",
+        "example": "450 m"
+      }
+    }
+  },
+  "activityDetailNavigationToDestination": "{distance} to destination",
+  "@activityDetailNavigationToDestination": {
+    "description": "One saved guidance sample: how far the destination was when it was taken.",
+    "placeholders": {
+      "distance": {
+        "type": "String",
+        "example": "1.2 km"
+      }
+    }
+  },
+  "activityDetailNavigationToNextStop": "{distance} to next stop",
+  "@activityDetailNavigationToNextStop": {
+    "description": "One saved guidance sample: how far the next stop was when it was taken.",
+    "placeholders": {
+      "distance": {
+        "type": "String",
+        "example": "800 m"
+      }
+    }
+  },
+  "settingsActivityRecordingCoMapsTitle": "CoMaps navigation guidance",
+  "settingsActivityRecordingCoMapsBody": "Show live CoMaps turn guidance during phone GPS recording when CoMaps is navigating.",
+  "settingsActivityRecordingCoMapsSaveTitle": "Save CoMaps guidance with activity",
+  "settingsActivityRecordingCoMapsSaveBody": "Keep sampled streets, turns, distances, state, and progress in OpenVitals activity history."
 }
