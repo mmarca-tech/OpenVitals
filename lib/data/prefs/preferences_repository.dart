@@ -95,6 +95,34 @@ class PreferencesRepository {
     _bodyEnergyCalibration = ValueNotifier(_readBodyEnergyCalibration());
     _caffeinePreferences = ValueNotifier(_caffeine.read());
     _bodyProfile = ValueNotifier(_readBodyProfile());
+    _regateBodyEnergySetupWithoutAnAgeSource();
+  }
+
+  /// Reopens Body Energy setup once, for installs that completed it before a
+  /// birth year was required.
+  ///
+  /// Automatic zones are derived from Tanaka against age. With the manual
+  /// maximum heart rate removed there is nothing else to derive them from, and
+  /// the fallback -- resting + 70 -- is not a worse estimate so much as a wrong
+  /// one: a resting 60 gives a maximum of 130, so a 110 bpm bucket reads as 71%
+  /// of reserve when it is really nearer 42%, and the day over-drains all the
+  /// way down. Showing the setup card again is the honest response; carrying on
+  /// would keep producing a confident number built on a maximum nobody has.
+  ///
+  /// Manual zones exempt an install entirely: they ARE the ladder, and the age
+  /// is never consulted.
+  void _regateBodyEnergySetupWithoutAnAgeSource() {
+    if (_prefs.getInt(_keyBodyEnergySetupEpoch) == bodyEnergySetupEpoch) return;
+    _store.putInt(_keyBodyEnergySetupEpoch, bodyEnergySetupEpoch);
+
+    final calibration = _bodyEnergyCalibration.value;
+    if (!calibration.setupCompleted) return;
+    if (calibration.useManualZones &&
+        calibration.manualZoneThresholdsBpm != null) {
+      return;
+    }
+    if (_bodyProfile.value.birthYear != null) return;
+    setBodyEnergyCalibration(calibration.copyWith(setupCompleted: false));
   }
 
   final SharedPreferences _prefs;
@@ -832,6 +860,7 @@ class PreferencesRepository {
       'body_energy_gains_algorithm_version';
   static const String _keyBodyEnergyWatchFitEpoch =
       'body_energy_watch_fit_epoch';
+  static const String _keyBodyEnergySetupEpoch = 'body_energy_setup_epoch';
   static const String _keyMindfulnessTimerDurationMinutes =
       'mindfulness_timer_duration_minutes';
   static const String _keyMindfulnessTimerIntervalMinutes =

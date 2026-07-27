@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../domain/preferences/body_energy_calibration.dart';
+import '../../../../domain/preferences/body_profile.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../ui/components/ov_card.dart';
 import '../../application/body_energy_calibration_view_model.dart';
+import '../../application/body_profile_view_model.dart';
 
 /// The current [BodyEnergyCalibration] on its own — the Body Energy detail
 /// screen reads it through this card's import path, so it is re-exported here.
@@ -37,8 +39,19 @@ class _BodyEnergyCalibrationCardState
   final _zone4 = TextEditingController();
   final _zone5 = TextEditingController();
 
+  /// The birth year lives here as well as on the Body card because it is the
+  /// one profile value the AUTOMATIC zone ladder depends on: with no manual
+  /// zones the maximum is Tanaka from age, and without it the model falls back
+  /// to resting + 70 -- a maximum of 130 for a resting 60, which reads ordinary
+  /// effort as zone 5. This card is the Body Energy setup gate and is embedded
+  /// standalone on the Body Energy screen, so a value the gate requires cannot
+  /// live a settings section away.
+  final _birthYear = TextEditingController();
+
   bool _useManualZones = false;
+  bool _birthYearMissing = false;
   String? _seededSignature;
+  BodyProfile? _seededProfile;
 
   @override
   void dispose() {
@@ -47,6 +60,7 @@ class _BodyEnergyCalibrationCardState
     _zone3.dispose();
     _zone4.dispose();
     _zone5.dispose();
+    _birthYear.dispose();
     super.dispose();
   }
 
@@ -61,7 +75,25 @@ class _BodyEnergyCalibrationCardState
     _seededSignature = calibration.signature();
   }
 
+  void _seedProfile(BodyProfile profile) {
+    _birthYear.text = profile.birthYear?.toString() ?? '';
+    _seededProfile = profile;
+  }
+
   void _save() {
+    // Manual zones ARE the ladder, so they need no age. Automatic zones cannot
+    // be derived without one, and guessing produces a confidently wrong score
+    // rather than an honest gap -- so this is the one field the setup gate
+    // refuses to pass without.
+    final birthYear = int.tryParse(_birthYear.text.trim());
+    final missing = !_useManualZones &&
+        (birthYear == null ||
+            birthYear < BodyProfile.minBirthYear ||
+            birthYear > DateTime.now().year);
+    setState(() => _birthYearMissing = missing);
+    if (missing) return;
+
+    ref.read(bodyProfileCardProvider.notifier).saveBirthYear(_birthYear.text);
     ref
         .read(bodyEnergyCalibrationSettingsProvider.notifier)
         .save(
@@ -83,6 +115,10 @@ class _BodyEnergyCalibrationCardState
         .calibration;
     if (_seededSignature != calibration.signature()) {
       _seed(calibration);
+    }
+    final profile = ref.watch(bodyProfileCardProvider).profile;
+    if (_seededProfile != profile) {
+      _seedProfile(profile);
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -130,6 +166,21 @@ class _BodyEnergyCalibrationCardState
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _ZoneField(
+                controller: _birthYear,
+                label: l10n.bodyEnergyCalibrationBirthYear,
+              ),
+              if (_birthYearMissing)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    l10n.bodyEnergyCalibrationBirthYearRequired,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 12),
               Row(
                 children: [

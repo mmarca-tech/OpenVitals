@@ -3433,6 +3433,7 @@
   "bodyEnergyCalibrationBody": "OpenVitals estimates drain from heart-rate intensity over time, using your age, weight, and heart rate from the Body profile in Settings.",
   "bodyEnergyCalibrationOptionalBody": "Manual heart-rate zones below are optional. If you skip them, OpenVitals uses automatic estimates from Health Connect data and shows lower confidence when calibration is uncertain.",
   "bodyEnergyCalibrationBirthYear": "Birth year",
+  "bodyEnergyCalibrationBirthYearRequired": "Body Energy needs your birth year to work out your heart-rate zones. Enter it, or turn on manual heart zones and set them yourself.",
   "bodyEnergyCalibrationManualZones": "Manual heart zones",
   "bodyEnergyCalibrationManualZonesBody": "Optional bpm lower bounds for zones 1-5.",
   "bodyEnergyCalibrationZone1": "Zone 1 lower bpm",

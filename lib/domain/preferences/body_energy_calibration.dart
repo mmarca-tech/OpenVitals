@@ -141,3 +141,15 @@ abstract class BodyEnergyCalibration with _$BodyEnergyCalibration {
 
   static const BodyEnergyCalibration automatic = BodyEnergyCalibration();
 }
+
+/// The generation of the Body Energy SETUP requirements.
+///
+/// Bumped when setup starts demanding something it did not before, so installs
+/// that completed setup under the old rules are asked once for the missing
+/// piece instead of running on a value the model can no longer derive.
+///
+/// 1 — automatic zones need a birth year. The manual maximum heart rate was
+/// removed, leaving Tanaka from age as the only estimate; without it the model
+/// falls back to resting + 70, which for a resting 60 claims a maximum of 130
+/// and reads ordinary effort as zone 5.
+const int bodyEnergySetupEpoch = 1;

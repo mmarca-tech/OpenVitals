@@ -182,6 +182,12 @@ void main() {
       await tester.ensureVisible(find.byType(Switch));
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
+      // Switching manual zones OFF hands the ladder to the automatic path,
+      // which needs a birth year, so setup will not save without one.
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Birth year'),
+        '1990',
+      );
       final save = find.widgetWithText(FilledButton, 'Save');
       await tester.ensureVisible(save);
       await tester.tap(save);
