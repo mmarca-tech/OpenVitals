@@ -13,7 +13,7 @@ Body Energy is a local derived view that estimates available energy across the d
 ### Turn it on
 
 1. **Open Body Energy.** Tap the **Body Energy** tile (battery icon) on the dashboard, or the **Body energy** tile inside [Daily Readiness](daily-readiness.md). Before setup the tile reads **"Not set up"**.
-2. **Set it up.** On first open the screen shows only the **"Turn on Body Energy"** card. Either accept **"Use automatic estimates"**, or turn on **Manual heart zones** and enter your **Zone 1–5 lower bpm** bounds, then **Save**. The timeline appears once setup is complete.
+2. **Set it up.** On first open the screen shows only the **"Turn on Body Energy"** card. Press **Save** to accept automatic zones, or turn on **Manual heart zones**, enter your **Zone 1–5 lower bpm** bounds and then **Save**. The timeline appears once setup is complete.
 
 ### Read the day
 
@@ -39,7 +39,9 @@ the same question without being asked.
 
 Go to **Settings › Recovery** and open the **Body Energy** card (the last card, after Sleep range and the heart-rate steppers):
 
-- Toggle **Manual heart zones** and edit the **Zone 1–5 lower bpm** fields, then **Save** — or tap **Use automatic estimates** to hand zone detection back to the app.
+- Toggle **Manual heart zones** and edit the **Zone 1–5 lower bpm** fields, then **Save**. Switching the toggle off hands zone detection back to the app and keeps the numbers you typed, so you can switch them on again without retyping.
+
+There is no resting or maximum heart rate to enter. Both are derived from your own heart-rate data: the resting rate from what Health Connect recorded, the maximum from the highest trustworthy value observed, falling back to the age formula (Tanaka, 208 − 0.7 × age) when there is nothing measured to use. A day whose zones came from an observed maximum reports **High** confidence — a typed-in number used to be the only way to reach it, which had the evidence backwards.
 - Once watch readings have built up a **Personal tuning** profile, you'll see the learned multipliers and a **Reset personal tuning** button to start over.
 
 If confidence stays **Low**, it usually means incomplete calibration or sparse Health Connect data — wear a heart-rate device and grant sleep and heart permissions for the biggest improvement.

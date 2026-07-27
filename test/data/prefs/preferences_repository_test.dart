@@ -206,15 +206,11 @@ void main() {
         const BodyProfile(
           birthYear: 1990,
           weightKg: 72.5,
-          restingHeartRateBpm: 55,
-          maxHeartRateBpm: 190,
         ),
       );
       final profile = repo.bodyProfile();
       expect(profile.birthYear, 1990);
       expect(profile.weightKg, closeTo(72.5, 1e-6));
-      expect(profile.restingHeartRateBpm, 55);
-      expect(profile.maxHeartRateBpm, 190);
 
       final reloaded = PreferencesRepository(
         await SharedPreferences.getInstance(),
@@ -439,6 +435,5 @@ void main() {
     final profile = repo.bodyProfile();
     expect(profile.birthYear, LocalDate.now().year - 30);
     expect(profile.weightKg, closeTo(68.0, 1e-6));
-    expect(profile.restingHeartRateBpm, 52);
   });
 }

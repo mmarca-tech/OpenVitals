@@ -126,22 +126,6 @@ class BodyProfileViewModel extends Notifier<BodyProfileCardState> {
 
   /// The heart-rate half of the profile, saved from the zones card.
   ///
-  /// Split from [save] because the two halves now live on different cards:
-  /// resting and max heart rate belong with the zones they define, while age
-  /// and body size belong with each other. Both write the same [BodyProfile],
-  /// so neither can clobber the other's fields.
-  void saveHeartRates({
-    required String restingHeartRate,
-    required String maxHeartRate,
-  }) {
-    final profile = state.profile
-        .copyWith(
-          restingHeartRateBpm: int.tryParse(restingHeartRate.trim()),
-          maxHeartRateBpm: int.tryParse(maxHeartRate.trim()),
-        )
-        .normalized();
-    ref.read(preferencesRepositoryProvider).setBodyProfile(profile);
-  }
 }
 
 /// The stored kilograms for a weight typed in [unit].

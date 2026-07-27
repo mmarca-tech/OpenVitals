@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../domain/preferences/body_energy_calibration.dart';
-import '../../../../domain/preferences/body_profile.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../ui/components/ov_card.dart';
 import '../../application/body_energy_calibration_view_model.dart';
-import '../../application/body_profile_view_model.dart';
 
 /// The current [BodyEnergyCalibration] on its own — the Body Energy detail
 /// screen reads it through this card's import path, so it is re-exported here.
@@ -38,17 +36,9 @@ class _BodyEnergyCalibrationCardState
   final _zone3 = TextEditingController();
   final _zone4 = TextEditingController();
   final _zone5 = TextEditingController();
-  // Resting and max heart rate live here rather than on the Body card because
-  // they ARE the automatic zone ladder: with no manual zones the model derives
-  // zones from heart-rate reserve between the two. They were a card away, and
-  // this card is also embedded standalone in the Body Energy screen, where the
-  // pair the automatic zones depend on used to be unreachable.
-  final _restingHr = TextEditingController();
-  final _maxHr = TextEditingController();
 
   bool _useManualZones = false;
   String? _seededSignature;
-  BodyProfile? _seededProfile;
 
   @override
   void dispose() {
@@ -57,8 +47,6 @@ class _BodyEnergyCalibrationCardState
     _zone3.dispose();
     _zone4.dispose();
     _zone5.dispose();
-    _restingHr.dispose();
-    _maxHr.dispose();
     super.dispose();
   }
 
@@ -73,12 +61,6 @@ class _BodyEnergyCalibrationCardState
     _seededSignature = calibration.signature();
   }
 
-  void _seedProfile(BodyProfile profile) {
-    _restingHr.text = profile.restingHeartRateBpm?.toString() ?? '';
-    _maxHr.text = profile.maxHeartRateBpm?.toString() ?? '';
-    _seededProfile = profile;
-  }
-
   void _save() {
     ref
         .read(bodyEnergyCalibrationSettingsProvider.notifier)
@@ -90,14 +72,7 @@ class _BodyEnergyCalibrationCardState
           zone5: _zone5.text,
           useManualZones: _useManualZones,
         );
-    ref.read(bodyProfileCardProvider.notifier).saveHeartRates(
-          restingHeartRate: _restingHr.text,
-          maxHeartRate: _maxHr.text,
-        );
   }
-
-  void _useAutomatic() =>
-      ref.read(bodyEnergyCalibrationSettingsProvider.notifier).useAutomatic();
 
   @override
   Widget build(BuildContext context) {
@@ -109,11 +84,6 @@ class _BodyEnergyCalibrationCardState
     if (_seededSignature != calibration.signature()) {
       _seed(calibration);
     }
-    final profile = ref.watch(bodyProfileCardProvider).profile;
-    if (_seededProfile != profile) {
-      _seedProfile(profile);
-    }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: OpenVitalsCard(
@@ -159,21 +129,6 @@ class _BodyEnergyCalibrationCardState
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              // Resting and max heart rate sit here, above the manual-zone
-              // toggle, because with the toggle OFF they are the zone ladder:
-              // the model derives zones from the reserve between them. They
-              // used to live a card away, and this card is embedded standalone
-              // in the Body Energy screen, where the pair the automatic zones
-              // depend on was unreachable.
-              _ZoneField(
-                controller: _restingHr,
-                label: l10n.bodyEnergyCalibrationRestingHr,
-              ),
-              _ZoneField(
-                controller: _maxHr,
-                label: l10n.bodyEnergyCalibrationMaxHr,
               ),
               const SizedBox(height: 12),
               Row(
@@ -278,14 +233,6 @@ class _BodyEnergyCalibrationCardState
                 child: FilledButton(
                   onPressed: _save,
                   child: Text(l10n.actionSave),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _useAutomatic,
-                  child: Text(l10n.bodyEnergyCalibrationUseAuto),
                 ),
               ),
             ],

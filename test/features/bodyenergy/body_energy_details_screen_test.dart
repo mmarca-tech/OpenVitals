@@ -151,8 +151,11 @@ void main() {
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
     expect(find.byType(BodyEnergyCalibrationCard), findsOneWidget);
 
-    // "Use automatic estimates" completes setup (setupCompleted = true).
-    await tester.tap(find.text(l10n.bodyEnergyCalibrationUseAuto));
+    // Save completes setup (setupCompleted = true). It used to be "Use
+    // automatic estimates", which was removed along with the manual resting and
+    // max heart rate inputs -- with only zones left, the toggle says whether
+    // they apply and Save is the one way through.
+    await tester.tap(find.text(l10n.actionSave));
     await tester.pumpAndSettle();
 
     expect(find.byType(BodyEnergyCalibrationCard), findsNothing);

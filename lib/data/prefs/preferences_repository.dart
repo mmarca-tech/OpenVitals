@@ -424,11 +424,6 @@ class PreferencesRepository {
     _store.putOrRemoveInt(keyBodyProfileBirthYear, normalized.birthYear);
     _store.putOrRemoveDouble(keyBodyProfileWeightKg, normalized.weightKg);
     _store.putOrRemoveDouble(keyBodyProfileHeightCm, normalized.heightCm);
-    _store.putOrRemoveInt(
-      keyBodyProfileRestingHrBpm,
-      normalized.restingHeartRateBpm,
-    );
-    _store.putOrRemoveInt(keyBodyProfileMaxHrBpm, normalized.maxHeartRateBpm);
     _bodyProfile.value = normalized;
   }
 
@@ -751,8 +746,6 @@ class PreferencesRepository {
         birthYear: _store.intOrNull(keyBodyProfileBirthYear),
         weightKg: _store.doubleOrNull(keyBodyProfileWeightKg),
         heightCm: _store.doubleOrNull(keyBodyProfileHeightCm),
-        restingHeartRateBpm: _store.intOrNull(keyBodyProfileRestingHrBpm),
-        maxHeartRateBpm: _store.intOrNull(keyBodyProfileMaxHrBpm),
       ).normalized();
   // endregion
 
