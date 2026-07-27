@@ -25,14 +25,22 @@ Body Energy is a local derived view that estimates available energy across the d
 
 ### Teach it your body
 
-On today's view, the **"How's your energy?"** feel-check offers **0–10** buttons — tap the one that matches how you feel and it tunes your personal model over time.
+There is nothing to tap. If you sync a watch that computes its own body-energy
+score (Garmin Body Battery), Body Energy compares that reading against its own
+at the same moment and nudges the multiplier belonging to whatever was driving
+the score. One reading barely moves anything; the tuning converges over days of
+agreement rather than chasing an hour of disagreement.
+
+The manual **"How's your energy?"** 0–10 check-in was removed — it was the only
+place in the app that asked the user to grade themselves, and the watch answers
+the same question without being asked.
 
 ### Recalibrate or reset
 
 Go to **Settings › Recovery** and open the **Body Energy** card (the last card, after Sleep range and the heart-rate steppers):
 
 - Toggle **Manual heart zones** and edit the **Zone 1–5 lower bpm** fields, then **Save** — or tap **Use automatic estimates** to hand zone detection back to the app.
-- If feel-checks have built up a **Personal tuning** profile, you'll see the learned multipliers and a **Reset personal tuning** button to start over.
+- Once watch readings have built up a **Personal tuning** profile, you'll see the learned multipliers and a **Reset personal tuning** button to start over.
 
 If confidence stays **Low**, it usually means incomplete calibration or sparse Health Connect data — wear a heart-rate device and grant sleep and heart permissions for the biggest improvement.
 

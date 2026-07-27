@@ -410,7 +410,6 @@ class PreferencesRepository {
     );
     _store.putDouble(_keyBodyEnergyBasalDrainGain, normalized.basalDrainGain);
     _store.putDouble(_keyBodyEnergyStressDrainGain, normalized.stressDrainGain);
-    _store.putInt(_keyBodyEnergyFeelCheckCount, normalized.feelCheckCount);
     _store.putInt(
       _keyBodyEnergyWatchObservationCount,
       normalized.watchObservationCount,
@@ -744,7 +743,6 @@ class PreferencesRepository {
             _prefs.getDouble(_keyBodyEnergyActivityDrainGain) ?? 1.0,
         basalDrainGain: _prefs.getDouble(_keyBodyEnergyBasalDrainGain) ?? 1.0,
         stressDrainGain: _prefs.getDouble(_keyBodyEnergyStressDrainGain) ?? 1.0,
-        feelCheckCount: _prefs.getInt(_keyBodyEnergyFeelCheckCount) ?? 0,
         watchObservationCount:
             _prefs.getInt(_keyBodyEnergyWatchObservationCount) ?? 0,
       ).normalized();
@@ -831,8 +829,6 @@ class PreferencesRepository {
       'body_energy_basal_drain_gain';
   static const String _keyBodyEnergyStressDrainGain =
       'body_energy_stress_drain_gain';
-  static const String _keyBodyEnergyFeelCheckCount =
-      'body_energy_feel_check_count';
   static const String _keyBodyEnergyWatchObservationCount =
       'body_energy_watch_observation_count';
   static const String _keyBodyEnergyWatchFitWatermarkMillis =

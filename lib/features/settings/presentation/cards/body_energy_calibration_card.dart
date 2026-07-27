@@ -227,7 +227,7 @@ class _BodyEnergyCalibrationCardState
                 ),
               ],
               if (calibration.hasPersonalGains ||
-                  calibration.feelCheckCount > 0) ...[
+                  calibration.hasWatchObservations) ...[
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 12),
@@ -237,8 +237,8 @@ class _BodyEnergyCalibrationCardState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  l10n.bodyEnergyPersonalizationBody(
-                    calibration.feelCheckCount,
+                  l10n.bodyEnergyPersonalizationWatchBody(
+                    calibration.watchObservationCount,
                   ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
