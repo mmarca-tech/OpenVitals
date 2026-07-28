@@ -15,10 +15,12 @@
 /// bottom of `chart_tokens.dart` are declared the same way for the same reason.
 ///
 /// These values are the design system's, not this file's: they mirror
-/// `design/tokens/spacing.css` and `design/tokens/shape.css`. Where the design
-/// system and the code disagree about a *scale*, the design system wins (where
-/// they disagree about a colour or a type slot, the code wins — see
-/// `design/readme.md`).
+/// `tokens/spacing.css` and `tokens/shape.css` in the **OpenVitals design-system
+/// repository** (a sibling checkout — it used to live in `design/` here). Where
+/// that system and this code disagree about a *scale*, the design system wins;
+/// where they disagree about a colour or a type slot, the code wins, because the
+/// palette is contrast-audited and ships. Its `readme.md` states the same rule
+/// from the other side.
 library;
 
 import 'package:flutter/widgets.dart';
