@@ -1,0 +1,100 @@
+/* ============================================================================
+   OpenVitals — Chart tokens
+   Source: lib/ui/theme/chart_tokens.dart (ChartTokens + the layout constants
+   below it).
+   ----------------------------------------------------------------------------
+   Charts are the app's primary content, and until this file existed the design
+   system described four chart COMPONENTS with nothing behind them — no grid, no
+   axis, no track colour, no canonical height. Every painter then decided for
+   itself and they disagreed: a grid line was the accent at 12% in one chart and
+   `outline-variant` at 50% in another; a bar's track was `surface-container-
+   highest` here and whatever the progress bar felt like there.
+
+   A NOTE ON HOW THESE RESOLVE. In the app these are not constants — they are a
+   Flutter `ThemeExtension` derived from the LIVE colour scheme, because the app
+   supports Material You dynamic colour and an AMOLED variant, so a hard-coded
+   grey is wrong in two of the three themes a chart can be viewed in. The CSS
+   below derives them the same way, from the `--ov-*` scheme tokens, so setting
+   `data-theme` re-resolves the chart chrome too. Do not replace a var() here
+   with a literal.
+   ========================================================================= */
+
+:root {
+  /* ---- Chrome (derived from the active scheme) ---- */
+
+  /* The axis line itself. */
+  --ov-chart-axis: color-mix(in srgb, var(--ov-outline-variant) 80%, transparent);
+
+  /* The unfilled part of any bar. One answer for all nine bars that each had
+     their own. */
+  --ov-chart-track: var(--ov-surface-container-highest);
+
+  /* A heatmap cell for a day with NO reading — which is not the same as a day
+     with a reading of zero, and must not look like one. */
+  --ov-chart-empty-track: color-mix(in srgb, var(--ov-surface-container-highest) 50%, transparent);
+
+  --ov-chart-crosshair: color-mix(in srgb, var(--ov-on-surface-variant) 40%, transparent);
+
+  /* Tooltips invert against the surface (Material `inverseSurface`). */
+  --ov-chart-tooltip-surface: var(--ov-on-surface);
+  --ov-chart-on-tooltip-surface: var(--ov-surface);
+
+  /* ---- Accent-derived alphas ----
+     These are RULES, not colours: each takes the series accent and applies a
+     fixed alpha. In CSS use them as
+       background: color-mix(in srgb, var(--ov-metric-steps) 12%, transparent);
+     The percentages are the contract; the accent is the caller's. */
+  --ov-chart-grid-alpha:     12%;  /* a grid line is the SERIES colour, faint —
+                                      never a neutral grey. A neutral grid under
+                                      a coloured line reads as a separate object
+                                      sitting BEHIND the chart; a tinted one
+                                      reads as part of it. */
+  --ov-chart-area-fill-alpha: 12%; /* the flat wash under a line (legend swatch,
+                                      heatmap cell). Line charts themselves fade
+                                      this to nothing at the baseline. */
+  --ov-chart-baseline-alpha:  22%; /* the line a chart sits ON — heavier than a
+                                      grid line, lighter than the trace. */
+
+  /* ---- Layout ----
+     Retuning any of these is a deliberate act with a golden-test diff behind it.
+     That is exactly why they are named. */
+
+  /* The gutter the y-axis labels are written in, and the gap to the plot. */
+  --ov-chart-y-axis-width:  56px;
+  --ov-chart-axis-gap:       8px;
+  --ov-chart-plot-inset:    64px;  /* y-axis-width + axis-gap. An x-axis row that
+                                      ignores this describes a chart that isn't
+                                      there. */
+
+  /* The sleep schedule chart writes its hour scale down the RIGHT side, hard
+     against the bars, instead of down the left. Deliberate, and the one thing
+     that chart does better than the others. */
+  --ov-chart-right-axis-width: 46px;
+
+  /* Canonical heights. There is no single "chart height" — each kind has one. */
+  --ov-chart-height-day:            180px;
+  --ov-chart-height-session:        180px;
+  --ov-chart-height-period-bar:     120px;
+  --ov-chart-height-line:           150px;
+  --ov-chart-height-schedule:       232px;
+  --ov-chart-height-body-energy:    172px;
+  --ov-chart-height-influence-strip: 44px;
+
+  /* One hypnogram lane: its label, and the track the stage segments ride in. */
+  --ov-sleep-lane-height:       72px;
+  --ov-sleep-lane-label-height: 28px;
+  --ov-sleep-lane-track-height: 26px;
+
+  /* Strokes and marks. */
+  --ov-chart-line-stroke:   3px;
+  --ov-chart-trace-stroke:  2px;
+  --ov-chart-point-radius:  3.5px;
+
+  /* A bar row's default thickness (the nine copies ran from 3 to 18). */
+  --ov-chart-bar-row-height: 6px;
+
+  /* A bar is a pill until it gets fat, then a rounded rectangle — beyond this a
+     "fully rounded" bar just looks like a lozenge. The app's rule is
+     min(barWidth / 2, 8px); this is the cap. */
+  --ov-chart-bar-radius-max: 8px;
+}
