@@ -151,10 +151,14 @@ abstract final class Metrics {
   /// 52 — the round icon-surface button.
   static const double iconSurfaceSize = 52;
 
-  /// 44 — **the minimum touch target.** Anything tappable must reach this in
+  /// 48 — **the minimum touch target.** Anything tappable must reach this in
   /// both directions, whatever its painted size; an icon drawn at 24 still needs
-  /// 44 of hit area around it. This is an accessibility floor, not a preference.
-  static const double minTouchTarget = 44;
+  /// 48 of hit area around it. This is Material's floor and Flutter's own
+  /// (`kMinInteractiveDimension`, which is material-scoped and so cited rather
+  /// than referenced — this file stays widgets-only). An earlier version of
+  /// this token said 44: the iOS HIG number, undersized for an Android app.
+  /// Matches `--ov-min-touch-target` in the design-system repo.
+  static const double minTouchTarget = 48;
 
   /// 64 — the top app bar.
   static const double topBarHeight = 64;
