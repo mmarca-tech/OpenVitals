@@ -124,14 +124,27 @@ abstract final class HcPermissions {
 class HealthConnectFeatureFlags {
   const HealthConnectFeatureFlags({
     this.mindfulnessAvailable = false,
+    bool? mindfulnessSupportedByDevice,
     this.skinTemperatureAvailable = false,
     this.plannedExerciseAvailable = false,
     this.healthDataHistoryAvailable = false,
     this.backgroundReadAvailable = false,
-  });
+  }) : mindfulnessSupportedByDevice =
+            mindfulnessSupportedByDevice ?? mindfulnessAvailable;
 
-  /// Resolved from the native plugin's `getFeatureStatus("MINDFULNESS_SESSION")`.
+  /// Whether the app may ask for mindfulness: the device reports the feature AND
+  /// the user has opted in. Everything that derives a permission set reads this
+  /// one, never [mindfulnessSupportedByDevice].
   final bool mindfulnessAvailable;
+
+  /// The device's own answer alone, before the user's opt-in is folded in.
+  ///
+  /// The *only* legitimate use is deciding whether to offer the opt-in at all: a
+  /// phone whose Health Connect has no mindfulness feature should not be shown a
+  /// toggle it cannot honour. Deriving permissions from this would defeat the
+  /// opt-in — see the crash it exists to avoid, documented on
+  /// `HealthConnectNativeDataSource.resolveFeatureFlags`.
+  final bool mindfulnessSupportedByDevice;
 
   /// Resolved from `getFeatureStatus("SKIN_TEMPERATURE")`.
   final bool skinTemperatureAvailable;
@@ -179,8 +192,14 @@ class HealthPermissionService {
 
   /// Bump when requestable/managed permissions change so existing users see the
   /// new-permissions prompt. Mirrors the Kotlin constant.
+  ///
+  /// Read against `PreferencesRepository.lastPromptedPermissionSetVersion` by the
+  /// router: a user whose stamp is older is routed back through onboarding once.
+  ///
+  /// 3 — onboarding stopped splitting required from optional and now asks for
+  /// everything the device can grant in one request.
   // ignore: constant_identifier_names
-  static const int PERMISSION_SET_VERSION = 2;
+  static const int PERMISSION_SET_VERSION = 3;
 
   // ── Special (non record-backed) permission strings ────────────────────────
   static final String readExerciseRoutesPermission = _read('EXERCISE_ROUTES');
@@ -372,6 +391,18 @@ class HealthPermissionService {
         _write('VO2_MAX'),
         // Gated by the getter itself (Kotlin 1f2b435), not by a guard here.
         ...mindfulnessWritePermissions,
+        ...cycleWritePermissions,
+      });
+
+  /// Write access to the cycle records, split out of
+  /// [dataImportWritePermissions] (which still spreads it, so the CSV importer's
+  /// set is unchanged) so onboarding can subtract cycle tracking wholesale from
+  /// what it requires — see [requiredOnboardingPermissions].
+  ///
+  /// `WRITE_BASAL_BODY_TEMPERATURE` deliberately appears here *and* in
+  /// [instantMeasurementWritePermissions]: it is a cycle record and a single
+  /// instant measurement a CSV can carry, and those are different consumers.
+  Set<String> get cycleWritePermissions => _supported({
         _write('MENSTRUATION'),
         _write('OVULATION_TEST'),
         _write('CERVICAL_MUCUS'),
@@ -393,11 +424,39 @@ class HealthPermissionService {
 
   // ── Derived / phased sets ─────────────────────────────────────────────────
 
-  Set<String> get minimumOnboardingPermissions => {
-        ...corePermissions,
-        ...heartPermissions,
-        ...vitalsPermissions,
-      };
+  /// Everything onboarding will not finish without: every permission the runtime
+  /// dialog can grant on THIS device, and nothing else.
+  ///
+  /// Defined by SUBTRACTION from the full offer rather than by listing members,
+  /// so a permission added to a category set later cannot silently land in the
+  /// blocking set — it has to be excluded deliberately to stay out.
+  ///
+  /// Four groups are excluded, and every one of them would otherwise make the
+  /// gate impossible to satisfy or ask for something we promised not to:
+  ///
+  /// * [manualOnlyPermissions] (exercise routes) — the runtime dialog cannot
+  ///   grant them at all, so requiring them means nobody ever leaves onboarding.
+  /// * [additionalDataAccessPermissions] (history / background reads) — the
+  ///   dialog *may* grant these, and no API says whether a given provider will.
+  ///   These are what the trip to the Health Connect page after the dialog is
+  ///   for.
+  /// * [cyclePermissions] + [cycleWritePermissions] — sensitive enough that a
+  ///   first-run take-it-or-leave-it prompt is the wrong place to ask; offered
+  ///   as their own row instead.
+  /// * [mindfulnessPermissions] + [mindfulnessWritePermissions] — opt-in, and
+  ///   requested in isolation. Some providers crash their own permission UI on
+  ///   it (see [mindfulnessPermissions]); folding it into the one big batch
+  ///   would let that failure take every other permission down with it.
+  ///
+  /// Each constituent has already been through [_supported], so this set never
+  /// contains a permission the installed provider does not define.
+  Set<String> get requiredOnboardingPermissions => onboardingPermissions
+      .difference(cyclePermissions)
+      .difference(cycleWritePermissions)
+      .difference(mindfulnessPermissions)
+      .difference(mindfulnessWritePermissions)
+      .difference(additionalDataAccessPermissions)
+      .difference(manualOnlyPermissions);
 
   Set<String> get phase1Permissions => corePermissions;
 
@@ -479,4 +538,8 @@ class HealthPermissionService {
           : PermissionGrantMode.requestable;
 
   bool isMindfulnessAvailable() => flags.mindfulnessAvailable;
+
+  /// Whether the device could do mindfulness if the user opted in — the input to
+  /// "should we offer the toggle", never to "what may we request".
+  bool isMindfulnessSupportedByDevice() => flags.mindfulnessSupportedByDevice;
 }

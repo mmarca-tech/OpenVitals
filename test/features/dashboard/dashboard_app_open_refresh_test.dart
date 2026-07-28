@@ -75,8 +75,8 @@ class _RecordingScheduler implements HistorySyncScheduler {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final Set<String> _minimumPermissions =
-    HealthDataSource().permissionService.minimumOnboardingPermissions;
+final Set<String> _requiredPermissions =
+    HealthDataSource().permissionService.requiredOnboardingPermissions;
 
 void main() {
   late _MutableHealthDataSource source;
@@ -98,7 +98,7 @@ void main() {
 
     source = _MutableHealthDataSource(
       availability,
-      granted ?? _minimumPermissions,
+      granted ?? _requiredPermissions,
     );
     useCase = _CountingUseCase();
     scheduler = _RecordingScheduler();
@@ -180,7 +180,7 @@ void main() {
       expect(find.text('Set up your health data'), findsOneWidget);
 
       // Granted in the Health Connect app while OpenVitals was backgrounded.
-      source.granted = _minimumPermissions;
+      source.granted = _requiredPermissions;
       now = now.add(const Duration(minutes: 5));
       await resume(tester);
 

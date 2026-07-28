@@ -45,8 +45,8 @@ class HealthRepositoryImpl implements HealthRepository {
       _dataSource.permissionService.phase1Permissions;
 
   @override
-  Set<String> get minimumOnboardingPermissions =>
-      _dataSource.permissionService.minimumOnboardingPermissions;
+  Set<String> get requiredOnboardingPermissions =>
+      _dataSource.permissionService.requiredOnboardingPermissions;
 
   @override
   Set<String> get phase2Permissions =>
@@ -129,6 +129,10 @@ class HealthRepositoryImpl implements HealthRepository {
       _dataSource.permissionService.cyclePermissions;
 
   @override
+  Set<String> get cycleWritePermissions =>
+      _dataSource.permissionService.cycleWritePermissions;
+
+  @override
   Set<String> get manualOnlyPermissions =>
       _dataSource.permissionService.manualOnlyPermissions;
 
@@ -153,6 +157,10 @@ class HealthRepositoryImpl implements HealthRepository {
 
   @override
   bool isMindfulnessAvailable() => _dataSource.isMindfulnessSessionAvailable();
+
+  @override
+  bool isMindfulnessSupportedByDevice() =>
+      _dataSource.isMindfulnessSupportedByDevice();
 
   @override
   Future<Result<Set<String>>> grantedPermissions() =>

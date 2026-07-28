@@ -9,9 +9,12 @@ import '../model/health_connect_availability.dart';
 /// where Health Connect is missing or out of date has granted nothing, and asking
 /// it for its granted set would be a platform call whose answer we already know.
 ///
-/// The "minimum" set is the app's own definition of usable — it is the same set
-/// onboarding refuses to finish without — so this is what decides whether a screen
-/// shows data or shows the permission gate.
+/// The set checked is the app's own definition of usable — it is the same set
+/// onboarding refuses to finish without ([HealthRepository.requiredOnboardingPermissions])
+/// — so this is what decides whether a screen shows data or shows the permission
+/// gate. Since onboarding now hard-blocks on that whole set, anyone who completed
+/// it passes here; the ones this catches are users upgrading from a build whose
+/// onboarding asked for less.
 class CheckMinimumHealthPermissionsUseCase {
   const CheckMinimumHealthPermissionsUseCase(this._healthRepository);
 
@@ -21,7 +24,8 @@ class CheckMinimumHealthPermissionsUseCase {
     final granted = availability == HealthConnectAvailability.available
         ? await _healthRepository.grantedPermissions()
         : const Ok(<String>{});
-    return granted.map((granted) =>
-        _healthRepository.minimumOnboardingPermissions.every(granted.contains));
+    return granted.map((granted) => _healthRepository
+        .requiredOnboardingPermissions
+        .every(granted.contains));
   }
 }

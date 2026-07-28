@@ -6,6 +6,7 @@ import '../../../core/presentation/screen_error.dart';
 import '../../../core/result/result.dart';
 import '../../../data/prefs/preferences_repository.dart';
 import '../../../di/providers.dart';
+import '../../../domain/health/health_permissions.dart';
 import '../../../domain/model/health_connect_availability.dart';
 import '../../../domain/model/onboarding_permission_category.dart';
 import '../../../domain/preferences/app_language.dart';
@@ -23,9 +24,8 @@ part 'onboarding_view_model.freezed.dart';
 /// nothing granted (so the primary action is still the grant, not "Continue").
 const OnboardingDisplay _emptyDisplay = OnboardingDisplay(
   rows: <OnboardingCategoryRow>[],
-  missingMinimum: <String>{},
-  minimumGranted: false,
-  missingOptional: <String>{},
+  missingRequired: <String>{},
+  requiredGranted: false,
 );
 
 /// The Riverpod port of the Kotlin `OnboardingUiState`.
@@ -39,7 +39,17 @@ abstract class OnboardingState with _$OnboardingState {
     @Default(HealthConnectAvailability.available)
     HealthConnectAvailability availability,
     @Default(<String>{}) Set<String> grantedPermissions,
+
+    /// Device feature AND user opt-in: whether the mindfulness row is offered
+    /// and its permissions may be requested.
     @Default(false) bool mindfulnessAvailable,
+
+    /// The device's answer alone. Drives whether the opt-in switch is shown at
+    /// all — there is no point offering it on a phone that has no mindfulness.
+    @Default(false) bool mindfulnessSupportedByDevice,
+
+    /// The switch's own position, read from (and written to) preferences.
+    @Default(false) bool mindfulnessOptIn,
     @Default(true) bool isCheckingPermissions,
     @Default(_emptyDisplay) OnboardingDisplay display,
 
@@ -74,9 +84,17 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
 
   PreferencesRepository get _prefs => ref.read(preferencesRepositoryProvider);
 
-  /// The rows, the required minimum and the full offer — assembled from the
+  /// Whether the automatic trip to the Health Connect page has already happened.
+  ///
+  /// It must happen at most once per visit to the screen. [refreshGrantedPermissions]
+  /// runs on every resume, so an unlatched auto-open would fire again the instant
+  /// the user came back from Health Connect — and again after that, forever.
+  bool _autoOpenedSettings = false;
+
+  /// The rows, the one required request and the full offer — assembled from the
   /// device's permission catalog, with the mindfulness row present only where
-  /// mindfulness exists (see [ReadOnboardingPermissionCatalogUseCase]).
+  /// mindfulness exists *and* the user opted in
+  /// (see [ReadOnboardingPermissionCatalogUseCase]).
   OnboardingPermissionCatalog get _catalog =>
       _catalogFor(mindfulnessAvailable: state.mindfulnessAvailable);
 
@@ -87,7 +105,7 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
         mindfulnessAvailable: mindfulnessAvailable,
       );
 
-  Set<String> get minimumOnboardingPermissions => _catalog.minimumPermissions;
+  Set<String> get requiredOnboardingPermissions => _catalog.requiredPermissions;
 
   Set<String> get onboardingPermissions => _catalog.allPermissions;
 
@@ -108,6 +126,8 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
           availability: value.availability,
           grantedPermissions: value.grantedPermissions,
           mindfulnessAvailable: value.mindfulnessAvailable,
+          mindfulnessSupportedByDevice: value.mindfulnessSupportedByDevice,
+          mindfulnessOptIn: _prefs.healthConnectMindfulnessEnabled,
           isCheckingPermissions: false,
           display: buildOnboardingDisplay(
             _catalogFor(mindfulnessAvailable: value.mindfulnessAvailable),
@@ -178,7 +198,12 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
 
         // Opened here rather than inside the use case so the new granted set is
         // already published before the user disappears into Health Connect's UI.
-        if (value.needsManualGrant) await openHealthConnectSettings();
+        if (value.needsManualGrant) {
+          _autoOpenedSettings = true;
+          await openHealthConnectSettings();
+        } else {
+          await _maybeAutoOpenSettings(value.grantedPermissions);
+        }
       case Err(:final failure):
         state = state.copyWith(
           grant: CommandState<void>.failure(
@@ -186,6 +211,46 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
           ),
         );
     }
+  }
+
+  /// Sends the user to the Health Connect page once, if anything in the
+  /// "additional data access" group is still outstanding after the dialog.
+  ///
+  /// Exercise routes cannot be granted by the runtime dialog at all, and no API
+  /// says whether a given provider's dialog will grant history or background
+  /// reads — so the only way to finish those is the settings page, and the only
+  /// moment the user is expecting to be sent there is right after they granted
+  /// everything else.
+  Future<void> _maybeAutoOpenSettings(Set<String> granted) async {
+    if (_autoOpenedSettings) return;
+    final outstanding = _additionalAccessPermissions.difference(granted);
+    if (outstanding.isEmpty) return;
+    _autoOpenedSettings = true;
+    await openHealthConnectSettings();
+  }
+
+  /// The permissions behind the "additional data access" row: exercise routes
+  /// plus whichever of history / background reads this device supports.
+  Set<String> get _additionalAccessPermissions => _catalog.categories
+      .where((category) => category.id == 'additional_data_access')
+      .expand((category) => category.permissions)
+      .toSet();
+
+  /// Turns the mindfulness opt-in on or off from the onboarding screen.
+  ///
+  /// The preference is an *input* to the resolved feature flags — see the crash
+  /// it guards against in `HealthConnectNativeDataSource.resolveFeatureFlags` —
+  /// so the entire taxonomy is stale the moment it flips. [checkState] goes
+  /// through `refreshAvailability()`, which re-resolves the flags and the
+  /// device-supported permission set before the catalog is rebuilt; the same
+  /// reasoning as `SettingsViewModel.setHealthConnectMindfulnessEnabled`.
+  Future<void> setMindfulnessOptIn(bool enabled) async {
+    _prefs.healthConnectMindfulnessEnabled = enabled;
+    state = state.copyWith(mindfulnessOptIn: enabled);
+    ref
+      ..invalidate(healthConnectAvailabilityProvider)
+      ..invalidate(grantedHealthPermissionsProvider);
+    await checkState();
   }
 
   /// Opens the Health Connect permission page — the only way to grant a
@@ -226,6 +291,11 @@ class OnboardingViewModel extends Notifier<OnboardingState> {
       ..acceptedPrivacyPolicyVersion =
           PreferencesRepository.currentPrivacyPolicyVersion
       ..privacyPolicyAcceptedAtMillis = DateTime.now().millisecondsSinceEpoch
+      // Records WHICH permission set was asked for, so a future widening of it
+      // can send this user back through onboarding rather than silently never
+      // asking them — see [PreferencesRepository.lastPromptedPermissionSetVersion].
+      ..lastPromptedPermissionSetVersion =
+          HealthPermissionService.PERMISSION_SET_VERSION
       ..onboardingDone = true;
   }
 }

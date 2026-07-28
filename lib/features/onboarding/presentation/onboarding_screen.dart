@@ -172,9 +172,8 @@ class _OnboardingContent extends ConsumerWidget {
     // Everything the buttons and the rows need was worked out at load time
     // (OnboardingViewModel → buildOnboardingDisplay); this method only reads it.
     final display = state.display;
-    final missingMinimum = display.missingMinimum;
-    final minimumGranted = display.minimumGranted;
-    final missingOptional = display.missingOptional;
+    final missingRequired = display.missingRequired;
+    final requiredGranted = display.requiredGranted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,21 +198,17 @@ class _OnboardingContent extends ConsumerWidget {
           body: l10n.healthDisclaimerBody,
         ),
         const SizedBox(height: 24),
+        // One request for everything this device can grant. Until all of it is
+        // granted there is no way on — hence no second "grant the rest" button
+        // and no Continue to slip past with.
         FilledButton(
-          onPressed: minimumGranted
+          onPressed: requiredGranted
               ? onComplete
-              : () => notifier.requestPermissions(missingMinimum),
-          child: Text(minimumGranted ? l10n.actionContinue : l10n.onboardingGrantAll),
+              : () => notifier.requestPermissions(missingRequired),
+          child:
+              Text(requiredGranted ? l10n.actionContinue : l10n.onboardingGrantAll),
         ),
-        if (minimumGranted && missingOptional.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: FilledButton.tonal(
-              onPressed: () => notifier.requestPermissions(missingOptional),
-              child: Text(l10n.onboardingGrantRemaining),
-            ),
-          ),
-        if (!minimumGranted)
+        if (!requiredGranted)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
@@ -232,6 +227,16 @@ class _OnboardingContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
+        // Offered only where the provider has the feature: a phone that cannot
+        // do mindfulness should not be shown a switch that promises it can.
+        if (state.mindfulnessSupportedByDevice)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _MindfulnessOptInCard(
+              value: state.mindfulnessOptIn,
+              onChanged: notifier.setMindfulnessOptIn,
+            ),
+          ),
         for (final row in display.rows)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -298,6 +303,45 @@ class _FeatureCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The mindfulness opt-in, shown above the permission rows on devices whose
+/// Health Connect has the feature.
+///
+/// It is a switch rather than just another row because mindfulness is the one
+/// permission the app will not ask for on its own initiative. Some Health
+/// Connect builds define the permission but have no UI category for it, and
+/// throw the moment they are asked to draw one — which takes down the whole
+/// permission screen, not just this row. Turning it on is the user saying they
+/// will risk it; the row that appears then requests mindfulness *alone*, so the
+/// rest of onboarding cannot be taken down with it.
+class _MindfulnessOptInCard extends StatelessWidget {
+  const _MindfulnessOptInCard({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return OpenVitalsCard(
+      color: theme.colorScheme.surfaceContainer,
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        title: Text(
+          l10n.onboardingMindfulnessOptInTitle,
+          style: theme.textTheme.bodyMedium,
+        ),
+        subtitle: Text(
+          l10n.onboardingMindfulnessOptInBody,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ),
     );

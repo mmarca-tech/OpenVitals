@@ -94,8 +94,8 @@ DashboardData _threePageData(DashboardQuery query) {
 
 /// The permissions the dashboard needs before it stops offering the inline
 /// Health Connect promo card.
-final Set<String> _minimumPermissions =
-    HealthDataSource().permissionService.minimumOnboardingPermissions;
+final Set<String> _requiredPermissions =
+    HealthDataSource().permissionService.requiredOnboardingPermissions;
 
 Future<Widget> _bootstrap({
   required HealthConnectAvailability availability,
@@ -106,7 +106,7 @@ Future<Widget> _bootstrap({
 }) async {
   // Default to a fully-permissioned install; a test that wants the promo card
   // passes an empty granted set explicitly.
-  final grantedSet = granted ?? _minimumPermissions;
+  final grantedSet = granted ?? _requiredPermissions;
   SharedPreferences.setMockInitialValues(const <String, Object>{});
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
