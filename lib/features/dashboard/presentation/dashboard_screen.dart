@@ -339,7 +339,7 @@ class _DashboardQuickActions extends StatelessWidget {
               minimumSize: const Size.fromHeight(48),
               shape: const StadiumBorder(),
             ),
-            icon: const Icon(Icons.directions_run),
+            icon: const Icon(Icons.directions_run_outlined),
             label: Text(
               l10n.dashboardActionStartWorkout,
               maxLines: 1,
