@@ -7,6 +7,7 @@ import 'package:openvitals/data/repository/impl/health_repository_impl.dart';
 import 'package:openvitals/di/providers.dart';
 import 'package:openvitals/domain/health/health_permissions.dart';
 import 'package:openvitals/domain/model/health_connect_availability.dart';
+import 'package:openvitals/domain/usecase/read_onboarding_permission_catalog_use_case.dart';
 import 'package:openvitals/domain/preferences/app_language.dart';
 import 'package:openvitals/features/onboarding/application/onboarding_view_model.dart';
 import 'package:openvitals/features/onboarding/presentation/onboarding_screen.dart';
@@ -69,10 +70,6 @@ class _FakeHealthDataSource extends HealthDataSource {
   }
 }
 
-/// The dashboard-minimum permission set the base permission taxonomy produces.
-Set<String> get _requiredPermissions =>
-    HealthRepositoryImpl(HealthDataSource()).requiredOnboardingPermissions;
-
 Future<(Widget, SharedPreferences)> _bootstrap({
   required HealthConnectAvailability availability,
   Set<String> granted = const <String>{},
@@ -98,8 +95,33 @@ Future<(Widget, SharedPreferences)> _bootstrap({
   return (widget, prefs);
 }
 
+/// Exactly what step 1 gates on: Activity + Sleep, minus exercise routes.
+///
+/// Routes ride along with the Activity request (Health Connect shows them as a
+/// slider there) but must never gate, so they stay ungranted throughout these
+/// tests — which doubles as proof that an ungranted slider does not trap anyone.
+Set<String> get _requiredPermissions =>
+    HealthRepositoryImpl(HealthDataSource()).requiredOnboardingPermissions;
+
+/// Walks off step 1 by tapping Next. Assumes the required set is granted.
+Future<void> _tapNext(WidgetTester tester) async {
+  final next = find.widgetWithText(FilledButton, 'Next');
+  await tester.ensureVisible(next);
+  await tester.pumpAndSettle();
+  await tester.tap(next);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapLabelled(WidgetTester tester, String label) async {
+  final f = find.widgetWithText(FilledButton, label);
+  await tester.ensureVisible(f);
+  await tester.pumpAndSettle();
+  await tester.tap(f);
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('shows a loader then the grant-all flow when nothing granted',
+  testWidgets('step 1 lists the five Health Connect categories',
       (tester) async {
     final (widget, _) = await _bootstrap(
       availability: HealthConnectAvailability.available,
@@ -107,15 +129,261 @@ void main() {
     await tester.pumpWidget(widget);
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('OpenVitals'), findsOneWidget);
-    expect(find.text('Grant Health Connect access'), findsOneWidget);
+    // Health Connect's own names, because these are the headings the system
+    // dialog is about to draw.
+    for (final name in const [
+      'Activity',
+      'Body measurements',
+      'Nutrition',
+      'Sleep',
+      'Vitals',
+    ]) {
+      expect(find.text(name), findsOneWidget, reason: '$name row missing');
+    }
+    // The later steps' categories are not on this screen.
+    expect(find.text('Cycle tracking'), findsNothing);
   });
 
-  testWidgets('completing onboarding sets the onboarding-done pref',
+  testWidgets('Next is refused until Activity and Sleep are granted',
+      (tester) async {
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next'))
+          .onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('granting only Activity and Sleep is enough to move on',
+      (tester) async {
+    // Body, Nutrition and Vitals are deliberately still missing.
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next'))
+          .onPressed,
+      isNotNull,
+    );
+    // Still outstanding, and that is fine — they are not required.
+    expect(find.text('Optional'), findsWidgets);
+  });
+
+  testWidgets('a category row requests exactly its own permissions',
+      (tester) async {
+    final dataSource = _FakeHealthDataSource(
+      availability: HealthConnectAvailability.available,
+    );
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      dataSource: dataSource,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    final sleepGrant = find.descendant(
+      of: find
+          .ancestor(of: find.text('Sleep'), matching: find.byType(OpenVitalsCard))
+          .first,
+      matching: find.widgetWithText(FilledButton, 'Grant'),
+    );
+    await tester.ensureVisible(sleepGrant);
+    await tester.pumpAndSettle();
+    await tester.tap(sleepGrant);
+    await tester.pumpAndSettle();
+
+    // One dialog, carrying Sleep and nothing else — the point of grouping by
+    // Health Connect's categories.
+    expect(dataSource.requested, hasLength(1));
+    expect(
+      dataSource.requested.single,
+      HealthRepositoryImpl(HealthDataSource()).sleepCategoryPermissions,
+    );
+  });
+
+  testWidgets('the mindfulness step is skipped when the device lacks it',
+      (tester) async {
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await _tapNext(tester);
+
+    // Straight past mindfulness to cycle tracking — a step with nothing to
+    // offer is not shown as a dead end.
+    expect(find.text('Cycle tracking'), findsWidgets);
+    expect(find.byType(SwitchListTile), findsNothing);
+  });
+
+  testWidgets('the mindfulness step appears where the device has it',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final dataSource = _FakeHealthDataSource(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+      mindfulnessSupportedByDevice: true,
+      mindfulnessIntegrationEnabled: () =>
+          prefs.getBool('health_connect_mindfulness_enabled') ?? false,
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        healthDataSourceProvider.overrideWithValue(dataSource),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const OnboardingScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await _tapNext(tester);
+
+    // Offered, off, and with nothing to grant until it is turned on.
+    final toggle = find.byType(SwitchListTile);
+    expect(toggle, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(find.widgetWithText(FilledButton, 'Grant'), findsNothing);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(prefs.getBool('health_connect_mindfulness_enabled'), isTrue);
+
+    // Granting requests mindfulness ALONE. Merging it into another category is
+    // what would let a provider that crashes on it cost the user everything.
+    dataSource.requested.clear();
+    await _tapLabelled(tester, 'Grant');
+    expect(dataSource.requested, hasLength(1));
+    expect(
+      dataSource.requested.single.every((p) => p.contains('MINDFULNESS')),
+      isTrue,
+      reason: 'the mindfulness step must request nothing but mindfulness',
+    );
+  });
+
+  testWidgets('the forward button stops saying "Not now" once a step is done',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final dataSource = _FakeHealthDataSource(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+      mindfulnessSupportedByDevice: true,
+      mindfulnessIntegrationEnabled: () =>
+          prefs.getBool('health_connect_mindfulness_enabled') ?? false,
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        healthDataSourceProvider.overrideWithValue(dataSource),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const OnboardingScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await _tapNext(tester);
+
+    // Opt-in off: there is nothing to grant BECAUSE the user declined, so
+    // moving on really is skipping.
+    expect(find.widgetWithText(FilledButton, 'Not now'), findsOneWidget);
+
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pumpAndSettle();
+    // On but ungranted — still leaving something behind.
+    expect(find.widgetWithText(FilledButton, 'Not now'), findsOneWidget);
+
+    // Grant it, and the way on is no longer a skip.
+    dataSource.granted = {
+      ..._requiredPermissions,
+      'android.permission.health.READ_MINDFULNESS',
+      'android.permission.health.WRITE_MINDFULNESS',
+    };
+    await _tapLabelled(tester, 'Grant');
+
+    expect(find.widgetWithText(FilledButton, 'Not now'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Next'), findsOneWidget);
+  });
+
+  testWidgets('back walks the steps, and only exits from the first',
+      (tester) async {
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    // No Back on step 1 — there is nowhere behind it, and an inert button would
+    // say otherwise.
+    expect(find.widgetWithText(OutlinedButton, 'Back'), findsNothing);
+
+    await _tapNext(tester);
+    expect(find.text('Cycle tracking'), findsWidgets);
+
+    final back = find.widgetWithText(OutlinedButton, 'Back');
+    expect(back, findsOneWidget);
+    await tester.ensureVisible(back);
+    await tester.pumpAndSettle();
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+
+    // Back on step 1, with its five rows.
+    expect(find.text('Body measurements'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Back'), findsNothing);
+  });
+
+  testWidgets('the last step walks the user to exercise routes by hand',
+      (tester) async {
+    final dataSource = _FakeHealthDataSource(
+      availability: HealthConnectAvailability.available,
+      granted: _requiredPermissions,
+    );
+    final (widget, _) = await _bootstrap(
+      availability: HealthConnectAvailability.available,
+      dataSource: dataSource,
+    );
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await _tapNext(tester); // → cycle tracking
+    await _tapLabelled(tester, 'Not now'); // → additional access
+
+    // Health Connect exposes no deep link to "Additional access", so the last
+    // stretch is a walkthrough. Confirm all three steps render.
+    expect(find.text('Exercise routes'), findsOneWidget);
+    expect(find.textContaining('Additional access'), findsWidgets);
+    for (final n in const ['1', '2', '3']) {
+      expect(find.text(n), findsOneWidget, reason: 'step $n missing');
+    }
+
+    // Nothing has been opened on our own initiative — that is the user's tap.
+    expect(dataSource.openedSettingsCount, 0);
+    await _tapLabelled(tester, 'Open Health Connect permissions');
+    expect(dataSource.openedSettingsCount, 1);
+  });
+
+  testWidgets('finishing persists the prefs and the permission-set version',
       (tester) async {
     final (widget, prefs) = await _bootstrap(
       availability: HealthConnectAvailability.available,
@@ -124,18 +392,19 @@ void main() {
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    // With the minimum granted the primary action is "Continue". The header
-    // (language picker + logo) pushes it below the 600px test viewport, so
-    // scroll it into view before tapping.
-    expect(find.text('Continue'), findsOneWidget);
+    await _tapNext(tester);
+    await _tapLabelled(tester, 'Not now');
     expect(prefs.getBool('onboarding_done'), isNot(true));
 
-    await tester.ensureVisible(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    await _tapLabelled(tester, 'Finish');
 
     expect(prefs.getBool('onboarding_done'), isTrue);
+    // Without the stamp, widening the required set later would never reach this
+    // user — `onboarding_done` alone is a one-way door.
+    expect(
+      prefs.getInt('last_prompted_permission_set_version'),
+      HealthPermissionService.PERMISSION_SET_VERSION,
+    );
   });
 
   testWidgets('shows the unavailable message when Health Connect is missing',
@@ -150,84 +419,8 @@ void main() {
       find.text('Health Connect is not supported on this device.'),
       findsOneWidget,
     );
-    expect(find.text('Grant Health Connect access'), findsNothing);
-  });
-
-  testWidgets('the header renders the wide logo and the language dropdown',
-      (tester) async {
-    final (widget, _) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-    // The shared AppLanguageDropdown, defaulting to "follow the system" (a
-    // closed DropdownButton only builds its selected item).
-    expect(find.byType(AppLanguageDropdown), findsOneWidget);
-    expect(find.text('System default'), findsOneWidget);
-    // The wide wordmark (decorative: excluded from semantics).
-    final logo = tester.widget<Image>(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/icon/openvitals_logo_wide.png',
-      ),
-    );
-    expect(logo.width, 152);
-    expect(logo.height, 104);
-    expect(logo.excludeFromSemantics, isTrue);
-  });
-
-  testWidgets('picking a language persists the app-language preference',
-      (tester) async {
-    final (widget, prefs) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byType(AppLanguageDropdown));
-    await tester.pumpAndSettle();
-    // The menu overlay adds a second "Deutsch" — tap the one in the menu.
-    await tester.tap(find.text('Deutsch').last);
-    await tester.pumpAndSettle();
-
-    expect(prefs.getString('app_language'), AppLanguage.german.name);
-  });
-
-  testWidgets(
-      'a manual-only category shows the manual status and an Open button',
-      (tester) async {
-    // With the base feature flags, history/background reads are unavailable, so
-    // "additional data access" reduces to the manual-only exercise-routes
-    // permission: no requestable permission is missing → isManualGrant.
-    final dataSource = _FakeHealthDataSource(
-      availability: HealthConnectAvailability.available,
-    );
-    final (widget, _) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-      dataSource: dataSource,
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Open settings'), findsOneWidget);
-
-    final openButton = find.widgetWithText(FilledButton, 'Open');
-    expect(openButton, findsOneWidget);
-
-    await tester.ensureVisible(openButton);
-    await tester.pumpAndSettle();
-    await tester.tap(openButton);
-    await tester.pumpAndSettle();
-
-    // A manual-only category opens Health Connect settings rather than firing
-    // the (useless) runtime permission dialog.
-    expect(dataSource.openedSettings, isTrue);
-    expect(dataSource.requested, isEmpty);
+    // No wizard at all on a device that cannot store health data.
+    expect(find.widgetWithText(FilledButton, 'Next'), findsNothing);
   });
 
   testWidgets('needsProviderUpdate offers an install action', (tester) async {
@@ -247,207 +440,47 @@ void main() {
     );
   });
 
-  testWidgets('the other unavailable states offer no install action',
+  testWidgets('the header renders the wide logo and the language dropdown',
       (tester) async {
-    for (final availability in const [
-      HealthConnectAvailability.notSupported,
-      HealthConnectAvailability.needsPlayStore,
-    ]) {
-      final (widget, _) = await _bootstrap(availability: availability);
-      await tester.pumpWidget(widget);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Install Health Connect'),
-        findsNothing,
-        reason: '$availability must not offer an install action',
-      );
-    }
-  });
-
-  testWidgets('the one grant button asks for the whole required set at once',
-      (tester) async {
-    final dataSource = _FakeHealthDataSource(
-      availability: HealthConnectAvailability.available,
-    );
     final (widget, _) = await _bootstrap(
       availability: HealthConnectAvailability.available,
-      dataSource: dataSource,
     );
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    final grant = find.widgetWithText(FilledButton, 'Grant Health Connect access');
-    await tester.ensureVisible(grant);
-    await tester.pumpAndSettle();
-    await tester.tap(grant);
-    await tester.pumpAndSettle();
-
-    // ONE request, and it is the required set — not a first instalment of it.
-    expect(dataSource.requested, hasLength(1));
-    expect(dataSource.requested.single, _requiredPermissions);
-    // And there is no second "grant the rest" button to find.
-    expect(find.text('Grant remaining available permissions'), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(AppLanguageDropdown), findsOneWidget);
+    expect(find.text('System default'), findsOneWidget);
+    final logo = tester.widget<Image>(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/icon/openvitals_logo_wide.png',
+      ),
+    );
+    expect(logo.width, 152);
+    expect(logo.excludeFromSemantics, isTrue);
   });
 
-  testWidgets('with the required set outstanding there is no way to continue',
-      (tester) async {
-    // Everything granted EXCEPT one permission: the hard block means this is
-    // still not enough.
-    final granted = Set<String>.from(_requiredPermissions)
-      ..remove('android.permission.health.READ_SLEEP');
-    final (widget, prefs) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-      granted: granted,
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Continue'), findsNothing);
-    expect(
-      find.widgetWithText(FilledButton, 'Grant Health Connect access'),
-      findsOneWidget,
-    );
-    expect(prefs.getBool('onboarding_done'), isNot(true));
-  });
-
-  testWidgets('completing onboarding stamps the permission-set version',
+  testWidgets('picking a language persists the app-language preference',
       (tester) async {
     final (widget, prefs) = await _bootstrap(
       availability: HealthConnectAvailability.available,
-      granted: _requiredPermissions,
     );
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.byType(AppLanguageDropdown));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
+    await tester.tap(find.text('Deutsch').last);
     await tester.pumpAndSettle();
 
-    // Without the stamp, widening the required set later would never reach this
-    // user — `onboarding_done` alone is a one-way door.
-    expect(
-      prefs.getInt('last_prompted_permission_set_version'),
-      HealthPermissionService.PERMISSION_SET_VERSION,
-    );
+    expect(prefs.getString('app_language'), AppLanguage.german.name);
   });
 
-  testWidgets('the mindfulness opt-in is hidden when the device lacks it',
-      (tester) async {
-    final (widget, _) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-      dataSource: _FakeHealthDataSource(
-        availability: HealthConnectAvailability.available,
-      ),
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SwitchListTile), findsNothing);
-    expect(find.text('Include mindfulness'), findsNothing);
-    expect(find.text('Mindfulness'), findsNothing);
-  });
-
-  testWidgets(
-      'the opt-in is offered where the device has it, and only then is '
-      'mindfulness asked for', (tester) async {
-    SharedPreferences.setMockInitialValues(const <String, Object>{});
-    final prefs = await SharedPreferences.getInstance();
-    final dataSource = _FakeHealthDataSource(
-      availability: HealthConnectAvailability.available,
-      mindfulnessSupportedByDevice: true,
-      mindfulnessIntegrationEnabled: () =>
-          prefs.getBool('health_connect_mindfulness_enabled') ?? false,
-    );
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-        healthDataSourceProvider.overrideWithValue(dataSource),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const OnboardingScreen(),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    // Offered, but off — so there is no mindfulness row to grant yet.
-    final toggle = find.byType(SwitchListTile);
-    expect(toggle, findsOneWidget);
-    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
-    expect(find.text('Mindfulness'), findsNothing);
-
-    await tester.ensureVisible(toggle);
-    await tester.pumpAndSettle();
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-
-    expect(prefs.getBool('health_connect_mindfulness_enabled'), isTrue);
-    expect(find.text('Mindfulness'), findsOneWidget);
-
-    // Granting it requests mindfulness ALONE. Folding it into the big batch is
-    // what would let a provider that crashes on it cost the user every other
-    // permission too.
-    dataSource.requested.clear();
-    // The Grant inside the mindfulness card specifically — several rows have one.
-    final mindfulnessGrant = find.descendant(
-      of: find
-          .ancestor(
-            of: find.text('Mindfulness'),
-            matching: find.byType(OpenVitalsCard),
-          )
-          .first,
-      matching: find.widgetWithText(FilledButton, 'Grant'),
-    );
-    await tester.ensureVisible(mindfulnessGrant);
-    await tester.pumpAndSettle();
-    await tester.tap(mindfulnessGrant);
-    await tester.pumpAndSettle();
-
-    expect(dataSource.requested, hasLength(1));
-    expect(
-      dataSource.requested.single.every((p) => p.contains('MINDFULNESS')),
-      isTrue,
-      reason: 'the mindfulness row must request nothing but mindfulness',
-    );
-  });
-
-  testWidgets('the automatic trip to Health Connect settings happens once',
-      (tester) async {
-    // Granting the required set leaves exercise routes outstanding, which the
-    // runtime dialog cannot grant — so the user is sent to the settings page.
-    final dataSource = _FakeHealthDataSource(
-      availability: HealthConnectAvailability.available,
-    );
-    final (widget, _) = await _bootstrap(
-      availability: HealthConnectAvailability.available,
-      dataSource: dataSource,
-    );
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    dataSource.granted = _requiredPermissions;
-    final grant = find.widgetWithText(FilledButton, 'Grant Health Connect access');
-    await tester.ensureVisible(grant);
-    await tester.pumpAndSettle();
-    await tester.tap(grant);
-    await tester.pumpAndSettle();
-
-    expect(dataSource.openedSettingsCount, 1);
-
-    // Coming back from Health Connect re-reads the granted set. Without the
-    // latch that re-read would send the user straight back out again, forever.
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
-
-    expect(dataSource.openedSettingsCount, 1);
-  });
-
-  test('permissionCategories match the Kotlin source groups and order', () async {
+  test('the catalog is Health Connect\'s categories, in wizard order', () async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
@@ -463,97 +496,93 @@ void main() {
     addTearDown(container.dispose);
 
     final notifier = container.read(onboardingProvider.notifier);
-    final categories = notifier.permissionCategories;
-
-    // One-to-one with the Kotlin OnboardingViewModel.permissionCategories order.
-    //
-    // `mindfulness` is absent because this harness's data source reports the
-    // feature unavailable, which since Kotlin 1.9.0 (1f2b435) makes its
-    // permission set empty — and onboarding drops empty categories
-    // (`.filter { it.permissions.isNotEmpty() }`, OnboardingViewModel.kt:148).
-    // That is the point of the fix: never ask for a permission the provider does
-    // not define. Settings still lists it, as "Not supported".
+    // `mindfulness` is absent because this harness reports the feature
+    // unavailable, which empties its permission set — and an empty category is
+    // dropped rather than rendered as a row that grants nothing.
     expect(
-      categories.map((c) => c.id).toList(),
+      notifier.permissionCategories.map((c) => c.id).toList(),
       const <String>[
-        'activity_sleep',
-        'heart_recovery',
-        'vitals',
+        'activity',
         'body',
-        'activity_extras',
-        'nutrition_hydration',
-        'manual_entry_write',
-        'data_import_write',
-        'additional_data_access',
+        'nutrition',
+        'sleep',
+        'vitals',
         'cycle_tracking',
+        // `additional_data_access` is absent: this harness reports neither
+        // history nor background reads, and exercise routes now ride with
+        // Activity rather than propping this category up.
       ],
     );
-
-    final repo = HealthRepositoryImpl(HealthDataSource());
-    OnboardingPermissionCategory byId(String id) =>
-        categories.firstWhere((c) => c.id == id);
-    expect(byId('manual_entry_write').permissions,
-        repo.requestableWritePermissions);
-    // Cycle writes are shown with the cycle row, not with the import row, so the
-    // import row's count can actually reach "granted" without the opt-in.
-    expect(byId('data_import_write').permissions,
-        repo.dataImportWritePermissions.difference(repo.cycleWritePermissions));
-    expect(byId('cycle_tracking').permissions,
-        {...repo.cyclePermissions, ...repo.cycleWritePermissions});
-    // Exercise routes ride along additional-data-access but are manual-only.
-    expect(byId('additional_data_access').manualPermissions,
-        repo.routePermissions);
-
-    // Everything except the opt-in and settings-only rows is required, and the
-    // required set is exactly the union of those rows.
+    // Only the two the dashboard cannot render without.
     expect(
-      categories.where((c) => c.isRequired).map((c) => c.id).toList(),
-      const <String>[
-        'activity_sleep',
-        'heart_recovery',
-        'vitals',
-        'body',
-        'activity_extras',
-        'nutrition_hydration',
-        'manual_entry_write',
-        'data_import_write',
-      ],
-    );
-    expect(
-      categories
+      notifier.permissionCategories
           .where((c) => c.isRequired)
-          .expand((c) => c.permissions)
-          .toSet(),
-      repo.requiredOnboardingPermissions,
+          .map((c) => c.id)
+          .toList(),
+      const <String>['activity', 'sleep'],
     );
   });
 
-  test('the required set never contains a permission onboarding cannot get',
+  test('the additional-access row counts only what its button can grant', () {
+    // Exercise routes are handled by the step's own walkthrough, not by this
+    // row. Counting them here made it read "2 of 3" forever: the third could
+    // never be granted from anywhere the row's button leads.
+    final repo = HealthRepositoryImpl(
+      HealthDataSource()
+        ..featureFlags = const HealthConnectFeatureFlags(
+          healthDataHistoryAvailable: true,
+          backgroundReadAvailable: true,
+        ),
+    );
+    final catalog =
+        ReadOnboardingPermissionCatalogUseCase(repo)(mindfulnessAvailable: false);
+
+    final row = catalog.categories
+        .firstWhere((c) => c.id == 'additional_data_access');
+    expect(row.permissions, hasLength(2));
+    expect(row.permissions, repo.additionalDataAccessPermissions);
+    expect(row.permissions.intersection(repo.routePermissions), isEmpty);
+    expect(row.manualPermissions, isEmpty);
+  });
+
+  test('the required set is Activity and Sleep, and nothing that cannot be granted',
       () {
     final repo = HealthRepositoryImpl(HealthDataSource());
     final required = repo.requiredOnboardingPermissions;
 
-    // Blocking Continue on a permission the runtime dialog cannot grant is an
-    // onboarding nobody can ever leave. Asserted by set intersection rather than
-    // by naming strings, so a permission added to any of these groups later is
-    // still caught.
+    // Set EQUALITY, so adding a category later cannot silently make it required.
+    expect(required, <String>{
+      ...repo.activityCategoryPermissions,
+      ...repo.sleepCategoryPermissions,
+    }.difference(repo.routePermissions));
+
+    // Route WRITE and route READ are not a pair, whatever the names suggest.
+    // WRITE_EXERCISE_ROUTE is an ordinary toggle in the Activity group, so it
+    // ships with Activity; READ_EXERCISE_ROUTES lives under Additional access
+    // and cannot be requested at all, so it must stay out of every category.
+    expect(
+      repo.activityCategoryPermissions,
+      contains('android.permission.health.WRITE_EXERCISE_ROUTE'),
+    );
+    expect(
+      repo.activityCategoryPermissions.intersection(repo.routePermissions),
+      isEmpty,
+    );
+    expect(repo.routePermissions,
+        {'android.permission.health.READ_EXERCISE_ROUTES'});
+
+    // Blocking on anything the dialog may refuse is an onboarding nobody can
+    // leave. Asserted by intersection so a member added to any of these groups
+    // later is still caught.
     expect(required.intersection(repo.routePermissions), isEmpty);
     expect(required.intersection(repo.additionalDataAccessPermissions), isEmpty);
+    expect(required.intersection(repo.cycleCategoryPermissions), isEmpty);
+    expect(required.intersection(repo.mindfulnessCategoryPermissions), isEmpty);
+    expect(required.where((p) => p.contains('MINDFULNESS')), isEmpty);
 
-    // The opt-in groups: asking for these without being asked is the whole
-    // thing we promised not to do.
-    expect(required.intersection(repo.cyclePermissions), isEmpty);
-    expect(required.intersection(repo.cycleWritePermissions), isEmpty);
-    expect(required.intersection(repo.mindfulnessPermissions), isEmpty);
-    expect(required.intersection(repo.mindfulnessWritePermissions), isEmpty);
-    expect(
-      required.where((p) => p.contains('MINDFULNESS')),
-      isEmpty,
-      reason: 'no mindfulness permission may reach the one big request',
-    );
-
-    // And it is not empty by accident — the core reads are in there.
-    expect(required, containsAll(repo.corePermissions));
-    expect(required, containsAll(repo.vitalsPermissions));
+    // And it is not empty by accident.
+    expect(required, contains('android.permission.health.READ_STEPS'));
+    expect(required, contains('android.permission.health.READ_SLEEP'));
+    expect(required, contains('android.permission.health.WRITE_SLEEP'));
   });
 }

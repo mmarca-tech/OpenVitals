@@ -77,6 +77,23 @@ abstract interface class HealthRepository {
   /// [dataImportWritePermissions] (which still contains it) so onboarding can
   /// keep cycle tracking out of what it requires.
   Set<String> get cycleWritePermissions;
+
+  // ── Health Connect data categories ──────────────────────────────────────
+  //
+  // The seven groups Health Connect files records under, each carrying read AND
+  // write. Onboarding asks by these because they are the headers the system
+  // dialog draws; the feature-shaped sets above match nothing the user sees.
+  // See `HealthPermissionService` for the two documented irregularities
+  // (skin temperature is read-only; basal body temperature is in both vitals
+  // and cycle).
+
+  Set<String> get activityCategoryPermissions;
+  Set<String> get bodyCategoryPermissions;
+  Set<String> get nutritionCategoryPermissions;
+  Set<String> get sleepCategoryPermissions;
+  Set<String> get vitalsCategoryPermissions;
+  Set<String> get cycleCategoryPermissions;
+  Set<String> get mindfulnessCategoryPermissions;
   Set<String> get manualOnlyPermissions;
   Set<String> get requestableWritePermissions;
   Set<String> get onboardingPermissions;

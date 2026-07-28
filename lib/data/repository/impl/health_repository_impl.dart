@@ -133,6 +133,34 @@ class HealthRepositoryImpl implements HealthRepository {
       _dataSource.permissionService.cycleWritePermissions;
 
   @override
+  Set<String> get activityCategoryPermissions =>
+      _dataSource.permissionService.activityCategoryPermissions;
+
+  @override
+  Set<String> get bodyCategoryPermissions =>
+      _dataSource.permissionService.bodyCategoryPermissions;
+
+  @override
+  Set<String> get nutritionCategoryPermissions =>
+      _dataSource.permissionService.nutritionCategoryPermissions;
+
+  @override
+  Set<String> get sleepCategoryPermissions =>
+      _dataSource.permissionService.sleepCategoryPermissions;
+
+  @override
+  Set<String> get vitalsCategoryPermissions =>
+      _dataSource.permissionService.vitalsCategoryPermissions;
+
+  @override
+  Set<String> get cycleCategoryPermissions =>
+      _dataSource.permissionService.cycleCategoryPermissions;
+
+  @override
+  Set<String> get mindfulnessCategoryPermissions =>
+      _dataSource.permissionService.mindfulnessCategoryPermissions;
+
+  @override
   Set<String> get manualOnlyPermissions =>
       _dataSource.permissionService.manualOnlyPermissions;
 
