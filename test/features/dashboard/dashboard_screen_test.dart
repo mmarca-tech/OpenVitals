@@ -441,8 +441,11 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, 'Steps'), findsNothing);
   });
 
-  testWidgets('renders the inline permission callout when permissions missing',
+  testWidgets('missing permissions produce no prompt, just the dashboard',
       (tester) async {
+    // Onboarding has already asked for everything; whatever the user declined
+    // they declined deliberately, so the home screen does not re-ask. A metric
+    // without permission simply reads as having no data.
     _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(
@@ -452,8 +455,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(PermissionCallout), findsOneWidget);
-    // Content still renders below the callout (Kotlin degrades gracefully).
+    expect(find.byType(PermissionCallout), findsNothing);
+    expect(find.text('Set up your health data'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Grant permission'), findsNothing);
+    // The content itself is unaffected.
     expect(find.byType(SummaryRingCard), findsNWidgets(2));
     expect(find.byType(MetricStatCard), findsWidgets);
   });
@@ -487,8 +492,8 @@ void main() {
     expect(find.byType(MetricStatCard), findsNothing);
   });
 
-  testWidgets('offers the Health Connect promo when minimum permissions '
-      'are missing', (tester) async {
+  testWidgets('nothing is granted at all and the dashboard still just renders',
+      (tester) async {
     _usePhoneViewport(tester);
     await tester.pumpWidget(
       await _bootstrap(
@@ -498,21 +503,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Set up your health data'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Get started'), findsOneWidget);
-    // The dashboard still renders below it (Kotlin degrades gracefully).
-    expect(find.byType(SummaryRingCard), findsNWidgets(2));
-  });
-
-  testWidgets('hides the Health Connect promo once the minimum permissions '
-      'are granted', (tester) async {
-    _usePhoneViewport(tester);
-    await tester.pumpWidget(
-      await _bootstrap(availability: HealthConnectAvailability.available),
-    );
-    await tester.pumpAndSettle();
-
+    // No promo, no callout — the two prompts that used to stack here the moment
+    // onboarding ended.
     expect(find.text('Set up your health data'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Get started'), findsNothing);
+    expect(find.byType(PermissionCallout), findsNothing);
+    expect(find.byType(SummaryRingCard), findsNWidgets(2));
   });
 
   group('sensor status', () {
