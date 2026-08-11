@@ -29,6 +29,8 @@ import tech.mmarca.openvitals.ui.components.ChartZoom
 import tech.mmarca.openvitals.ui.components.DayAxisLabels
 import tech.mmarca.openvitals.ui.components.MetricLinePlot
 import tech.mmarca.openvitals.ui.components.MetricLinePlotPoint
+import tech.mmarca.openvitals.ui.components.chartSemanticSummary
+import tech.mmarca.openvitals.ui.components.chartSemantics
 import tech.mmarca.openvitals.ui.components.movingAverageY
 import tech.mmarca.openvitals.ui.theme.CaloriesColor
 import tech.mmarca.openvitals.ui.theme.DistanceColor
@@ -36,6 +38,8 @@ import tech.mmarca.openvitals.ui.theme.FloorsColor
 import tech.mmarca.openvitals.ui.theme.HeartColor
 import tech.mmarca.openvitals.ui.theme.StepsColor
 import tech.mmarca.openvitals.ui.theme.WorkoutColor
+import androidx.compose.ui.res.stringResource
+import tech.mmarca.openvitals.R
 
 private const val MinutesPerDay = 24 * 60
 
@@ -64,6 +68,11 @@ internal fun BodyEnergyTimelineChart(
     val noDataColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
     val influenceColors = bodyEnergyInfluenceColors()
     val timeFormatter = remember { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT) }
+    val latestScore = points.lastOrNull()?.score
+    val chartDescription = chartSemanticSummary(
+        title = stringResource(R.string.cd_body_energy_timeline),
+        summaryText = latestScore?.let { "$it" },
+    )
 
     // Scores are integers (0..100) sampled per bucket, so the raw series is a
     // staircase. Damp that quantization with the shared moving average before it
@@ -75,7 +84,13 @@ internal fun BodyEnergyTimelineChart(
             .map { MetricLinePlotPoint(xFraction = it.x, value = it.y.toDouble()) }
     }
 
-    ChartZoom(points, enabled = points.isNotEmpty(), modifier = modifier.fillMaxWidth()) { zoom ->
+    ChartZoom(
+        points,
+        enabled = points.isNotEmpty(),
+        modifier = modifier
+            .fillMaxWidth()
+            .chartSemantics(chartDescription),
+    ) { zoom ->
         Column(modifier = Modifier.fillMaxWidth()) {
             MetricLinePlot(
                 points = plotPoints,

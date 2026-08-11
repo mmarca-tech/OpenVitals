@@ -80,7 +80,6 @@ internal fun DashboardQuickActions(
         }
         OpenVitalsIconButton(
             onClick = onToggleDashboardEdit,
-            modifier = Modifier.size(44.dp),
         ) {
             Icon(
                 imageVector = Icons.Outlined.Edit,

@@ -252,7 +252,6 @@ private fun CoMapsNavigationContextCard(
                 if (onDismiss != null) {
                     OpenVitalsIconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
@@ -361,7 +360,6 @@ internal fun CoMapsMapGuidanceOverlay(
                     if (onDismiss != null) {
                         OpenVitalsIconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(28.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,

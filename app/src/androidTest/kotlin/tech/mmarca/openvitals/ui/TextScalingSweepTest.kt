@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import java.time.Instant
 import java.time.LocalDate
@@ -34,9 +35,14 @@ import tech.mmarca.openvitals.features.activity.ActivitiesUiState
 import tech.mmarca.openvitals.features.activity.renderActivitiesOrderedContent
 import tech.mmarca.openvitals.features.body.BodyUiState
 import tech.mmarca.openvitals.features.body.bodyContent
+import tech.mmarca.openvitals.features.bodyenergy.BodyEnergyChartPoint
+import tech.mmarca.openvitals.features.bodyenergy.BodyEnergyTimelineChart
+import tech.mmarca.openvitals.features.caffeine.CaffeineDistributionCard
 import tech.mmarca.openvitals.features.dashboard.DashboardContent
 import tech.mmarca.openvitals.features.dashboard.DashboardDailyGoals
 import tech.mmarca.openvitals.features.dashboard.DashboardPresentationMapper
+import tech.mmarca.openvitals.features.devicesync.DeviceSyncRangeStep
+import tech.mmarca.openvitals.features.devicesync.DeviceSyncState
 import tech.mmarca.openvitals.features.heart.HeartDisplayState
 import tech.mmarca.openvitals.features.heart.HeartMetricDisplay
 import tech.mmarca.openvitals.features.heart.HeartUiState
@@ -48,6 +54,9 @@ import tech.mmarca.openvitals.features.mindfulness.MindfulnessDisplayState
 import tech.mmarca.openvitals.features.mindfulness.MindfulnessPeriodSummary
 import tech.mmarca.openvitals.features.mindfulness.MindfulnessUiState
 import tech.mmarca.openvitals.features.mindfulness.mindfulnessPeriodContent
+import tech.mmarca.openvitals.features.nutrition.NutritionDisplayState
+import tech.mmarca.openvitals.features.nutrition.NutritionUiState
+import tech.mmarca.openvitals.features.nutrition.nutritionContent
 import tech.mmarca.openvitals.features.settings.SettingsCategoryCard
 import tech.mmarca.openvitals.features.settings.SettingsSection
 import tech.mmarca.openvitals.features.settings.SettingsVersionText
@@ -65,6 +74,7 @@ import tech.mmarca.openvitals.testing.string
 import tech.mmarca.openvitals.testing.testUnitFormatter
 import tech.mmarca.openvitals.ui.components.ChartDaySelection
 import tech.mmarca.openvitals.ui.components.MetricDetailScaffold
+import tech.mmarca.openvitals.ui.components.PeriodNavigator
 import tech.mmarca.openvitals.ui.components.rememberMetricDetailSectionListState
 
 /**
@@ -399,6 +409,102 @@ class TextScalingSweepTest {
         composeRule
             .onNodeWithText(string(SettingsSection.entries.first().titleRes))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun periodNavigatorSurvivesTheLargestFontScale() {
+        val period = DatePeriod(ANCHOR.minusDays(6), ANCHOR)
+        setScaled {
+            PeriodNavigator(
+                selectedRange = TimeRange.WEEK,
+                period = period,
+                canGoForward = false,
+                onPreviousPeriod = {},
+                onNextPeriod = {},
+                onOpenCalendar = {},
+            )
+        }
+
+        composeRule.assertScaledScreenFitsItsWidth()
+        composeRule.onNodeWithContentDescription(string(R.string.cd_previous_period))
+            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(string(R.string.cd_open_calendar))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun deviceSyncRangeStepSurvivesTheLargestFontScale() {
+        setScaled {
+            DeviceSyncRangeStep(
+                state = DeviceSyncState(),
+                onSetRange = {},
+                onNext = {},
+            )
+        }
+
+        composeRule.assertScaledScreenFitsItsWidth()
+        composeRule.onNodeWithText(string(R.string.device_sync_range_heading)).assertIsDisplayed()
+    }
+
+    @Test
+    fun bodyEnergyTimelineSurvivesTheLargestFontScale() {
+        setScaled {
+            BodyEnergyTimelineChart(
+                points = listOf(
+                    BodyEnergyChartPoint(xFraction = 0f, score = 72.0),
+                    BodyEnergyChartPoint(xFraction = 0.5f, score = 58.0),
+                    BodyEnergyChartPoint(xFraction = 1f, score = 64.0),
+                ),
+                influenceBars = emptyList(),
+                maxMagnitude = 1.0,
+            )
+        }
+
+        composeRule.assertScaledScreenFitsItsWidth()
+        composeRule
+            .onNodeWithContentDescription(string(R.string.cd_body_energy_timeline), substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun caffeineDistributionCardSurvivesTheLargestFontScale() {
+        setScaled {
+            CaffeineDistributionCard(
+                title = string(R.string.caffeine_daily_impact),
+                slices = emptyList(),
+                unitFormatter = testUnitFormatter(),
+            )
+        }
+
+        composeRule.assertScaledScreenFitsItsWidth()
+        composeRule.onNodeWithText(string(R.string.caffeine_daily_impact)).assertIsDisplayed()
+    }
+
+    @Test
+    fun nutritionScreenSurvivesTheLargestFontScale() {
+        val state = NutritionUiState(
+            isLoading = false,
+            selectedRange = TimeRange.WEEK,
+            selectedDate = ANCHOR,
+            display = NutritionDisplayState(hasData = false),
+        )
+
+        setScaled {
+            val sectionContext = sectionContext()
+            LazyColumn {
+                nutritionContent(
+                    sectionContext = sectionContext,
+                    state = state,
+                    period = DatePeriod(ANCHOR.minusDays(6), ANCHOR),
+                    unitFormatter = testUnitFormatter(),
+                    dateTimeFormatterProvider = DateTimeFormatterProvider(),
+                    chartDaySelection = noDaySelected(),
+                )
+            }
+        }
+
+        composeRule.assertScaledScreenFitsItsWidth()
+        composeRule.onNodeWithText(string(R.string.screen_nutrition)).assertIsDisplayed()
     }
 
     private fun setScaled(content: @Composable () -> Unit) {

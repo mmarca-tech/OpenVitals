@@ -26,8 +26,15 @@ fun MetricSparklineChart(
     pointStrokeWidth: Dp? = null,
     pointFillRadius: Dp? = null,
     singlePointLine: Boolean = false,
+    /** One-line TalkBack name; null leaves the canvas silent (prefer a parent summary). */
+    contentDescription: String? = null,
 ) {
-    Canvas(modifier = modifier) {
+    val semanticsModifier = if (contentDescription.isNullOrBlank()) {
+        Modifier
+    } else {
+        Modifier.chartSemantics(contentDescription)
+    }
+    Canvas(modifier = modifier.then(semanticsModifier)) {
         if (values.isEmpty()) return@Canvas
 
         val maxValue = values.maxOrNull()?.takeIf { it > 0.0 } ?: 1.0

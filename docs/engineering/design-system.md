@@ -109,5 +109,7 @@ is a measured count as of 2026-08-04.
    (chart scrims, mostly legitimate) and 27 hex `Color(0x…)` literals in feature
    code. Every colour should resolve from the `ColorScheme`, `Color.kt`, or
    `ChartTokens`; a raw one needs a comment saying why the scheme is wrong there.
-4. **Chart semantics.** Charts are visual-only; each needs a one-line semantic
-   summary for screen readers.
+4. **Feature-local chart / map semantics.** Shared period, line, and heatmap
+   charts already publish one-line summaries via `chartSemantics`. Remaining
+   work is feature-local Canvas charts and map surfaces — see
+   [accessibility.md](accessibility.md).

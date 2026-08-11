@@ -47,6 +47,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -401,11 +405,22 @@ internal fun MindfulnessTimerDial(
                     onValueChange = onDurationChanged,
                 )
             } else {
+                val remainingLabel = formattedTimer(state.remainingSeconds)
+                // Announce on the minute so polite live-region updates stay usable.
+                val coarseRemaining = formattedTimer((state.remainingSeconds / 60) * 60)
+                val timerDescription = stringResource(
+                    R.string.cd_mindfulness_timer_remaining,
+                    coarseRemaining,
+                )
                 Text(
-                    text = formattedTimer(state.remainingSeconds),
+                    text = remainingLabel,
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = timerDescription
+                    },
                 )
             }
         }

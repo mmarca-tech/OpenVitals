@@ -22,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import tech.mmarca.openvitals.R
 
@@ -35,12 +38,23 @@ fun SwipeToDeleteEntryRow(
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     val currentOnDelete by rememberUpdatedState(onDelete)
+    val deleteLabel = stringResource(R.string.cd_delete_entry)
     val dismissAction = remember {
         { value: SwipeToDismissBoxValue ->
             if (value == SwipeToDismissBoxValue.EndToStart) {
                 currentOnDelete()
             }
         }
+    }
+    // Swipe is fine for sighted users; TalkBack and switch access need an
+    // explicit action — the gesture alone never appears in the semantics tree.
+    val deleteSemantics = Modifier.semantics {
+        customActions = listOf(
+            CustomAccessibilityAction(deleteLabel) {
+                currentOnDelete()
+                true
+            },
+        )
     }
 
     SwipeToDismissBox(
@@ -62,13 +76,15 @@ fun SwipeToDeleteEntryRow(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(R.string.cd_delete_entry),
+                        contentDescription = deleteLabel,
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
                 }
             }
         },
-        modifier = modifier.clip(shape),
+        modifier = modifier
+            .clip(shape)
+            .then(deleteSemantics),
         content = { content() },
     )
 }

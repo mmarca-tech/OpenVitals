@@ -31,6 +31,8 @@ import tech.mmarca.openvitals.core.presentation.DateTimeFormatterProvider
 import tech.mmarca.openvitals.domain.preferences.SleepWindow
 import tech.mmarca.openvitals.ui.components.OpenVitalsCard
 import tech.mmarca.openvitals.ui.components.PeriodChartXAxis
+import tech.mmarca.openvitals.ui.components.chartSemanticSummary
+import tech.mmarca.openvitals.ui.components.chartSemantics
 import tech.mmarca.openvitals.ui.theme.SleepColor
 import java.time.LocalDate
 import java.time.LocalTime
@@ -90,6 +92,7 @@ internal fun SleepScheduleStageChart(
     val baseBarColor = SleepColor.copy(alpha = 0.5f)
     val averageLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
     val averageLabelStyle = MaterialTheme.typography.labelSmall
+    val chartDescription = chartSemanticSummary(title = title, summaryText = summaryText)
 
     val tapModifier = if (onDateSelected != null && days.isNotEmpty()) {
         Modifier.pointerInput(days, onDateSelected) {
@@ -104,7 +107,7 @@ internal fun SleepScheduleStageChart(
         Modifier
     }
 
-    OpenVitalsCard(modifier = modifier) {
+    OpenVitalsCard(modifier = modifier.chartSemantics(chartDescription)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = title,

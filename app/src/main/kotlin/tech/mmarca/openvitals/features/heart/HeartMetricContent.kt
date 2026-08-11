@@ -376,7 +376,6 @@ internal fun HeartRateThresholdCheckCard(
             ) {
                 OpenVitalsIconButton(
                     onClick = onDecreaseThreshold,
-                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Remove,
@@ -386,7 +385,6 @@ internal fun HeartRateThresholdCheckCard(
                 }
                 OpenVitalsIconButton(
                     onClick = onIncreaseThreshold,
-                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Add,

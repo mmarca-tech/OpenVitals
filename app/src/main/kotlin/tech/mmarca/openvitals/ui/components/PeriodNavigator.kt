@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tech.mmarca.openvitals.R
@@ -36,6 +38,7 @@ fun PeriodNavigator(
     modifier: Modifier = Modifier,
     weekPeriodMode: WeekPeriodMode = WeekPeriodMode.MONDAY_TO_SUNDAY,
 ) {
+    val openCalendarLabel = stringResource(R.string.cd_open_calendar)
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -49,6 +52,9 @@ fun PeriodNavigator(
                     onPrevious = onPreviousPeriod,
                     onNext = onNextPeriod,
                 )
+                .semantics {
+                    onClick(label = openCalendarLabel, action = null)
+                }
                 .clickable(onClick = onOpenCalendar),
         ) {
             Text(

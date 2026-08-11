@@ -325,6 +325,7 @@ private fun SleepOverviewSparkline(
             modifier = Modifier
                 .width(SleepOverviewChartWidth)
                 .height(SleepOverviewChartHeight),
+            contentDescription = stringResource(R.string.cd_sparkline_chart),
         )
         Spacer(Modifier.height(6.dp))
         Row(

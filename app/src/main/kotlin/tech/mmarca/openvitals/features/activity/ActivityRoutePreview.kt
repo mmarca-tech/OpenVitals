@@ -8,8 +8,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import tech.mmarca.openvitals.R
 import tech.mmarca.openvitals.domain.model.ExerciseRoutePoint
+import tech.mmarca.openvitals.ui.components.chartSemantics
 import tech.mmarca.openvitals.ui.theme.WorkoutColor
 
 @Composable
@@ -26,8 +29,13 @@ internal fun RoutePreview(
     val endColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
     val backgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     val borderColor = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+    val description = if (routeGeometry.points.isEmpty()) {
+        stringResource(R.string.cd_route_preview_empty)
+    } else {
+        stringResource(R.string.cd_route_preview, routeGeometry.points.size)
+    }
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.chartSemantics(description)) {
         val corner = 10.dp.toPx()
         drawRoundRect(
             color = backgroundColor,

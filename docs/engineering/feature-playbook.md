@@ -50,6 +50,26 @@ For the recipes that are not "a metric screen" — a settings section, a Room ta
 - Update architecture docs if the feature changes a shared pattern.
 - If the work closes a gap listed in [test-parity](test-parity/README.md), update that row.
 
+## 8. Accessibility
+
+See [accessibility.md](accessibility.md) for the full checklist. For every new or
+changed screen:
+
+- Interactive controls need an accessible name (`contentDescription`, visible
+  text, or `onClickLabel`). Decorative icons next to a text label stay
+  `contentDescription = null`; icon-only buttons must never use `null`.
+- New charts and map surfaces publish a one-line summary via
+  `chartSemantics(chartSemanticSummary(...))` or an equivalent description.
+- Touch targets are at least 48×48 dp (`OpenVitalsIconButton` default). Shrink
+  the glyph, not the hit box.
+- Swipe-to-delete already exposes a delete custom action through
+  `SwipeToDeleteEntryRow`; do not reintroduce gesture-only delete.
+- Looping / decorative motion gates on `loopingMotionAllowed()`; non-press
+  tweens use `animationDuration()`.
+- Live values that change without focus (timers, sync progress) use a polite
+  `liveRegion` and throttle announcements.
+- Accessibility strings go in `values/strings.xml` only.
+
 ## Sleep Reference Implementation
 
 Use the sleep feature as the template for splitting a period-based detail screen:

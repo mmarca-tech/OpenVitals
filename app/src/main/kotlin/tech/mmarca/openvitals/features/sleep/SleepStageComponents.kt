@@ -53,6 +53,8 @@ import tech.mmarca.openvitals.R
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.ui.components.ChartTokens
 import tech.mmarca.openvitals.ui.components.DetailSectionCard
+import tech.mmarca.openvitals.ui.components.chartSemanticSummary
+import tech.mmarca.openvitals.ui.components.chartSemantics
 import tech.mmarca.openvitals.domain.model.SleepStage
 import java.time.Duration
 import java.time.Instant
@@ -74,8 +76,28 @@ internal fun SleepStagesBar(
     val timelineTotalMs = timelineStart
         ?.let { start -> timelineEnd?.let { end -> Duration.between(start, end).toMillis() } }
         ?.takeIf { it > 0L }
+    val stagesLabel = stringResource(R.string.cd_sleep_stages_chart)
+    val stageTypeLabels = stages
+        .map { it.stageType }
+        .distinct()
+        .associateWith { sleepStageLabel(it) }
+    val stageSummaries = stages
+        .groupBy { it.stageType }
+        .entries
+        .map { (type, typed) ->
+            val minutes = typed.sumOf { it.durationMs.coerceAtLeast(0L) } / 60_000L
+            "${stageTypeLabels.getValue(type)} ${minutes}m"
+        }
+        .joinToString()
+        .ifBlank { null }
+    val summary = chartSemanticSummary(
+        title = stagesLabel,
+        summaryText = stageSummaries,
+    )
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.chartSemantics(summary),
+    ) {
         if (timelineTotalMs != null) {
             val startBoundary = timelineStart ?: return@Canvas
             val endBoundary = timelineEnd ?: return@Canvas
@@ -181,7 +203,24 @@ internal fun SleepStagesLaneChart(
         }
     }
 
-    Column(modifier = modifier) {
+    val stagesLabel = stringResource(R.string.cd_sleep_stages_chart)
+    val stageTypeLabels = orderedStages
+        .map { it.stageType }
+        .distinct()
+        .associateWith { sleepStageLabel(it) }
+    val laneSummary = chartSemanticSummary(
+        title = stagesLabel,
+        summaryText = orderedStages
+            .groupBy { it.stageType }
+            .entries
+            .joinToString { (type, typed) ->
+                val minutes = typed.sumOf { it.durationMs.coerceAtLeast(0L) } / 60_000L
+                "${stageTypeLabels.getValue(type)} ${minutes}m"
+            }
+            .ifBlank { null },
+    )
+
+    Column(modifier = modifier.chartSemantics(laneSummary)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()

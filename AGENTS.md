@@ -93,6 +93,7 @@ Do not break these without an explicit decision. They are app-wide, and each has
 - **Health Connect reads and record mapping live behind `healthconnect/*HealthReader`.** Writes go through `AppleHealthImportRepository.insertImportedRecords` with a deterministic `clientRecordId`.
 - **`values-*/strings.xml` are Weblate-owned.** Add new strings to `values/strings.xml` only. See the translation-gate note in [development.md](docs/engineering/development.md).
 - **Room is at version 8.** A new entity means a `MIGRATION_8_9` and a bump, not `fallbackToDestructiveMigration`.
+- **Accessibility floors.** Interactive controls are named for TalkBack; charts/maps publish a one-line semantic summary; icon buttons stay ≥48 dp; looping motion checks `loopingMotionAllowed()`; new a11y strings go in `values/strings.xml` only. See [docs/engineering/accessibility.md](docs/engineering/accessibility.md).
 
 ## Implementation Rules
 
@@ -166,6 +167,10 @@ Health Connect-backed destinations should use the shared shell instead of wiring
 - `rememberHealthConnectPermissionLauncher` for permission requests
 
 Do not add per-screen `PermissionCallout`, inline `HealthConnectSyncStatusBanner`, or duplicate `HealthConnectAccessGate` wiring.
+
+### Accessibility
+
+Follow [docs/engineering/accessibility.md](docs/engineering/accessibility.md) and the feature-playbook accessibility section. Do not ship unlabeled icon-only controls, silent Canvas charts, sub-48dp icon buttons, or looping animations that ignore `loopingMotionAllowed()`.
 
 ### Do not copy these patterns
 

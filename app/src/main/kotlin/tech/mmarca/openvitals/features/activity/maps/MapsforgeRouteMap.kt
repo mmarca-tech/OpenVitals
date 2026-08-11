@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.io.File
@@ -101,6 +103,7 @@ internal fun MapsforgeRouteMap(
     }
 
     val recenterDescription = stringResource(R.string.cd_recenter_map)
+    val mapDescription = stringResource(R.string.cd_route_map, points.size)
 
     DisposableEffect(mapView) {
         onDispose {
@@ -112,7 +115,11 @@ internal fun MapsforgeRouteMap(
         }
     }
 
-    Box(modifier = modifier.clipToBounds()) {
+    Box(
+        modifier = modifier
+            .clipToBounds()
+            .semantics { contentDescription = mapDescription },
+    ) {
         AndroidView(
             factory = { mapView },
             modifier = Modifier

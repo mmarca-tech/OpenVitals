@@ -663,6 +663,7 @@ internal fun ActivityMetricSparkline(
             pointStrokeWidth = 2.dp,
             pointFillRadius = 2.5.dp,
             singlePointLine = true,
+            contentDescription = stringResource(R.string.cd_sparkline_chart),
         )
         Spacer(Modifier.height(6.dp))
         Row(

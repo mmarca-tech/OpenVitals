@@ -664,7 +664,6 @@ internal fun WorkoutCard(
                 if (onEdit != null) {
                 OpenVitalsIconButton(
                     onClick = onEdit,
-                    modifier = Modifier.size(36.dp),
                 ) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,

@@ -354,7 +354,7 @@ fun OpenVitalsIconButton(
     val interactionEnabled = enabled && !metricSectionEditModeActive()
     IconButton(
         onClick = onClick,
-        modifier = modifier.size(44.dp),
+        modifier = modifier.size(48.dp),
         enabled = interactionEnabled,
     ) {
         content()

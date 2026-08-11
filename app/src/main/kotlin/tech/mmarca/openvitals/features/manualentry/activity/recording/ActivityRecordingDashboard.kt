@@ -99,7 +99,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.view.WindowInsetsCompat
@@ -563,6 +565,23 @@ internal fun RecordingDashboardTile(
                     }
                 )
             }
+        }
+    } else if (
+        field == ActivityRecordingDashboardField.DURATION ||
+        field == ActivityRecordingDashboardField.MOVING_TIME
+    ) {
+        // Coarse to minute so polite live-region updates do not fire every second.
+        val coarseValue = stat.value.value.let { raw ->
+            if (raw.length >= 5) raw.take(5) else raw
+        }
+        val liveDescription = stringResource(
+            R.string.cd_recording_stat,
+            stat.label,
+            listOf(coarseValue, stat.value.unit).filter { it.isNotBlank() }.joinToString(" "),
+        )
+        Modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = liveDescription
         }
     } else {
         Modifier

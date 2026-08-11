@@ -38,6 +38,17 @@
     <string name="cd_previous_period">Previous period</string>
     <string name="cd_next_period">Next period</string>
     <string name="cd_open_calendar">Open calendar</string>
+    <string name="cd_route_map">Route map, %1$d points</string>
+    <string name="cd_route_preview">Activity route preview, %1$d points</string>
+    <string name="cd_route_preview_empty">Activity route preview, no route points</string>
+    <string name="cd_sparkline_chart">Trend chart</string>
+    <string name="cd_sleep_stages_chart">Sleep stages</string>
+    <string name="cd_caffeine_impact_chart">Caffeine daily impact</string>
+    <string name="cd_body_energy_timeline">Body energy timeline</string>
+    <string name="cd_device_sync_progress">Sync progress, %1$s, sent %2$d, received %3$d, written %4$d</string>
+    <string name="cd_recording_stat">%1$s, %2$s</string>
+    <string name="cd_mindfulness_timer_remaining">Timer remaining, %1$s</string>
+    <string name="cd_dashboard_goal_progress">%1$s, %2$s, %3$s</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_add">Add</string>
     <string name="action_add_custom">Add custom</string>

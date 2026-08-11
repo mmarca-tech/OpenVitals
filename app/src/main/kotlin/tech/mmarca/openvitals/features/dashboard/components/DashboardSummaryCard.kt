@@ -18,9 +18,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tech.mmarca.openvitals.R
 import tech.mmarca.openvitals.core.presentation.DisplayValue
 import tech.mmarca.openvitals.features.dashboard.DashboardWidgetProgress
 import tech.mmarca.openvitals.ui.components.AutoResizeText
@@ -49,9 +53,17 @@ internal fun DashboardSummaryCard(
     )
     val progressFillColor = accentColor.copy(alpha = 0.65f)
     val subtitle = summarySubtitle(value = value, progress = progress)
+    val cardDescription = stringResource(
+        R.string.cd_dashboard_goal_progress,
+        title,
+        listOf(value.value, value.unit).filter { it.isNotBlank() }.joinToString(" "),
+        progress.label.ifBlank { subtitle },
+    )
 
     OpenVitalsCard(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { contentDescription = cardDescription },
         onClick = onClick,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {

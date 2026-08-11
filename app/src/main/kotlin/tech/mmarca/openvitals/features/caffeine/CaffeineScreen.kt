@@ -96,6 +96,8 @@ import tech.mmarca.openvitals.ui.components.ScreenErrorContent
 import tech.mmarca.openvitals.ui.components.SectionHeader
 import tech.mmarca.openvitals.ui.components.SwipeToDeleteEntryRow
 import tech.mmarca.openvitals.ui.components.WithHealthConnectFeatureScreen
+import tech.mmarca.openvitals.ui.components.chartSemanticSummary
+import tech.mmarca.openvitals.ui.components.chartSemantics
 import tech.mmarca.openvitals.ui.components.timeAxisInstantsFor
 import tech.mmarca.openvitals.ui.theme.HydrationColor
 
@@ -1020,7 +1022,13 @@ private fun CaffeineBarChart(
 ) {
     val totalColor = MaterialTheme.colorScheme.primary
     val bedtimeColor = MaterialTheme.colorScheme.tertiary
-    Canvas(modifier = modifier) {
+    val totalMg = stats.sumOf { it.totalMg }
+    val bedtimeMg = stats.sumOf { it.bedtimeMg }
+    val description = chartSemanticSummary(
+        title = stringResource(R.string.cd_caffeine_impact_chart),
+        summaryText = "${totalMg.toInt()} mg total, ${bedtimeMg.toInt()} mg at bedtime",
+    )
+    Canvas(modifier = modifier.chartSemantics(description)) {
         if (stats.isEmpty()) return@Canvas
         val maxValue = stats.maxOf { maxOf(it.totalMg, it.bedtimeMg) }.coerceAtLeast(1.0)
         val slotWidth = size.width / stats.size

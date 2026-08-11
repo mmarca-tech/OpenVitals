@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -34,6 +36,11 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -56,18 +63,31 @@ internal fun DeviceSyncRangeStep(
                 body = stringResource(R.string.device_sync_range_body),
             )
         }
-        items(SyncRange.entries) { range ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = state.range == range, onClick = { onSetRange(range) })
-                Text(
-                    text = stringResource(range.labelRes()),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+        item {
+            Column(modifier = Modifier.selectableGroup()) {
+                SyncRange.entries.forEach { range ->
+                    val label = stringResource(range.labelRes())
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = state.range == range,
+                                onClick = { onSetRange(range) },
+                                role = Role.RadioButton,
+                            )
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = state.range == range,
+                            onClick = null,
+                        )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
             }
         }
         item {
@@ -178,10 +198,21 @@ internal fun DeviceSyncProgressStep(state: DeviceSyncState, onCancel: () -> Unit
             )
         }
         item {
+            val progressDescription = stringResource(
+                R.string.cd_device_sync_progress,
+                phaseLabel,
+                progress?.itemsSent ?: 0,
+                progress?.itemsReceived ?: 0,
+                progress?.itemsWritten ?: 0,
+            )
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = progressDescription
+                    },
             )
         }
         item {

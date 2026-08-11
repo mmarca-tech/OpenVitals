@@ -25,6 +25,7 @@ Recently added feature pages:
 - [Engineering guide](engineering/README.md): architecture, development setup, feature playbook, code analysis, and test parity.
 - [Architecture](engineering/architecture.md): current single-module architecture, feature boundaries, period detail pattern, and data-access rules.
 - [Feature playbook](engineering/feature-playbook.md): checklist for adding or extending a metric feature.
+- [Accessibility](engineering/accessibility.md): TalkBack, large fonts, contrast, reduced motion, and Google Play declaration guidance.
 - [Translations](engineering/translations.md): translate OpenVitals in your language, Codeberg Translate setup, shipping policy, and validation checks.
 
 ## Reference And Archive
