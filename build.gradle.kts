@@ -45,8 +45,8 @@ tasks.register("verifyAndroidTest") {
 
 tasks.register("verifyCiUnitTest") {
     group = "verification"
-    description = "Runs app unit tests against the CI build type."
-    dependsOn(":app:testCiUnitTest")
+    description = "Runs app and wear unit tests against their CI-equivalent build types."
+    dependsOn(":app:testCiUnitTest", ":wear:testDebugUnitTest")
 }
 
 tasks.register<Exec>("verifyTranslations") {
@@ -57,12 +57,15 @@ tasks.register<Exec>("verifyTranslations") {
 
 tasks.register("verifyCiPreflight") {
     group = "verification"
-    description = "Runs Android app build, lint, and android-test compile checks for CI."
+    description = "Runs Android app/wear build, lint, and android-test compile checks for CI."
     dependsOn(
         "verifyTranslations",
         ":app:lintCi",
         ":app:assembleCi",
         ":app:compileCiAndroidTestKotlin",
+        ":wear:lintDebug",
+        ":wear:assembleDebug",
+        ":wear:compileDebugAndroidTestKotlin",
     )
 }
 
