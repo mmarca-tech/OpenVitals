@@ -39,8 +39,7 @@ class OpenVitalsDatabaseMigrationTest {
         assertEquals(5, OpenVitalsDatabase.MIGRATION_4_5.endVersion)
         verify { db.execSQL(match { it.contains("CREATE TABLE IF NOT EXISTS `body_energy_days`") }) }
         verify { db.execSQL(match { it.contains("CREATE TABLE IF NOT EXISTS `body_energy_buckets`") }) }
-        // The chain's own bookkeeping reuses `vitals_sync_cursors`, so the
-        // migration must not try to create a table that already exists at v4.
+        // The chain reuses `vitals_sync_cursors`, so the migration must not create a table that exists at v4.
         verify(exactly = 0) {
             db.execSQL(match { it.contains("CREATE TABLE IF NOT EXISTS `vitals_sync_cursors`") })
         }
@@ -54,8 +53,7 @@ class OpenVitalsDatabaseMigrationTest {
 
         assertEquals(5, OpenVitalsDatabase.MIGRATION_5_6.startVersion)
         assertEquals(6, OpenVitalsDatabase.MIGRATION_5_6.endVersion)
-        // Column-identical to the Flutter drift table so phase 5's preserved
-        // drift rows can be imported 1:1.
+        // Column-identical to the Flutter drift table so preserved rows import 1:1.
         verify {
             db.execSQL(
                 match {
@@ -64,6 +62,27 @@ class OpenVitalsDatabaseMigrationTest {
                         it.contains("`time_millis` INTEGER NOT NULL") &&
                         it.contains("`value` INTEGER NOT NULL") &&
                         it.contains("PRIMARY KEY(`metric`, `time_millis`)")
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `version nine adds the garmin sleep minutes table`() {
+        val db = mockk<SupportSQLiteDatabase>(relaxed = true)
+
+        OpenVitalsDatabase.MIGRATION_9_10.migrate(db)
+
+        assertEquals(9, OpenVitalsDatabase.MIGRATION_9_10.startVersion)
+        assertEquals(10, OpenVitalsDatabase.MIGRATION_9_10.endVersion)
+        verify {
+            db.execSQL(
+                match {
+                    it.contains("CREATE TABLE IF NOT EXISTS `garmin_sleep_minutes`") &&
+                        it.contains("`time_millis` INTEGER NOT NULL") &&
+                        it.contains("`kind` TEXT NOT NULL") &&
+                        it.contains("`features` BLOB") &&
+                        it.contains("PRIMARY KEY(`time_millis`)")
                 },
             )
         }

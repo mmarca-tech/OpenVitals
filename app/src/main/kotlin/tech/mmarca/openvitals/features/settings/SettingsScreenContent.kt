@@ -182,9 +182,7 @@ internal fun LazyListScope.settingsScreenContent(
                 BleDevicesSettingsSection()
             }
         }
-        // WATCHES routes straight to the bespoke WatchesSettingsScreen (see
-        // AppNavigationSettingsRoutes), so it never renders card content here
-        // — the branch exists only to keep this `when` exhaustive.
+        // WATCHES routes to its own screen; the branch keeps the `when` exhaustive.
         SettingsSection.WATCHES -> Unit
         SettingsSection.NUTRITION -> {
             item { SectionHeader(stringResource(section.titleRes)) }
@@ -314,12 +312,18 @@ internal fun LazyListScope.settingsScreenContent(
                 BodyEnergyCalibrationCard(
                     calibration = state.bodyEnergyCalibration,
                     bodyProfile = state.bodyProfile,
-                    // The Body profile card right above owns the birth year;
-                    // two boxes for one number would disagree until someone
-                    // noticed they were the same number.
+                    // The Body profile card above owns the birth year.
                     showBirthYear = false,
                     onSave = actions.onSaveBodyEnergyCalibration,
                     onResetPersonalTuning = actions.onResetBodyEnergyPersonalTuning,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            item { SettingsCardSpacer() }
+            item {
+                DerivedMetricsResetCard(
+                    isResetting = state.isResettingDerivedMetrics,
+                    onReset = actions.onResetDerivedMetrics,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -356,10 +360,11 @@ internal fun LazyListScope.settingsScreenContent(
                     availability = state.availability,
                     importPermissions = state.routeImportWritePermissions,
                     grantedPermissions = state.grantedPermissions,
+                    // One bulk importer serves both cards; each shows only its own run.
                     isImporting = state.isImportingRouteFiles,
-                    progress = state.routeImportProgress,
-                    result = state.routeImportResult,
-                    error = state.routeImportError,
+                    progress = state.routeImportProgress.takeIf { state.routeImportSource == RouteBulkImportSource.ROUTE_FILES },
+                    result = state.routeImportResult.takeIf { state.routeImportSource == RouteBulkImportSource.ROUTE_FILES },
+                    error = state.routeImportError.takeIf { state.routeImportSource == RouteBulkImportSource.ROUTE_FILES },
                     onGrantPermissions = actions.onGrantRouteImportPermissions,
                     onImportSingle = actions.onImportRouteFile,
                     onImportBulk = actions.onImportRouteFiles,
@@ -369,7 +374,20 @@ internal fun LazyListScope.settingsScreenContent(
             item { SettingsCardSpacer() }
             item {
                 FitImportCard(
+                    availability = state.availability,
+                    importPermissions = state.routeImportWritePermissions,
+                    grantedPermissions = state.grantedPermissions,
+                    isScanning = state.isScanningFitFolder,
+                    folderHadNoFitFiles = state.fitFolderHadNoFitFiles,
+                    truncatedAt = state.fitFolderTruncatedAt,
+                    scanError = state.fitFolderScanError,
+                    isImporting = state.isImportingRouteFiles,
+                    progress = state.routeImportProgress.takeIf { state.routeImportSource == RouteBulkImportSource.FIT_FOLDER },
+                    result = state.routeImportResult.takeIf { state.routeImportSource == RouteBulkImportSource.FIT_FOLDER },
+                    error = state.routeImportError.takeIf { state.routeImportSource == RouteBulkImportSource.FIT_FOLDER },
+                    onGrantPermissions = actions.onGrantRouteImportPermissions,
                     onImport = actions.onImportFitFile,
+                    onImportFolder = actions.onImportFitFolder,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -388,9 +406,7 @@ internal fun LazyListScope.settingsScreenContent(
                 )
             }
         }
-        // DEVICE_SYNC routes straight to the bespoke DeviceSyncScreen wizard
-        // (see AppNavigationSettingsRoutes), so it never renders card content
-        // here — the branch exists only to keep this `when` exhaustive.
+        // DEVICE_SYNC routes to its own screen; the branch keeps the `when` exhaustive.
         SettingsSection.DEVICE_SYNC -> Unit
         SettingsSection.HEALTH_CONNECT -> {
             item { SectionHeader(stringResource(section.titleRes)) }

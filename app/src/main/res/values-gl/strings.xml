@@ -135,12 +135,6 @@
     <string name="manual_entry_select_time">Selecciona a hora da entrada</string>
     <string name="manual_entry_add_widgets">Engadir widgets de entrada</string>
     <string name="manual_entry_all_widgets_added">Xa se mostran todos os widgets de entrada.</string>
-    <string name="manual_entry_write_permission_title">Permiso de escritura de bebidas</string>
-    <string name="manual_entry_activity_write_permission_title">Permisos de escritura de actividades</string>
-    <string name="manual_entry_mindfulness_write_permission_title">Permiso de escritura de atención plena</string>
-    <string name="manual_entry_carbs_write_permission_title">Permiso de escritura de carbohidratos</string>
-    <string name="manual_entry_body_write_permission_title">Permiso de escritura de %1$s</string>
-    <string name="manual_entry_vitals_write_permission_title">Permiso de escritura de %1$s</string>
     <string name="mindfulness_entry_subtitle">As sesións de atención plena gárdanse directamente en Health Connect.</string>
     <string name="mindfulness_entry_permission_needed">Para o resumo, OpenVitals só pide permisos de lectura. Para engadir entradas de atención plena necesitamos permiso de escritura. OpenVitals non almacenará estas sesións; as entradas gárdanse en Health Connect.</string>
     <string name="activity_entry_subtitle">Crea unha sesión de actividade en Health Connect. Os detalles da ruta ou actividade importadas só se escriben ao gardar.</string>
@@ -1425,22 +1419,7 @@ Sincroniza unha báscula ou un wearable que envíe o peso a Health Connect.</str
 * Hidratación
 * Nutrición</string>
     <string name="onboarding_category_manual_entry_write">Acceso de escritura para entradas manuais</string>
-    <string name="onboarding_category_manual_entry_write_desc">Health Connect pedirá acceso de escritura a:
-* Exercicio
-* Distancia
-* Desnivel acumulado
-* Calorías activas queimadas
-* Calorías totais queimadas
-* Ruta de exercicio
-* Hidratación
-* Peso
-* Altura
-* Graxa corporal
-* Presión arterial
-* Saturación de osíxeno
-* Frecuencia respiratoria
-* Temperatura corporal
-* Atención plena, cando sexa compatible</string>
+    <string name="onboarding_category_manual_entry_write_desc">Health Connect pedirá acceso de escritura a: * Exercicio * Distancia * Desnivel acumulado * Calorías activas queimadas * Calorías totais queimadas * Ruta de exercicio * Hidratación * Peso * Altura * Graxa corporal * Presión arterial * Saturación de osíxeno * Frecuencia respiratoria * Temperatura corporal * Atención plena, cando sexa compatible</string>
     <string name="onboarding_category_data_import_write">Acceso de escritura para importación de datos</string>
     <string name="onboarding_category_data_import_write_desc">Health Connect pedirá acceso de escritura para rexistros importados:
 * Actividade, exercicio, calorías e distancia
@@ -2302,7 +2281,6 @@ Se Acceder a rutas de exercicio non aparece no diálogo de acceso, abre os axust
     <string name="cycle_mucus_value">%1$s, %2$s</string>
     <string name="screen_cycle_entry">Rexistrar ciclo</string>
     <string name="cycle_log_action">Rexistrar</string>
-    <string name="manual_entry_cycle_write_permission_title">Permisos de escritura do ciclo</string>
     <string name="cycle_entry_subtitle">As entradas do ciclo gárdanse directamente en Health Connect.</string>
     <string name="cycle_entry_permission_needed">Para rexistrar datos do ciclo, OpenVitals necesita permiso de escritura en Health Connect. A app non almacenará estes datos; as entradas gárdanse en Health Connect.</string>
     <string name="cycle_entry_section_flow">Fluxo do período</string>

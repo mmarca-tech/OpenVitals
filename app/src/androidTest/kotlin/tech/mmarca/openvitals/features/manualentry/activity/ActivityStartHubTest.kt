@@ -7,6 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import java.time.Instant
@@ -20,12 +22,7 @@ import tech.mmarca.openvitals.domain.model.PlannedExerciseData
 import tech.mmarca.openvitals.testing.string
 import tech.mmarca.openvitals.ui.theme.OpenVitalsTheme
 
-/**
- * The start hub replaced the source chooser and both plan pickers. It has to
- * keep the three ways in (plans, record, log by hand) without letting a file
- * import sneak back in as a fourth, and a plan row has to be one tap from the
- * prefilled form.
- */
+/** The start hub keeps the three ways in (plans, record, log by hand), and a plan row is one tap from the form. */
 class ActivityStartHubTest {
 
     @get:Rule
@@ -71,7 +68,8 @@ class ActivityStartHubTest {
             onRequestWritePermission = { grants++ },
         )
 
-        composeRule.onNodeWithText(string(R.string.action_grant)).performClick()
+        // The header's callout and the plans error both offer a grant; the header's comes first.
+        composeRule.onAllNodesWithText(string(R.string.action_grant_permission)).onFirst().performClick()
         assertEquals(1, grants)
     }
 

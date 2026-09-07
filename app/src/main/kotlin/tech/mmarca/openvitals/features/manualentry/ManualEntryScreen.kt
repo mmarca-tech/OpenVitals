@@ -1,6 +1,5 @@
 package tech.mmarca.openvitals.features.manualentry
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -11,7 +10,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tech.mmarca.openvitals.domain.model.BodyMeasurementType
 import tech.mmarca.openvitals.domain.model.VitalsMeasurementType
@@ -30,41 +28,7 @@ fun ManualEntryScreen(
     onOpenWorkoutPlans: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val requestWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onHydrationWritePermissionResult()
-    }
-    val requestBodyWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onBodyWritePermissionResult()
-    }
-    val requestNutritionWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onNutritionWritePermissionResult()
-    }
-    val requestActivityWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onActivityWritePermissionResult()
-    }
-    val requestVitalsWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onVitalsWritePermissionResult()
-    }
-    val requestMindfulnessWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onMindfulnessWritePermissionResult()
-    }
-    val requestCycleWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        viewModel.onCycleWritePermissionResult()
-    }
+    // A tile only opens its entry screen, so the one dialog Health Connect allows is not spent here.
     val specs = manualEntryWidgetSpecs(
         isEditingWidgets = state.isEditingWidgets,
         onOpenHydrationEntry = viewModel::onHydrationWidgetTapped,
@@ -74,8 +38,7 @@ fun ManualEntryScreen(
         onOpenBodyMeasurementEntry = viewModel::onBodyMeasurementWidgetTapped,
         onOpenVitalsMeasurementEntry = viewModel::onVitalsMeasurementWidgetTapped,
         onOpenCycleEntry = viewModel::onCycleWidgetTapped,
-        // The plans screen carries its own Health Connect gate, so the tile
-        // navigates directly instead of going through a permission check here.
+        // The plans screen carries its own gate, so the tile navigates directly.
         onOpenWorkoutPlans = onOpenWorkoutPlans,
     )
     val specsById = specs.associateBy { it.id }
@@ -150,88 +113,5 @@ fun ManualEntryScreen(
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
-    }
-
-    if (state.showHydrationWritePermissionPrompt) {
-        HydrationWritePermissionPrompt(
-            onDismiss = viewModel::dismissHydrationWritePermissionPrompt,
-            onOpenEntry = viewModel::continueHydrationEntryFromWritePermissionPrompt,
-            onGrant = {
-                viewModel.grantHydrationWritePermissionFromPrompt()
-                requestWritePermissions.launch(state.hydrationWritePermissions)
-            },
-        )
-    }
-
-    if (state.showActivityWritePermissionPrompt) {
-        ActivityWritePermissionPrompt(
-            onDismiss = viewModel::dismissActivityWritePermissionPrompt,
-            onOpenEntry = viewModel::continueActivityEntryFromWritePermissionPrompt,
-            onGrant = {
-                viewModel.grantActivityWritePermissionFromPrompt()
-                requestActivityWritePermissions.launch(state.activityWritePermissions)
-            },
-        )
-    }
-
-    if (state.showNutritionWritePermissionPrompt) {
-        NutritionWritePermissionPrompt(
-            onDismiss = viewModel::dismissNutritionWritePermissionPrompt,
-            onOpenEntry = viewModel::continueCarbsEntryFromWritePermissionPrompt,
-            onGrant = {
-                viewModel.grantNutritionWritePermissionFromPrompt()
-                requestNutritionWritePermissions.launch(state.nutritionWritePermissions)
-            },
-        )
-    }
-
-    if (state.showBodyWritePermissionPrompt) {
-        state.bodyWritePermissionPromptType?.let { type ->
-            BodyWritePermissionPrompt(
-                type = type,
-                onDismiss = viewModel::dismissBodyWritePermissionPrompt,
-                onOpenEntry = viewModel::continueBodyEntryFromWritePermissionPrompt,
-                onGrant = {
-                    viewModel.grantBodyWritePermissionFromPrompt()
-                    requestBodyWritePermissions.launch(state.bodyWritePermissions)
-                },
-            )
-        }
-    }
-
-    if (state.showVitalsWritePermissionPrompt) {
-        state.vitalsWritePermissionPromptType?.let { type ->
-            VitalsWritePermissionPrompt(
-                type = type,
-                onDismiss = viewModel::dismissVitalsWritePermissionPrompt,
-                onOpenEntry = viewModel::continueVitalsEntryFromWritePermissionPrompt,
-                onGrant = {
-                    viewModel.grantVitalsWritePermissionFromPrompt()
-                    requestVitalsWritePermissions.launch(state.vitalsWritePermissions)
-                },
-            )
-        }
-    }
-
-    if (state.showMindfulnessWritePermissionPrompt) {
-        MindfulnessWritePermissionPrompt(
-            onDismiss = viewModel::dismissMindfulnessWritePermissionPrompt,
-            onOpenEntry = viewModel::continueMindfulnessEntryFromWritePermissionPrompt,
-            onGrant = {
-                viewModel.grantMindfulnessWritePermissionFromPrompt()
-                requestMindfulnessWritePermissions.launch(state.mindfulnessWritePermissions)
-            },
-        )
-    }
-
-    if (state.showCycleWritePermissionPrompt) {
-        CycleWritePermissionPrompt(
-            onDismiss = viewModel::dismissCycleWritePermissionPrompt,
-            onOpenEntry = viewModel::continueCycleEntryFromWritePermissionPrompt,
-            onGrant = {
-                viewModel.grantCycleWritePermissionFromPrompt()
-                requestCycleWritePermissions.launch(state.cycleWritePermissions)
-            },
-        )
     }
 }

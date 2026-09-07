@@ -17,6 +17,7 @@ internal data class SettingsScreenActions(
     val onImportRouteFile: () -> Unit,
     val onImportRouteFiles: () -> Unit,
     val onImportFitFile: () -> Unit,
+    val onImportFitFolder: () -> Unit,
     val onOpenCsvImport: () -> Unit,
     val onOpenReportExport: () -> Unit,
     val onImportOfflineMap: () -> Unit,
@@ -29,4 +30,5 @@ internal data class SettingsScreenActions(
     val onGrantPermissions: (Set<String>) -> Unit,
     val onSaveBodyEnergyCalibration: (BodyEnergyCalibration, Int?) -> Unit,
     val onResetBodyEnergyPersonalTuning: () -> Unit,
+    val onResetDerivedMetrics: () -> Unit,
 )

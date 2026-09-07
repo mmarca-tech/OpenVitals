@@ -14,12 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tech.mmarca.openvitals.devices.FakeSharedPreferences
 
-/**
- * Port of the Flutter `body_energy_baseline_cache_store_test.dart` suite. The
- * Kotlin store is SharedPreferences-backed, so the Dart
- * `SharedPreferences.setMockInitialValues` seeding maps onto a seeded
- * [FakeSharedPreferences].
- */
+/** The store is SharedPreferences-backed, so the Dart seeding maps onto a seeded [FakeSharedPreferences]. */
 class BodyEnergyBaselineCacheStoreTest {
 
     private val date = LocalDate.of(2026, 7, 6)
@@ -90,9 +85,7 @@ class BodyEnergyBaselineCacheStoreTest {
     }
 
     @Test fun `purgeLegacyTimelineEntries removes the retired timeline keys and nothing else`() {
-        // The timeline half wrote `<date>|<signatureHash>`; the baselines it
-        // shared the file with carry a `baseline|` prefix, and neither may be
-        // confused with an ordinary preference.
+        // The timeline half wrote `<date>|<signatureHash>`; the baselines carry a `baseline|` prefix.
         val (store, prefs) = newStore(
             mapOf(
                 "2026-07-06|-1234567" to "encoded timeline",
@@ -127,5 +120,32 @@ class BodyEnergyBaselineCacheStoreTest {
         store.purgeLegacyTimelineEntries()
 
         assertEquals("written after the purge", prefs.getString("2026-07-07|-2", null))
+    }
+
+    @Test fun `clearBaselines drops every baseline and keeps the rest of the file`() {
+        val (store, prefs) = newStore(
+            mapOf(
+                "baseline|2026-07-06|-1234567" to "54||42.5||1699999000000",
+                "baseline|2026-07-05|889900" to "55||41.0||1699998000000",
+                "bodyEnergyPrefsTimelinePurged.v1" to true,
+                "unit_system" to "metric",
+            ),
+        )
+
+        store.clearBaselines()
+
+        val keys = prefs.all.keys
+        assertFalse(keys.any { it.startsWith("baseline|") })
+        assertTrue(prefs.getBoolean("bodyEnergyPrefsTimelinePurged.v1", false))
+        assertEquals("metric", prefs.getString("unit_system", null))
+        assertNull(store.loadBaseline(LocalDate.of(2026, 7, 6), "perm|calib|v2"))
+    }
+
+    @Test fun `clearBaselines on an empty file is a no-op`() {
+        val (store, prefs) = newStore(mapOf("unit_system" to "metric"))
+
+        store.clearBaselines()
+
+        assertEquals(setOf("unit_system"), prefs.all.keys)
     }
 }

@@ -9,7 +9,6 @@ import tech.mmarca.openvitals.features.manualentry.hydration.*
 import tech.mmarca.openvitals.features.manualentry.mindfulness.*
 import tech.mmarca.openvitals.features.manualentry.vitals.*
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -38,13 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import tech.mmarca.openvitals.R
+import tech.mmarca.openvitals.features.manualentry.rememberManualEntryWritePermissionRequester
+import tech.mmarca.openvitals.features.manualentry.ManualEntryWritePermissionCallout
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.core.presentation.resolve
 import tech.mmarca.openvitals.domain.model.CycleEntryKind
@@ -53,7 +53,6 @@ import tech.mmarca.openvitals.domain.preferences.UnitSystem
 import tech.mmarca.openvitals.ui.components.HealthDatePickerDialog
 import tech.mmarca.openvitals.ui.components.OpenVitalsButton
 import tech.mmarca.openvitals.ui.components.OpenVitalsCard
-import tech.mmarca.openvitals.ui.components.OpenVitalsOutlinedButton
 import tech.mmarca.openvitals.ui.theme.CycleColor
 
 @Composable
@@ -65,9 +64,7 @@ fun CycleEntryScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val unitSystem = unitFormatter.unitSystem(UnitQuantity.TEMPERATURE)
 
-    val requestWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
+    val requestWritePermissions = rememberManualEntryWritePermissionRequester {
         viewModel.refreshPermission()
     }
 
@@ -160,22 +157,18 @@ internal fun CycleEntryCard(
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        text = stringResource(
-                            if (anyGranted) {
-                                R.string.cycle_entry_subtitle
-                            } else {
-                                R.string.cycle_entry_permission_needed
-                            }
-                        ),
+                        text = stringResource(R.string.cycle_entry_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (!anyGranted && !state.isCheckingPermission) {
-                    OpenVitalsOutlinedButton(onClick = onRequestWritePermission) {
-                        Text(stringResource(R.string.action_grant))
-                    }
-                }
+            }
+
+            if (!anyGranted && !state.isCheckingPermission) {
+                ManualEntryWritePermissionCallout(
+                    body = stringResource(R.string.cycle_entry_permission_needed),
+                    onGrant = onRequestWritePermission,
+                )
             }
 
             if (state.isEditMode) {

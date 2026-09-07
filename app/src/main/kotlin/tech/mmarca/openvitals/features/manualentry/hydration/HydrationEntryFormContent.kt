@@ -100,6 +100,7 @@ import tech.mmarca.openvitals.ui.theme.animationDuration
 import tech.mmarca.openvitals.ui.theme.Motion
 import tech.mmarca.openvitals.ui.theme.loopingMotionAllowed
 import tech.mmarca.openvitals.R
+import tech.mmarca.openvitals.features.manualentry.ManualEntryWritePermissionCallout
 import tech.mmarca.openvitals.core.presentation.ScreenError
 import tech.mmarca.openvitals.core.presentation.UnitFormatter
 import tech.mmarca.openvitals.core.presentation.resolve
@@ -296,26 +297,24 @@ internal fun HydrationTrackerCard(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = stringResource(
-                            if (state.canWriteHydration) {
-                                if (state.canWriteNutrition) {
-                                    R.string.hydration_tracker_subtitle
-                                } else {
-                                    R.string.hydration_nutrition_permission_needed
-                                }
-                            } else {
-                                R.string.hydration_tracker_permission_needed
-                            }
-                        ),
+                        text = stringResource(R.string.hydration_tracker_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if ((!state.canWriteHydration || !state.canWriteNutrition) && !state.isCheckingPermission) {
-                    OpenVitalsOutlinedButton(onClick = onRequestWritePermission) {
-                        Text(stringResource(R.string.action_grant))
-                    }
-                }
+            }
+
+            if ((!state.canWriteHydration || !state.canWriteNutrition) && !state.isCheckingPermission) {
+                ManualEntryWritePermissionCallout(
+                    body = stringResource(
+                        if (state.canWriteHydration) {
+                            R.string.hydration_nutrition_permission_needed
+                        } else {
+                            R.string.hydration_tracker_permission_needed
+                        }
+                    ),
+                    onGrant = onRequestWritePermission,
+                )
             }
 
             HydrationTodayCounter(
@@ -1503,8 +1502,7 @@ private fun HydrationSavedDrinkEntryDialog(
     onDismiss: () -> Unit,
     onSave: (Double, Instant, Int?) -> Unit,
 ) {
-    // The preset amount arrives focused and fully selected, so the first
-    // keystroke replaces it rather than appending to it.
+    // The preset arrives selected, so the first keystroke replaces it.
     var amountValue by remember(drink.id, unitFormatter.unitSystem(UnitQuantity.HYDRATION)) {
         val text = hydrationInputAmountText(drink.volumeMilliliters, unitFormatter)
         mutableStateOf(TextFieldValue(text, selection = TextRange(0, text.length)))
@@ -1515,8 +1513,7 @@ private fun HydrationSavedDrinkEntryDialog(
     }
     val amountText = amountValue.text
     var entryTime by remember(drink.id) { mutableStateOf(Instant.now()) }
-    // Only caffeine is modeled over time, so only caffeinated drinks ask how long they
-    // took — for everything else the duration would be stored and never read.
+    // Only caffeine is modeled over time, so only caffeinated drinks ask for a duration.
     val asksDuration = drink.nutrientValues[NutritionNutrient.CAFFEINE]?.let { it > 0.0 } == true
     var consumptionDurationMinutes by remember(drink.id) { mutableStateOf<Int?>(null) }
     val amountMilliliters = hydrationInputMilliliters(amountText, unitFormatter.unitSystem(UnitQuantity.HYDRATION))
@@ -1598,11 +1595,7 @@ private fun HydrationSavedDrinkEntryDialog(
     )
 }
 
-/**
- * "Drank over" choices for a caffeinated drink. The timestamp is when the drink was
- * started; the duration spreads its caffeine evenly up to the end, so a Monster nursed
- * over two hours ramps up gently instead of spiking at the first sip.
- */
+/** "Drank over" choices. The duration spreads the caffeine evenly from the start time. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HydrationConsumptionDurationSelector(
@@ -1692,9 +1685,7 @@ internal fun HydrationCustomDrinkDialog(
     var nutrientChooserOpen by remember { mutableStateOf(false) }
     val amountMilliliters = hydrationInputMilliliters(amountText, unitFormatter.unitSystem(UnitQuantity.HYDRATION))
     val isAmountValid = amountMilliliters?.let(::isValidHydrationContainerMilliliters) == true
-    // A row that was added but left blank is simply skipped on save — the user
-    // should not have to delete it before Save works. Only a row with text that
-    // fails to parse blocks the form.
+    // A blank row is skipped on save; only unparsable text blocks the form.
     val filledNutrientRows = nutrientRows.filter { it.amountText.isNotBlank() }
     val nutrientValues = filledNutrientRows.mapNotNull { row ->
         val value = row.amountText.replace(',', '.').toDoubleOrNull()

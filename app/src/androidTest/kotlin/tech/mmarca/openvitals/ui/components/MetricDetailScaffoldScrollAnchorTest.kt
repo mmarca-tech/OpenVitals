@@ -22,21 +22,10 @@ import tech.mmarca.openvitals.domain.preferences.MetricDetailSectionId
 import tech.mmarca.openvitals.ui.theme.OpenVitalsTheme
 
 /**
- * Deleting an entry reloads the period, and a reload raises the "syncing"
- * banner — an item that appears at the TOP of the list, above everything the
- * reader has scrolled past, and vanishes again when the load lands.
- *
- * That it costs nothing is not obvious, and it is not free: it holds because
- * [orderedMetricDetailSections] gives every section `item(key = sectionId)`, so
- * the list anchors its scroll position to the section the reader is inside
- * rather than to its index. Drop those keys and the page would lurch down and
- * back on every delete, on every metric screen — a regression with no failing
- * assertion anywhere near the code that caused it.
- *
- * So these tests pin the property rather than fix a fault. The item count is
- * asserted alongside the position for a reason: the banner sits off-screen and
- * is never composed, so a scaffold that had quietly stopped inserting anything
- * would hold the position assertions perfectly while testing nothing.
+ * A delete's reload raises the "syncing" banner at the top of the list. The scroll position
+ * holds because [orderedMetricDetailSections] keys every section item, so the list anchors
+ * to the section the reader is inside. The item count is asserted alongside, because the
+ * banner is never composed and a scaffold that inserted nothing would pass the position check.
  */
 class MetricDetailScaffoldScrollAnchorTest {
 
@@ -44,7 +33,7 @@ class MetricDetailScaffoldScrollAnchorTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun theSyncBannerAppearing_doesNotMoveWhatTheReaderIsLookingAt() {
+    fun aReloadRaising_isLoading_insertsNothingAnywhere() {
         var isLoading by mutableStateOf(false)
         val listState = MetricDetailSectionListState(
             androidx.compose.foundation.lazy.LazyListState(),
@@ -94,29 +83,27 @@ class MetricDetailScaffoldScrollAnchorTest {
         val before = composeRule.onNodeWithText(ANCHOR_ROW).fetchSemanticsNode().boundsInRoot.top
         val itemsBefore = composeRule.itemCount(listState)
 
-        // The delete's reload raises the banner.
+        // The delete's reload flips the load flag.
         isLoading = true
         composeRule.waitForIdle()
 
-        // The banner sits above the viewport, so it is never composed and
-        // cannot be found by text — but it IS in the list. Without this the
-        // assertion below would hold for a scaffold that inserted nothing.
+        // The banner is above the viewport, never composed, but it is in the list.
         assertEquals(
-            "the sync banner was not added to the list, so nothing was tested",
-            itemsBefore + 1,
+            "the reload inserted an item into the list; the transient banner was removed",
+            itemsBefore,
             composeRule.itemCount(listState),
         )
         val after = composeRule.onNodeWithText(ANCHOR_ROW).fetchSemanticsNode().boundsInRoot.top
 
         assertTrue(
             "the row the reader was looking at moved by ${abs(after - before)}px when the " +
-                "sync banner appeared; it must stay put",
+                "reload started; it must stay put",
             abs(after - before) < TOLERANCE_PX,
         )
     }
 
     @Test
-    fun theSyncBannerLeaving_doesNotMoveItBack() {
+    fun aReloadLanding_removesNothingAndMovesNothingBack() {
         var isLoading by mutableStateOf(true)
         val listState = MetricDetailSectionListState(
             androidx.compose.foundation.lazy.LazyListState(),
@@ -168,16 +155,79 @@ class MetricDetailScaffoldScrollAnchorTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            "the sync banner was not removed from the list, so nothing was tested",
-            itemsBefore - 1,
+            "the load landing removed an item from the list; the transient banner was removed",
+            itemsBefore,
             composeRule.itemCount(listState),
         )
         val after = composeRule.onNodeWithText(ANCHOR_ROW).fetchSemanticsNode().boundsInRoot.top
 
         assertTrue(
-            "the row moved by ${abs(after - before)}px when the sync banner left",
+            "the row moved by ${abs(after - before)}px when the reload finished",
             abs(after - before) < TOLERANCE_PX,
         )
+    }
+
+    @Test
+    fun thePersistentSyncPausedBanner_entersTheListExactlyOnce() {
+        var syncPaused by mutableStateOf(false)
+        val listState = MetricDetailSectionListState(
+            androidx.compose.foundation.lazy.LazyListState(),
+        )
+
+        composeRule.setContent {
+            OpenVitalsTheme {
+                MetricDetailScaffold(
+                    isLoading = false,
+                    syncPaused = syncPaused,
+                    selectedRange = TimeRange.YEAR,
+                    selectedDate = LocalDate.of(2026, 5, 10),
+                    onRefresh = {},
+                    onSelectRange = {},
+                    onPreviousPeriod = {},
+                    onNextPeriod = {},
+                    onSelectDate = {},
+                    sectionListState = listState,
+                ) {
+                    orderedMetricDetailSections(
+                        listState = listState,
+                        order = ORDER,
+                        isEditingSections = false,
+                        onMoveSectionToTarget = { _, _ -> },
+                        onMoveSection = { _, _ -> },
+                    ) {
+                        section(MetricDetailSectionId.PERIOD_CHART) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text("Chart", Modifier.height(SECTION_HEIGHT))
+                            }
+                        }
+                        section(MetricDetailSectionId.ENTRIES) {
+                            Column(Modifier.fillMaxWidth()) {
+                                repeat(ROWS) { row ->
+                                    Text("Reading $row", Modifier.height(ROW_HEIGHT))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // The paused banner is persistent: when sync pauses, exactly one item
+        // enters the list, and its text is visible at the top — unlike the old
+        // transient banner, it stays.
+        val itemsBefore = composeRule.itemCount(listState)
+        syncPaused = true
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "the paused banner did not land as exactly one list item",
+            itemsBefore + 1,
+            composeRule.itemCount(listState),
+        )
+        val pausedText = androidx.test.core.app.ApplicationProvider
+            .getApplicationContext<android.content.Context>()
+            .getString(tech.mmarca.openvitals.R.string.health_connect_sync_paused)
+        composeRule.onNodeWithText(pausedText).assertExists()
     }
 
     private companion object {

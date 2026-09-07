@@ -292,14 +292,14 @@ internal fun CaffeinePreferencesCard(
 
 /** The leading glyph on a settings card. A glyph's size is not a spacing. */
 private val settingsCardIconSize = 20.dp
+/** Optical nudge that aligns a 20dp card icon with the first line of its title. */
+private val settingsCardIconTopOffset = 2.dp
 
-/**
- * Which days a nutrition average divides by.
- *
- * Phrased as the ON state people asked for — "average logged days only" —
- * rather than as its inverse, because leaving out the blank days is the
- * default and the thing most eaters mean.
- */
+/** The leading icon inside a full-width card button, and its gap to the label. */
+private val settingsButtonIconSize = 18.dp
+private val settingsButtonIconGap = 6.dp
+
+/** Which days a nutrition average divides by. Phrased as the ON state people asked for. */
 @Composable
 internal fun NutritionAverageBasisCard(
     loggedDaysOnly: Boolean,
@@ -575,9 +575,7 @@ internal fun ChartAggregationCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            // Chips, not a segmented row: four options with labels this long do
-            // not fit one line on a phone, and a FlowRow wraps where a segmented
-            // row truncates.
+            // Chips, not a segmented row: four long labels do not fit one line.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -736,10 +734,8 @@ internal fun ActivityRecordingPreferencesCard(
     coMapsPermissionName: () -> String? = { null },
     onCoMapsPermissionResult: () -> Unit = {},
 ) {
-    // CoMaps' own runtime permission, named after the installed flavour and so
-    // resolved at tap time. Requested the moment the integration is switched
-    // on, because a toggle that silently needs a second grant elsewhere reads
-    // as a toggle that does not work.
+    // CoMaps' own permission, named after the installed flavour. Requested when
+    // the integration is switched on.
     val coMapsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { onCoMapsPermissionResult() }
@@ -1432,8 +1428,7 @@ internal fun HydrationGoalCard(
     onGoalChange: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Stored litres always step by 0.25 L; only the label follows the unit
-    // system, so a user on imperial still lands on the same stored values.
+    // Stored litres step by 0.25 L; only the label follows the unit system.
     val unitFormatter = remember(unitSystem) { UnitFormatter({ unitSystem }) }
     SettingsStepperCard(
         title = stringResource(R.string.settings_hydration_goal_title),
@@ -1454,13 +1449,10 @@ internal fun ActivitySplitDistanceCard(
     onSelect: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The presets are shown in the user's units, so the labels need the same
-    // formatter the splits-card header uses — the two must never disagree
-    // about what "every 1 km" means.
+    // The same formatter the splits-card header uses.
     val unitFormatter = remember(unitSystem) { UnitFormatter({ unitSystem }) }
     val presets = ActivitySplitDistance.presetsFor(unitSystem)
-    // The nearest preset, not an exact match: a stored 1000 m has no exact
-    // imperial preset, and highlighting nothing would read as "unset".
+    // The nearest preset: a stored 1000 m has no exact imperial preset.
     val selectedPreset = ActivitySplitDistance.nearestPreset(selectedMeters, presets)
 
     OpenVitalsCard(
@@ -1682,8 +1674,7 @@ private fun UnitQuantity.labelRes(): Int = when (this) {
     UnitQuantity.BLOOD_GLUCOSE -> R.string.settings_unit_quantity_blood_glucose
 }
 
-// The unit symbols UnitFormatter itself renders, so the picker previews
-// exactly what the screens will show.
+// The unit symbols UnitFormatter renders, so the picker previews what the screens show.
 private fun UnitQuantity.unitLabel(system: UnitSystem): String {
     val imperial = system == UnitSystem.IMPERIAL
     return when (this) {
@@ -2144,9 +2135,9 @@ internal fun RouteImportCard(
                 )
             }
 
-            if (isImporting) {
+            if (isImporting && progress != null) {
                 AppleHealthImportProgressBar(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
-                val routeProgress = progress ?: RouteBulkImportProgress(totalFiles = 0)
+                val routeProgress = progress
                 Text(
                     text = stringResource(
                         R.string.settings_route_import_progress,
@@ -2214,27 +2205,47 @@ internal fun RouteImportCard(
     }
 }
 
+/**
+ * The FIT importer: one file for review, or a whole folder straight through
+ * the bulk importer. The folder is a SAF tree, so no storage permission.
+ */
 @Composable
 internal fun FitImportCard(
+    availability: HealthConnectAvailability,
+    importPermissions: Set<String>,
+    grantedPermissions: Set<String>,
+    isScanning: Boolean,
+    folderHadNoFitFiles: Boolean,
+    truncatedAt: Int?,
+    scanError: String?,
+    isImporting: Boolean,
+    progress: RouteBulkImportProgress?,
+    result: RouteBulkImportResult?,
+    error: String?,
+    onGrantPermissions: () -> Unit,
     onImport: () -> Unit,
+    onImportFolder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val missingPermissions = importPermissions - grantedPermissions
+    val healthConnectAvailable = availability == HealthConnectAvailability.AVAILABLE
+    val isBusy = isScanning || isImporting
     OpenVitalsCard(
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.Top) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.DirectionsRun,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .padding(top = 2.dp)
-                        .size(20.dp),
+                        .padding(top = settingsCardIconTopOffset)
+                        .size(settingsCardIconSize),
                 )
                 Column(
                     modifier = Modifier
-                        .padding(start = 12.dp)
+                        .padding(start = Spacing.md)
                         .weight(1f),
                 ) {
                     Text(
@@ -2245,24 +2256,126 @@ internal fun FitImportCard(
                         text = stringResource(R.string.settings_fit_import_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = Spacing.xs),
                     )
+                }
+            }
+
+            result?.let { importResult ->
+                Text(
+                    text = stringResource(
+                        R.string.settings_route_import_result,
+                        importResult.importedFiles,
+                        importResult.failedFiles,
+                        importResult.totalFiles,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+            }
+
+            // Said out loud: a silently skipped tail reads like a finished import.
+            truncatedAt?.let { limit ->
+                Text(
+                    text = stringResource(R.string.settings_fit_import_folder_truncated, limit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+
+            // Not an error: the folder had no FIT files.
+            if (folderHadNoFitFiles) {
+                Text(
+                    text = stringResource(R.string.settings_fit_import_folder_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+
+            for (message in listOfNotNull(scanError, error)) {
+                if (message.isBlank()) continue
+                Text(
+                    text = stringResource(R.string.settings_fit_import_error, message),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+
+            if (isBusy) {
+                AppleHealthImportProgressBar(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md))
+                val importProgress = progress ?: RouteBulkImportProgress(totalFiles = 0)
+                Text(
+                    text = if (isImporting) {
+                        stringResource(
+                            R.string.settings_route_import_progress,
+                            importProgress.currentFileIndex,
+                            importProgress.totalFiles,
+                            importProgress.importedFiles,
+                            importProgress.failedFiles,
+                        )
+                    } else {
+                        // A button that looks dead gets pressed again.
+                        stringResource(R.string.settings_fit_import_folder_scanning)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+
+            // The folder import writes straight to Health Connect, so it needs the write permissions.
+            if (missingPermissions.isNotEmpty()) {
+                OpenVitalsTonalButton(
+                    onClick = onGrantPermissions,
+                    enabled = healthConnectAvailable && !isBusy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = Spacing.md),
+                ) {
+                    Text(stringResource(R.string.settings_fit_import_folder_grant))
                 }
             }
 
             OpenVitalsOutlinedButton(
                 onClick = onImport,
+                enabled = !isBusy,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp),
+                    .padding(top = Spacing.md),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Description,
+                    contentDescription = null,
+                    modifier = Modifier.size(settingsButtonIconSize),
+                )
+                Spacer(Modifier.widthIn(min = settingsButtonIconGap))
+                Text(stringResource(R.string.settings_fit_import_action))
+            }
+
+            OpenVitalsOutlinedButton(
+                onClick = onImportFolder,
+                enabled = healthConnectAvailable && missingPermissions.isEmpty() && !isBusy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.sm),
             ) {
                 Icon(
                     imageVector = Icons.Outlined.FolderOpen,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(settingsButtonIconSize),
                 )
-                Spacer(Modifier.widthIn(min = 6.dp))
-                Text(stringResource(R.string.settings_fit_import_action))
+                Spacer(Modifier.widthIn(min = settingsButtonIconGap))
+                Text(
+                    if (isImporting) {
+                        stringResource(R.string.settings_route_importing)
+                    } else {
+                        stringResource(R.string.settings_fit_import_folder_action)
+                    }
+                )
             }
         }
     }

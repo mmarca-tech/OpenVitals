@@ -13,7 +13,6 @@ import tech.mmarca.openvitals.features.manualentry.vitals.*
 
 
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,11 +57,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tech.mmarca.openvitals.R
+import tech.mmarca.openvitals.features.manualentry.rememberManualEntryWritePermissionRequester
+import tech.mmarca.openvitals.features.manualentry.ManualEntryWritePermissionCallout
 import tech.mmarca.openvitals.core.presentation.ScreenError
 import tech.mmarca.openvitals.core.presentation.resolve
 import tech.mmarca.openvitals.domain.preferences.UnitQuantity
@@ -73,7 +73,6 @@ import tech.mmarca.openvitals.domain.model.BpRecordValues
 import tech.mmarca.openvitals.domain.model.VitalsMeasurementType
 import tech.mmarca.openvitals.ui.components.OpenVitalsButton
 import tech.mmarca.openvitals.ui.components.OptionDropdown
-import tech.mmarca.openvitals.ui.components.OpenVitalsOutlinedButton
 import tech.mmarca.openvitals.ui.theme.VitalsColor
 
 private const val FahrenheitFreezingPoint = 32.0
@@ -90,9 +89,7 @@ fun VitalsMeasurementEntryScreen(
     onEntrySaved: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val requestWritePermissions = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
+    val requestWritePermissions = rememberManualEntryWritePermissionRequester {
         viewModel.refreshPermission()
     }
 
@@ -188,23 +185,18 @@ private fun VitalsMeasurementEntryCard(
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        text = stringResource(
-                            if (state.canWrite) {
-                                R.string.vitals_entry_subtitle
-                            } else {
-                                R.string.vitals_entry_permission_needed
-                            },
-                            title,
-                        ),
+                        text = stringResource(R.string.vitals_entry_subtitle, title),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (!state.canWrite && !state.isCheckingPermission) {
-                    OpenVitalsOutlinedButton(onClick = onRequestWritePermission) {
-                        Text(stringResource(R.string.action_grant))
-                    }
-                }
+            }
+
+            if (!state.canWrite && !state.isCheckingPermission) {
+                ManualEntryWritePermissionCallout(
+                    body = stringResource(R.string.vitals_entry_permission_needed, title),
+                    onGrant = onRequestWritePermission,
+                )
             }
 
             if (state.type == VitalsMeasurementType.BLOOD_PRESSURE) {
@@ -262,8 +254,7 @@ private fun VitalsMeasurementEntryCard(
                 )
             }
 
-            // A measurement is not always logged the moment it was taken — the
-            // date and clock are offered on a NEW entry too, defaulting to now.
+            // A measurement is not always logged when taken, so a new entry offers the time too.
             ManualEntryTimestampFields(
                 timestamp = state.editTime,
                 enabled = !state.isSavingEntry,
@@ -400,11 +391,7 @@ internal fun BpMealContext.labelRes(): Int = when (this) {
     BpMealContext.AFTER_DINNER -> R.string.bp_context_after_dinner
 }
 
-/**
- * The standard home-measurement protocol (AHA/ESH), collapsed by default so
- * the form stays a form — expanded it reads as the checklist a doctor hands
- * out with the monitor.
- */
+/** The standard home-measurement protocol (AHA/ESH), collapsed by default. */
 @Composable
 private fun BpMeasurementGuide() {
     var expanded by remember { mutableStateOf(false) }
