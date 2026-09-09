@@ -42,10 +42,15 @@ android {
             versionNameSuffix = "-debug"
         }
 
+        // R8 on, the same way the phone app does it. The newer
+        // optimization.enable DSL needs an experimental AGP flag.
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
