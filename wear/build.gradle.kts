@@ -14,6 +14,11 @@ val wearBaseVersionName = "1.0.0"
 val wearVersionCodeOverride = providers.environmentVariable("OPENVITALS_WEAR_VERSION_CODE")
     .map { it.toInt() }
 val wearVersionNameOverride = providers.environmentVariable("OPENVITALS_WEAR_VERSION_NAME")
+// Same rule as the phone app: a nightly carries "-nightly" unless the
+// release pipeline supplied an explicit version name.
+val wearNightlyVersionNameSuffix = wearVersionNameOverride
+    .map { "" }
+    .orElse("-nightly")
 val wearVersionCode = wearVersionCodeOverride.orElse(wearBaseVersionCode).get()
 require(wearVersionCode in (wearVersionCodeBase + 1)..2_099_999_999) {
     "OPENVITALS_WEAR_VERSION_CODE $wearVersionCode is outside the watch range " +
@@ -51,6 +56,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+
+        create("nightly") {
+            initWith(getByName("release"))
+            versionNameSuffix = wearNightlyVersionNameSuffix.get()
+            matchingFallbacks += listOf("release")
         }
     }
 
