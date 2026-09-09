@@ -1,7 +1,14 @@
+# Phone app gate. A change that only touches wear/ skips this workflow;
+# wear-test.yml covers it. Shared build files (root Gradle, catalog, CI
+# scripts) run both.
 when:
   - event: pull_request
+    path:
+      exclude: ["wear/**"]
   - event: push
     branch: main
+    path:
+      exclude: ["wear/**"]
 
 # Pin to the dedicated CI runner, which mounts the persistent Gradle caches.
 # (Registered for the org during the Flutter era; the label carries over.)
